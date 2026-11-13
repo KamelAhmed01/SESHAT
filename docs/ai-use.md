@@ -24,3 +24,9 @@ AI tools help draft implementation, tests and documentation. **All route-model a
 - Task: Fix duplicate `pnpm` version specification in `.github/workflows/verify.yml`, remove phase steppers, numbered eyebrows, and internal milestone labels across UI, unit test descriptions, preview harness, and docs, and clean local feature branches back to `main`.
 - Concrete limits: Reverted concurrent unintegrated working-tree edits (`SiteContext.tsx`, `mission_context.py`, geologic/thermal overlays) back to `main`; source review gate remains `SOURCE_REVIEW_REQUIRED` (`coordinateFrameVerified: false`, `challengeResourceQualified: false`) pending human team signoff, and live Vercel deployment headers are unverified until pushed/deployed.
 - Verifiers: `tools/preview/build.py` + `tools/preview/test_preview.py`, `pnpm verify` (`docs/VERIFICATION_RELEASE.md`), `tools/checkpoint --run-tests` (`docs/CHECKPOINT_REPORT.md`).
+
+## Solo release check — 2026-11-14
+
+- Used AI assistance to compare the pushed build, local data cache, and operating plan. Removed assigned workstreams and recorded the tested judge flow, downloaded sources, and delivery gaps.
+- Evidence includes GitHub Actions run `43526772353`, `pnpm verify`, `pipeline.preflight`, local documentation link checks, and a manual browser rehearsal through the landing site return. Cached and hashed the full PDS dossier.
+- The cached geology, thermal inertia and MEDA products are pending integration. The browser rehearsal used a local server. Production access and organizer evidence remain open.

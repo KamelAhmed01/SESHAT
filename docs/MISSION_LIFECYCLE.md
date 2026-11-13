@@ -1,12 +1,12 @@
 # SESHAT final master execution plan
 
-**Edition 2.0 · 13 November 2026 · SESHAT Explorers**
+**Edition 2.1 · 14 November 2026 · SESHAT Explorers**
 
 **Challenge:** Interplanetary Survival Guide: Martian Map
 
 **Build baseline:** `main`
 
-This is the current team plan for the Cairo submission. The [event ledger](event-brief.md) records organizer evidence and the [release report](VERIFICATION_RELEASE.md) records software checks.
+This is the solo execution plan for the Cairo submission. The [event ledger](event-brief.md) records organizer evidence and the [release report](VERIFICATION_RELEASE.md) records software checks.
 
 **Local deadline:** Saturday, November 14 at **1:00 p.m. Cairo time**, as confirmed by the team. **Delivery target:** 12:15 p.m. Cairo time. Submit through the Cairo form and the global team Project tab. The global portal window is Saturday at 9:00 a.m. through Sunday at 11:59 p.m. local time. The team reports a Friday 9:00 a.m. build start. Written authorization and the local pitch slot still require organizer evidence. [Cairo FAQs](https://spaceappscairo.com/faqs) · [Global schedule](https://www.spaceappschallenge.org/2026/) · [Global terms](https://www.spaceappschallenge.org/legal/)
 
@@ -76,6 +76,18 @@ All five links were inspected on the [challenge Resources tab](https://www.space
 
 The original USGS DEM and the Mars Trek download have different file hashes. Raster inspection found identical CRS, affine, shape, NoData mask and values for all 2,413,152 cells. The USGS file retained by the acquisition pipeline is the same CTX terrain product. The app also directly consumes Mars Trek's orthomosaic. These are material uses of a listed resource. Final award eligibility remains an organizer decision. [USGS CTX DTM catalog](https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic) · [NASA Global Organizing Team guidance](https://github.com/nasa/spaceapps/discussions/1827)
 
+### Downloaded environmental and geologic context
+
+The following source files are cached in the local, ignored `data/raw` directory. The release at `d98faf4` uses CTX terrain, CTX imagery and rover evidence. The downloaded context below still needs integration and validation before any of it appears in the app or archive.
+
+| Download and local filename | Processing and use |
+| --- | --- |
+| [Jezero Thermal Inertia Map V1](https://zenodo.org/records/4931348) · [GeoTIFF](https://zenodo.org/api/records/4931348/files/Jezero_Thermal_Inertia_v1.tiff/content) · `Jezero_Thermal_Inertia_v1.tiff` | Map physical thermal inertia at its native 100 m resolution. A 20 m map overlay would be a display resampling. Retain NoData, units, and the Edwards and Buz credit. The layer describes surface thermal properties. |
+| [Stack et al. 2020 photogeologic map](https://doi.org/10.1007/s11214-020-00739-x) · [GIS supplement](https://static-content.springer.com/esm/art%3A10.1007%2Fs11214-020-00739-x/MediaObjects/11214_2020_739_MOESM3_ESM.zip) · `jezero-photogeology.zip` | Clip to western fan, reproject to the local Mars grid, and use unit labels as site context. Flag conflicting overlaps and uncovered cells as unknown. Record attribution and changes per the [publisher's license correction](https://link.springer.com/article/10.1007/s11214-025-01204-3). |
+| [NASA PDS Mars 2020 MEDA](https://pds-atmospheres.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/) · `meda/` | Use the PS pressure CSVs and matching labels for sols 490, 509 and 575. Keep the observation sol, valid record count and Pa units. Pressure is historical rover context. The downloaded TIRS records require independent quality review before display. |
+
+Use the downloads to produce a local static bundle with source hashes. The browser can then render the mission offline. The USGS SIM 3464 GIS archive remains available for regional background. A live ArcGIS query adds network dependence and the reviewed service lists a viewing-only constraint. The direct downloads cover the planned area without scraping.
+
 The CTX file is 1,596 × 1,512, equirectangular with a 3,396,190 m Mars sphere. The analysis crop is 220 × 220 in local Mars azimuthal equidistant coordinates, with 45,771 usable cells and 2,629 NoData cells. The matched optical layer covers the complete output grid. The original proposed crop at 18.448°N, 77.445°E put Swift Run on NoData and the other two sites out of bounds.
 
 | Sample-site anchor | Source-reported latitude and east longitude | Nominal travel round trip |
@@ -84,7 +96,7 @@ The CTX file is 1,596 × 1,512, equirectangular with a 3,396,190 m Mars sphere. 
 | Hazeltop · Wildcat Ridge | 18.45863707°, 77.40588851° | 33.19 min |
 | Shuyak · Cape Nukshak | 18.45068954°, 77.40143171° | 37.60 min |
 
-The points come from the Mars 2020 sample dossiers, chapters 11, 14 and 16. Hawksbill Gap is the broader region for Swift Run and Hazeltop. The UI labels the locations as source-reported pending independent review. The current bundle keeps the team's `SOURCE_REVIEW_REQUIRED` status. [PDS sample dossiers](https://pds-geosciences.wustl.edu/missions/mars2020/returned_sample_science.htm) · [NASA sample catalog](https://science.nasa.gov/mission/mars-2020-perseverance/mars-rock-samples/)
+The points come from the Mars 2020 sample dossiers, chapters 11, 14 and 16. Hawksbill Gap is the broader region for Swift Run and Hazeltop. The UI labels the locations as source-reported pending independent review. The current bundle keeps its `SOURCE_REVIEW_REQUIRED` status. The complete 232-page PDF is cached as `data/raw/mars2020-initial-reports-vol2-release2.pdf` with SHA-256 `7a9ed0e1ea15eb3ffa61c5c52082e42da0e884a2d1a11e92795f5265535c6469`. [PDS sample dossier PDF](https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf) · [NASA sample catalog](https://science.nasa.gov/mission/mars-2020-perseverance/mars-rock-samples/)
 
 ### Reproduce the terrain, imagery and reachability check
 
@@ -104,26 +116,32 @@ python -m pipeline.preflight --bundle data/review-jezero
 
 The orthomosaic download used SHA-256 `842b457afee7c2672022b66e3f60be836c6d52e99474015bfd9ced60099b8615`. The alternate Mars Trek DEM download used `46fb2e1e9f9c1fdd02939c2a96f3e173a8731bd146fbeb969b2060e0a3c8e97e`. The compiler's USGS source SHA and local projection are in [the runtime manifest](../public/data/manifest.json). NASA and USGS data and images retain their original credits and use terms. [NASA media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) · [USGS data reuse](https://www.usgs.gov/faqs/are-usgs-reportspublications-copyrighted)
 
-## 4. Verification and submission
+## 4. Release status and solo submission sequence
 
-The local release report records **27 Python and security checks, 37 engine tests, and 5 browser tests passing**. Lint, TypeScript, and the Next.js static export passed. The rehearsal completed with external network requests blocked. The branch includes the compiled terrain and aligned imagery, so the offline rehearsal can run from a copy of `out/` using a local HTTP server. [Release verification](VERIFICATION_RELEASE.md) · [Checkpoint](CHECKPOINT_REPORT.md)
+The local release report records **27 Python and security checks, 37 engine tests, and 5 browser tests passing**. Lint, TypeScript, and the Next.js static export passed. The automated rehearsal completed with external network requests blocked. The browser rehearsal also finished at T+01:31 after deferring Hazeltop. [Release verification](VERIFICATION_RELEASE.md) · [GitHub CI for `d98faf4`](https://github.com/KamelAhmed01/SESHAT/actions/runs/43526772353)
 
-| Gate | Owner | Close it with |
-| --- | --- | --- |
-| Organizer start and eligibility evidence | Shams / Kamel | Archive the written Cairo start time, its applicable approval, the challenge Resources capture, and the local submission instructions. Record the pitch slot and format when confirmed. |
-| Independent science review | Amr / Malak | Review the planetary frame, datum, coverage, published sample coordinates, image captions and attribution. Record the reviewers and evidence. The current bundle remains `SOURCE_REVIEW_REQUIRED`. |
-| Hosted delivery and backup | Kamel / Ali, with Hams on QA | Check the public app, demo and project links from a signed-out browser. Run the selected scenario on the deployed build. Rehearse the local export on the backup laptop. |
-| English demo and project copy | Shams / Ali | Prepare one official demo link. The working default is a five-slide deck covering the mission question, data, baseline, event and revision, and return with limitations. Cairo's FAQ permits up to seven slides or a video up to 30 seconds with English subtitles. Include the exact data credits and AI disclosure. |
-| Submission | Kamel / Shams | Submit through both portals, verify that each submission is recorded, and save both receipts and timestamps. |
+1. **Preserve the working build.** Keep `out/` as an offline copy and rehearse §2. Keep the evidence status `SOURCE_REVIEW_REQUIRED` until the planetary frame, datum, coverage, coordinates, credits, and challenge-source evidence receive a documented review.
+2. **Deploy and check public access.** Sign in to Vercel, link the project that owns the submission URL, and deploy the tested build. As of the local check, the CLI is signed out and `seshat.kmls.dev` returns HTTP 525. Use the verified public Vercel production URL if the custom domain still fails. From a signed-out browser, repeat §2 and check the [response headers](SECURITY_AND_DEPLOYMENT.md).
+3. **Finish the English demo.** The five-slide outline is mission question, real data and assumptions, baseline, event and review, and return with archive. The Cairo FAQ accepts up to seven English slides or a video up to 30 seconds with English subtitles. Host the demo where judges can open it without signing in. [Cairo FAQs](https://spaceappscairo.com/faqs)
+4. **Prepare the Project tab.** Enter project name, short summary, public demo URL, public final project URL, full description, NASA data, other data, and AI use. Cite the shipped CTX and PDS assets from §3. Describe the AI-assisted engineering work and the deterministic runtime. [Global submission guide](https://www.spaceappschallenge.org/resources/project-submission-guide/)
+5. **Capture organizer and submission evidence.** Confirm the local form and pitch format. Archive the written Friday start authorization, challenge Resources capture, and the applicable organizer instructions. Submit through the Cairo form and the global team Project tab. Capture both receipts and timestamps.
 
-### Saturday handoff
+### Remaining product work
+
+| Work | Completion evidence |
+| --- | --- |
+| Align and display the downloaded science context | Local raster or vector derivatives with hashes and explicit unknown coverage, site-level source links, offline verification, and a clear historical-observation label. |
+| Integrate the opportunity map with execution | Same-position comparisons before and after a simulated field event, using remaining time, oxygen, energy, hazard exclusions, pace, and landing reserve. Report movement reachability separately from a science stop with activity time. |
+| Finish the workbench cleanup | Keep navigation tied to real actions. Remove the simulated operator profile and duplicate status displays. Check desktop, mobile, keyboard and map interactions on the static export. |
+
+### Saturday checkpoints
 
 These are internal targets in Cairo time. The team-confirmed local cutoff is **1:00 p.m.**.
 
 | By | Action |
 | --- | --- |
 | 9:00 a.m. | Confirm both submission routes and check the global Project tab. |
-| 10:30 a.m. | Finish the independent science review, public smoke test, and offline rehearsal. |
+| 10:30 a.m. | Finish the public smoke test and offline rehearsal. Record the science review evidence available at that time. |
 | 11:30 a.m. | Freeze the submission links, English demo, credits, and AI disclosure. |
 | 12:15 p.m. | Submit through both portals and capture receipts. |
 | 1:00 p.m. | Local submission closes. |

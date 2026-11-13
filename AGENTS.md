@@ -33,17 +33,16 @@ Build SESHAT, an evidence-traceable Martian surface-science planning research pr
 - Typecheck/lint/tests for touched code; output actual commands and results, not assumed green.
 - For GIS/data work: sample metadata, CRS, NoData counts, source identifiers, independent verification.
 - For UI: 1440x900 and 1280x720 screenshots plus keyboard/loading/error/UNKNOWN states.
-- Before merge: reviewer is Kamel/Ali for integration, Shams for evidence/claims where relevant, Hams for design, Amr for geometry, Malak for science.
+- Before merge, record the integration, evidence, design, geometry and science checks relevant to the change.
 - Commit small independently useful increments. Never let agents simultaneously rewrite the same file or break a shared schema without coordination.
 
 ## Branches and concurrency
 - `main`: demonstrable, reviewed builds; `dev`: actively integrating; feature branches are short-lived.
-- Code task ownership is flexible; domain responsibility and review accountability are not.
-- WhatsApp for blockers; GitHub Issues/PRs for durable evidence; short decisions in `docs/decisions.md`.
+- Record durable evidence in GitHub issues or PRs and short decisions in `docs/decisions.md`.
 - Assign AI parallel tasks by file boundary. A UI agent may not change raster contracts. An engine agent may not invent UI tokens.
 
 ## Authoritative references
-1. `docs/MISSION_LIFECYCLE.md` — current mission scope and submission plan. The v1.3 execution book records the H4 design.
+1. `docs/MISSION_LIFECYCLE.md` — current mission scope and submission plan.
 2. `docs/event-brief.md` — authorization and authoritative deadlines.
 3. `docs/sources.md` — qualified challenge-resource and actual build provenance.
 4. `docs/decisions.md` — current frozen decisions; any conflict requires human decision.
