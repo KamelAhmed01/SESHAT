@@ -30,3 +30,9 @@ AI tools help draft implementation, tests and documentation. **All route-model a
 - Used AI assistance to compare the pushed build, local data cache, and operating plan. Removed assigned workstreams and recorded the tested judge flow, downloaded sources, and delivery gaps.
 - Evidence includes GitHub Actions run `43526772353`, `pnpm verify`, `pipeline.preflight`, local documentation link checks, and a manual browser rehearsal through the landing site return. Cached and hashed the full PDS dossier.
 - The cached geology, thermal inertia and MEDA products are pending integration. The browser rehearsal used a local server. Production access and organizer evidence remain open.
+
+## Mission story audit and production baseline — 2026-11-14
+
+- Used AI assistance and separate design and browser-detector reviews to map the requested mission story onto the app. Compared public Mobbin map and incident patterns. Recorded operator decisions and acceptance checks in the mission plan.
+- Published the existing static export as a public Vercel baseline. Verified HTTP response headers and byte-matched the served HTML and manifest to the local export. A fresh Chromium session planned the mission, approved a revision, resumed after reload, returned, and inspected the downloaded JSON. All six event categories also reached revision review in local Chromium.
+- The review identifies planned changes to the phase layout, exploration, simulated detection and sourced environment context. The current public site is the earlier verified build.
