@@ -36,3 +36,8 @@ AI tools help draft implementation, tests and documentation. **All route-model a
 - Used AI assistance and separate design and browser-detector reviews to map the requested mission story onto the app. Compared public Mobbin map and incident patterns. Recorded operator decisions and acceptance checks in the mission plan.
 - Published the existing static export as a public Vercel baseline. Verified HTTP response headers and byte-matched the served HTML and manifest to the local export. A fresh Chromium session planned the mission, approved a revision, resumed after reload, returned, and inspected the downloaded JSON. All six event categories also reached revision review in local Chromium.
 - The review identifies planned changes to the phase layout, exploration, simulated detection and sourced environment context. The current public site is the earlier verified build.
+
+## Tiled Mars planning and handoff — 2026-11-14
+
+- Traced the single image and pan limit to the Leaflet viewer and checked the extent of the downloaded CTX raster against its Mars CRS. Used AI assistance to specify a geographic display, a coverage gate and an offline tile fallback while keeping the scientific grid independent.
+- Checked both official WMTS capability documents, adjacent image requests at levels 6 and 12, and the 42 Viking tiles at levels 0–2. Updated the [mission plan](MISSION_LIFECYCLE.md#6-seamless-mars-map) and prepared an execution prompt. The tiles and viewer changes are planned work.

@@ -7,7 +7,7 @@ Record approval for changes to shared contracts.
 | Product | SESHAT: plan a sourced Jezero traverse, review event-driven changes to the remaining mission, return to base and export the mission record |
 | Science honesty | Research prototype; no EVA-certified safety language, no fabricated data |
 | UI stack | Next.js App Router + React 19 + Tailwind v4 + Astryx core (primary library) |
-| Map | Leaflet `CRS.Simple` north-up bounded image/array viewer, separate Mars metric analysis CRS |
+| Map | Leaflet geographic Mars display with tiled basemaps and a clear route coverage boundary. Mars AEQD remains the metric analysis CRS. The synthetic viewer uses `CRS.Simple`. [Map contract](MISSION_LIFECYCLE.md#6-seamless-mars-map) |
 | Renderer | Evidence-backed map, layers, targets, scientific state and route profiles; no arbitrary image/data alignment |
 | Initial DEM | Investigate USGS Jezero CTX 20 m DTM; select alternative only with provenance and G1 proof |
 | Geolocation | PDS pose data + observation evidence; approximate region ≠ routeable verified point |
