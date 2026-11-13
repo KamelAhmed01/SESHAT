@@ -9,7 +9,7 @@
 | Cairo check-in | November 13, 08:30 at SUTech, organizer LinkedIn post (check-in ≠ implementation permission) |
 | NASA global default start | November 14, 2026, 09:00 local time, NASA GO Team guidance |
 | Cairo written Global-approval evidence | **PENDING SCREENSHOT** — team verbally reports permission to start Friday |
-| Authorized H0, local timezone | **Friday Nov 13, 2026, 09:00 Cairo time (team reports build start at data release; written authority pending)** |
+| Authorized build start, local timezone | **Friday Nov 13, 2026, 09:00 Cairo time (team reports build start at data release; written authority pending)** |
 | Venue/organizer local project deadline | **Saturday, Nov 14, 1:00 p.m. Cairo time** — team confirmed |
 | Pitch/judging slot and format | **PENDING** |
 | NASA official online submission open | November 14, 2026, 09:00 local time |

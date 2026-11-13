@@ -1,6 +1,6 @@
 # Locked build decisions
 
-**Only active after authorized H0.** Changes to shared contracts require one recorded reviewer agreement, not a new debate by six people.
+**Only active after authorized local build start.** Changes to shared contracts require one recorded reviewer agreement, not a new debate by six people.
 
 | Decision | Locked value |
 |---|---|

@@ -75,7 +75,6 @@ function SelectionPanel({
       <div className="cc-panel-header">
         <div>
           <h1>Plan a science traverse</h1>
-          <p className="context-note cc-sub-note">Compare Jezero western fan exposures and return safely.</p>
         </div>
         <div className="cc-header-controls">
           <div className="mission-actions" role="group" aria-label="Destination mode">
@@ -88,16 +87,17 @@ function SelectionPanel({
 
       <div className="cc-coords-grid">
         <div className="cc-coord-group">
-          <span className="cc-coord-label">Enter first point (Landing origin):</span>
+          <span className="cc-coord-label">Enter first point:</span>
           <div className="cc-coord-pair">
             <div className="cc-coord-box"><span>X:</span><strong>{origin[1]}</strong><small>col</small></div>
             <div className="cc-coord-box"><span>Y:</span><strong>{origin[0]}</strong><small>row</small></div>
           </div>
+          <span className="cc-choose-hint">Landing origin</span>
         </div>
 
         <div className="cc-coord-group">
           <span className="cc-coord-label">
-            {lastTarget ? `Next point (${lastTarget.name}):` : 'Enter second point (click map or cell):'}
+            {lastTarget ? `Enter second point (${lastTarget.name}):` : 'Enter second point:'}
           </span>
           <div className="cc-coord-pair cc-coord-input-row">
             <label className="cc-coord-input">
@@ -113,7 +113,7 @@ function SelectionPanel({
             <button type="button" className="cc-plus-btn" onClick={onAddCustomPoint}
               aria-label="Add custom coordinate point" title="Add cell to traverse">+</button>
           </div>
-          <span className="cc-choose-hint">Choose on map · click any valid 20 m terrain cell</span>
+          <span className="cc-choose-hint">Choose on map</span>
         </div>
       </div>
     </section>
@@ -425,12 +425,6 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                 Jezero Western Fan · {manifest.status === 'VERIFIED' ? 'Team-reviewed Mars terrain' : 'Real Mars terrain · review pending'}
               </span>
             </div>
-
-            <nav className="mission-phases" aria-label="Mission phase">
-              <span aria-current={!execution ? 'step' : undefined}>Plan</span>
-              <span aria-current={execution?.status === 'EXECUTING' ? 'step' : undefined}>Execute</span>
-              <span aria-current={execution && execution.status !== 'EXECUTING' ? 'step' : undefined}>Adapt &amp; return</span>
-            </nav>
 
             <div className="header-right cc-topbar-right">
               <label className="cc-search-wrap">

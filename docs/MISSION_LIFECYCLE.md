@@ -4,9 +4,9 @@
 
 **Challenge:** Interplanetary Survival Guide: Martian Map
 
-**Build baseline:** `223f831` on `codex/mission-lifecycle`
+**Build baseline:** `main`
 
-This is the current team plan for the Cairo submission. Use the [v1.3 execution book](../SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md) for historical design and H4 engineering detail. The [event ledger](event-brief.md) records organizer evidence and the [release report](VERIFICATION_RELEASE.md) records software checks.
+This is the current team plan for the Cairo submission. The [event ledger](event-brief.md) records organizer evidence and the [release report](VERIFICATION_RELEASE.md) records software checks.
 
 **Local deadline:** Saturday, November 14 at **1:00 p.m. Cairo time**, as confirmed by the team. **Delivery target:** 12:15 p.m. Cairo time. Submit through the Cairo form and the global team Project tab. The global portal window is Saturday at 9:00 a.m. through Sunday at 11:59 p.m. local time. The team reports a Friday 9:00 a.m. build start. Written authorization and the local pitch slot still require organizer evidence. [Cairo FAQs](https://spaceappscairo.com/faqs) · [Global schedule](https://www.spaceappschallenge.org/2026/) · [Global terms](https://www.spaceappschallenge.org/legal/)
 
@@ -74,11 +74,11 @@ All five links were inspected on the [challenge Resources tab](https://www.space
 | [NASA Worldview](https://worldview.earthdata.nasa.gov/) | **Data** passes supported Earth layers to Earthdata Search. **Take a snapshot** exports a view. The linked product serves Earth imagery and events. |
 | [Perseverance Raw Images](https://mars.nasa.gov/mars2020/multimedia/raw-images/) | Filter by sol and camera. Open a result for instrument, time, credit and the **Download** link. The app uses the related NASA-published WATSON abrasion images for Skinner and Wildcat Ridge, and Hazcam context for Enchanted Lake. [WATSON image pair](https://science.nasa.gov/resource/two-abrasion-patches-from-perseverance-at-jezero-delta/) · [Hazcam context](https://science.nasa.gov/resource/enchanted-view-of-jezero-rocks/) |
 
-The original USGS DEM and the Mars Trek download have different file hashes. Raster inspection found identical CRS, affine, shape, NoData mask and values for all 2,413,152 cells. The USGS file retained by the H4 acquisition pipeline is the same CTX terrain product. The app also directly consumes Mars Trek's orthomosaic. These are material uses of a listed resource. Final award eligibility remains an organizer decision. [USGS CTX DTM catalog](https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic) · [NASA Global Organizing Team guidance](https://github.com/nasa/spaceapps/discussions/1827)
+The original USGS DEM and the Mars Trek download have different file hashes. Raster inspection found identical CRS, affine, shape, NoData mask and values for all 2,413,152 cells. The USGS file retained by the acquisition pipeline is the same CTX terrain product. The app also directly consumes Mars Trek's orthomosaic. These are material uses of a listed resource. Final award eligibility remains an organizer decision. [USGS CTX DTM catalog](https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic) · [NASA Global Organizing Team guidance](https://github.com/nasa/spaceapps/discussions/1827)
 
 The CTX file is 1,596 × 1,512, equirectangular with a 3,396,190 m Mars sphere. The analysis crop is 220 × 220 in local Mars azimuthal equidistant coordinates, with 45,771 usable cells and 2,629 NoData cells. The matched optical layer covers the complete output grid. The original proposed crop at 18.448°N, 77.445°E put Swift Run on NoData and the other two sites out of bounds.
 
-| Sample-site anchor | Source-reported latitude and east longitude | H4 nominal travel round trip |
+| Sample-site anchor | Source-reported latitude and east longitude | Nominal travel round trip |
 | --- | --- | --- |
 | Swift Run · Skinner Ridge | 18.458931°, 77.40617078° | 33.93 min |
 | Hazeltop · Wildcat Ridge | 18.45863707°, 77.40588851° | 33.19 min |

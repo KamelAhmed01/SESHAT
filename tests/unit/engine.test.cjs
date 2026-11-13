@@ -78,37 +78,37 @@ function terrain(mask, outbound, returns, outboundParents, returnNext) {
     returnNext:new Int32Array(returnNext), elevationMeters:new Float32Array(count),
   };
 }
-test('H2-O01: full observed graph with hard constraints is INFEASIBLE, not UNKNOWN',()=>{
+test('full observed graph with hard constraints is INFEASIBLE, not UNKNOWN',()=>{
   const b=terrain([1,1,1],[0,Infinity,Infinity],[0,Infinity,Infinity],[-1,-1,-1],[-1,-1,-1]);
   const out=routeSummary(b,2,'outbound');
   assert.equal(out.unknownReason,'HARD_CONSTRAINT');
   assert.equal(assessTarget({...target(),location:{...target().location,gridCol:2}},scenario(),out,out).state,'INFEASIBLE');
 });
-test('H2-O02: unknown gap forces UNKNOWN even when no route is found',()=>{
+test('unknown gap forces UNKNOWN even when no route is found',()=>{
   const b=terrain([1,0,1],[0,Infinity,Infinity],[0,Infinity,Infinity],[-1,-1,-1],[-1,-1,-1]);
   const r=routeSummary(b,2,'outbound');
   assert.equal(r.unknownReason,'MISSING_DATA');
 });
-test('H2-O03: explicitly blocked target cell is classified as HARD_CONSTRAINT',()=>{
+test('explicitly blocked target cell is classified as HARD_CONSTRAINT',()=>{
   const b=terrain([1,2],[0,Infinity],[0,Infinity],[-1,-1],[-1,-1]);
   assert.equal(routeSummary(b,1,'outbound').unknownReason,'HARD_CONSTRAINT');
 });
-test('H2-O04: apparently finite cost with corrupt pointer is never accepted',()=>{
+test('apparently finite cost with corrupt pointer is never accepted',()=>{
   const b=terrain([1,1],[0,1],[0,1],[-1,-1],[-1,-1]);
   assert.equal(routeSummary(b,1,'outbound').status,'INVALID_GEOMETRY');
 });
-test('H2-O05: elevation profile sums outbound ascent and descent in traveled order',()=>{
+test('elevation profile sums outbound ascent and descent in traveled order',()=>{
   const trip={...route(15),geometryGrid:[[0,0],[0,1],[1,1],[1,2]],sampledElevationsMeters:[100,115,110,125]};
   const p=elevationProfile(trip,20,30);
   assert.equal(p.horizontalDistanceMeters,70);
   assert.equal(p.ascentMeters,30); assert.equal(p.descentMeters,5);
   assert.equal(p.netChangeMeters,25); assert.equal(p.vertices.at(-1).distanceMeters,70);
 });
-test('H2-O06: elevation profile refuses nonexistent elevations / unsupported route',()=>{
+test('elevation profile refuses nonexistent elevations / unsupported route',()=>{
   assert.equal(elevationProfile({...route(1),sampledElevationsMeters:[0,NaN]},20,20),null);
   assert.equal(elevationProfile({...route(1),status:'NO_SUPPORTED_PATH'},20,20),null);
 });
-test('H2-O07: exported synthetic mission brief prominently rejects NASA safety claim',()=>{
+test('exported synthetic mission brief prominently rejects NASA safety claim',()=>{
   const b=assessTarget(target(),scenario(15),route(10),route(15));
   const md=buildMissionBrief({target:target(),assessment:b,scenario:scenario(15),
     source:{status:'DEMO_SYNTHETIC',sourceId:'SYNTHETIC',sourceUrl:'local',modelId:'test',width:2,height:1,
@@ -120,7 +120,7 @@ test('H2-O07: exported synthetic mission brief prominently rejects NASA safety c
   assert.match(md,/0\.8×/);
   assert.match(md,/Start: 10 cells/);
 });
-test('H2-O08: export preserves UNKNOWN route truth and pending evidence',()=>{
+test('export preserves UNKNOWN route truth and pending evidence',()=>{
   const noPath={...route(0),status:'NO_SUPPORTED_PATH',distanceMeters:null,nominalTravelMinutes:null,unknownReason:'MISSING_DATA'};
   const a=assessTarget(target('APPROXIMATE_REGION'),scenario(),noPath,noPath);
   const md=buildMissionBrief({target:target('APPROXIMATE_REGION'),assessment:a,scenario:scenario(),
@@ -132,7 +132,7 @@ test('H2-O08: export preserves UNKNOWN route truth and pending evidence',()=>{
   assert.match(md,/Challenge-listed Resource verified: Not verified/);
 });
 const {plotVertices} = require('../../.build/src/engine/elevation-profile.js');
-test('H2-O09: profile decimation is bounded, includes endpoints and extrema',()=>{
+test('profile decimation is bounded, includes endpoints and extrema',()=>{
   const count=5000;
   const p={vertices:Array.from({length:count},(_,i)=>({distanceMeters:i,elevationMeters:i===1444?-1000:i===1777?2000:i%7}))};
   const points=plotVertices(p,240);
@@ -141,14 +141,14 @@ test('H2-O09: profile decimation is bounded, includes endpoints and extrema',()=
   assert.ok(points.some(v=>v.elevationMeters===-1000));
   assert.ok(points.some(v=>v.elevationMeters===2000));
 });
-test('H2-O10: route rendering rejects diagonal corner cuts through unknown cells',()=>{
+test('route rendering rejects diagonal corner cuts through unknown cells',()=>{
   const b=terrain([1,0,0,1],[0,Infinity,Infinity,1],[0,Infinity,Infinity,1],[-1,-1,-1,0],[-1,-1,-1,0]);
   b.manifest.width=2; b.manifest.height=2;
   assert.equal(routeSummary(b,3,'outbound').status,'INVALID_GEOMETRY');
 });
 
 const {buildOpportunityLedger,classifyChange,opportunityExplanation}=require('../../.build/src/engine/opportunity-ledger.js');
-test('H3-O01: initially feasible becomes lost only when the tested time budget expires',()=>{
+test('initially feasible becomes lost only when the tested time budget expires',()=>{
   const b=terrain([1,1,1],[0,30,90],[0,40,95],[-1,0,1],[-1,0,1]);
   const t={...target(),id:'near',location:{...target().location,gridRow:0,gridCol:1},activity:{minutes:20,basis:'SCENARIO_ASSUMPTION'}};
   const sc={...scenario(0),timeBudgetMinutes:180,reserveMinutes:20};
@@ -161,13 +161,13 @@ test('H3-O01: initially feasible becomes lost only when the tested time budget e
   assert.equal(delayed.entries[0].nominalMarginLostMinutes,100);
   assert.match(opportunityExplanation(delayed.entries[0]),/No tested speed fits/);
 });
-test('H3-O02: robustness downgrade does not masquerade as a lost target',()=>{
+test('robustness downgrade does not masquerade as a lost target',()=>{
   assert.equal(classifyChange('ROBUST','MARGINAL'),'DOWNGRADED');
   assert.equal(classifyChange('ROBUST','INFEASIBLE'),'LOST');
   assert.equal(classifyChange('MARGINAL','INFEASIBLE'),'LOST');
   assert.equal(classifyChange('INFEASIBLE','ROBUST'),'UNCHANGED');
 });
-test('H3-O03: approximate region always stays UNKNOWN; not counted as lost',()=>{
+test('approximate region always stays UNKNOWN; not counted as lost',()=>{
   const b=terrain([1,1],[0,5],[0,6],[-1,0],[-1,0]);
   const t={...target('APPROXIMATE_REGION'),id:'region',location:{...target().location,confidence:'APPROXIMATE_REGION',gridRow:0,gridCol:1}};
   const ledger=buildOpportunityLedger(b,{...scenario(70),timeBudgetMinutes:180,reserveMinutes:20},[t]);
@@ -176,7 +176,7 @@ test('H3-O03: approximate region always stays UNKNOWN; not counted as lost',()=>
   assert.equal(ledger.lost,0);
   assert.equal(ledger.entries[0].current.nominalMarginMinutes,null);
 });
-test('H3-O04: reviewed point and custom grid target share an identical engine pathway',()=>{
+test('reviewed point and custom grid target share an identical engine pathway',()=>{
   const b=terrain([1,1],[0,2],[0,4],[-1,0],[-1,0]);
   const a={...target('VERIFIED_POINT'),id:'science-point',location:{...target().location,gridRow:0,gridCol:1}};
   const c={...target('USER_SELECTED'),id:'manual',location:{...target().location,gridRow:0,gridCol:1}};
@@ -184,7 +184,7 @@ test('H3-O04: reviewed point and custom grid target share an identical engine pa
   assert.equal(ledger.entries[0].current.state,ledger.entries[1].current.state);
   assert.equal(ledger.entries[0].current.nominalMarginMinutes,ledger.entries[1].current.nominalMarginMinutes);
 });
-test('H3-O05: timeline never restores a known feasible opportunity after an additional delay',()=>{
+test('timeline never restores a known feasible opportunity after an additional delay',()=>{
   const b=terrain([1,1],[0,50],[0,50],[-1,0],[-1,0]);
   const t={...target(),location:{...target().location,gridRow:0,gridCol:1},activity:{minutes:20,basis:'SCENARIO_ASSUMPTION'}};
   const s={...scenario(),timeBudgetMinutes:180,reserveMinutes:20};
@@ -195,7 +195,7 @@ test('H3-O05: timeline never restores a known feasible opportunity after an addi
 });
 
 const {targetMarkers}=require('../../.build/src/cartography/target-markers.js');
-test('H3-O06: approximate geology regions never become precise selectable map pins',()=>{
+test('approximate geology regions never become precise selectable map pins',()=>{
   const b=terrain([1,1,1],[0,2,3],[0,2,3],[-1,0,1],[-1,0,1]);
   const ts=['VERIFIED_POINT','APPROXIMATE_REGION','USER_SELECTED'].map((confidence,i)=>({
     ...target(confidence),id:'id-'+i,location:{...target().location,confidence,gridRow:0,gridCol:i},
@@ -206,7 +206,7 @@ test('H3-O06: approximate geology regions never become precise selectable map pi
   assert.deepEqual(markers.map(m=>m.id),['id-0','id-2']);
   assert.deepEqual([markers[1].viewerLatitude,markers[1].viewerLongitude],[0.5,2.5]);
 });
-test('H3-O07: cartography bounds filter rejects invalid source-grid coordinates',()=>{
+test('cartography bounds filter rejects invalid source-grid coordinates',()=>{
   const b=terrain([1,1],[0,1],[0,1],[-1,0],[-1,0]);
   const t={...target(),location:{...target().location,gridRow:0,gridCol:2}};
   const ledger=buildOpportunityLedger(b,scenario(),[t]);
@@ -214,7 +214,7 @@ test('H3-O07: cartography bounds filter rejects invalid source-grid coordinates'
 });
 
 const canonicalMission = require('../../src/config/mission-scenario.json');
-test('H4-O01: scenario budget, reserve and model are one visible versioned contract', () => {
+test('scenario budget, reserve and model are one visible versioned contract', () => {
   assert.equal(canonicalMission.timeBudgetMinutes,180);
   assert.equal(canonicalMission.reserveMinutes,20);
   assert.equal(canonicalMission.referenceSpeedMetersPerSecond,0.75);
@@ -228,7 +228,7 @@ test('H4-O01: scenario budget, reserve and model are one visible versioned contr
   assert.equal(evaluated.nominalMarginMinutes,105);
 });
 
-test('H4-O02: scenario model factors are version-locked to the testable feasibility engine', () => {
+test('scenario model factors are version-locked to the testable feasibility engine', () => {
   assert.deepEqual(canonicalMission.speedMultipliers, [0.8,1,1.2]);
   assert.equal(canonicalMission.gradeModelId,'terrain-scenario-v0');
   assert.equal(canonicalMission.uphillCoefficient,4);

@@ -1,10 +1,10 @@
 # SESHAT — live execution run sheet
 
-Use the [current Jezero mission rehearsal](MISSION_LIFECYCLE.md) for the November 14 local submission. The remaining notes describe the H4 handoff.
+Use the [current Jezero mission rehearsal](MISSION_LIFECYCLE.md) for the November 14 local submission.
 
 **Owner:** Kamel / Ali · **Science:** Amr / Malak · **Design:** Hams / Kamel · **Pitch:** Shams / Ali
 
-**North star:** An evidence-based Mars science map where a 15-minute delay visibly removes or weakens *returnable* scientific options. SESHAT is a research demonstrator, not EVA safety advice. Keep H0 evidence and NASA challenge Resource evidence in `docs/event-evidence/` without rewriting commit history.
+**North star:** An evidence-based Mars science map where a 15-minute delay visibly removes or weakens *returnable* scientific options. SESHAT is a research demonstrator, not EVA safety advice. Keep organizer start evidence and NASA challenge Resource evidence in `docs/event-evidence/` without rewriting commit history.
 
 ## START · If you have just opened the repository
 
@@ -24,7 +24,7 @@ The release command `pnpm verify` runs these checks and must **FAIL** if build/d
 ## SCIENCE · First priority after install
 
 1. **Shams:** capture the official 2026 challenge Resources listing and organizer-start authorization, with URLs and dates. Never mark C0/C1 verified merely because a file is called NASA.
-2. **Amr/Malak:** `python -m pipeline.acquire --only dem` → `python -m pipeline.real_ingest --center-lat LAT --center-lon LON` using a **source-backed Mars center**. H4 reprojects source Equirectangular pixels onto a **local Mars azimuthal-equidistant** metric grid; review `manifest.json` source CRS, analysis CRS, mask, and bounding corners before claiming real travel distances.
+2. **Amr/Malak:** `python -m pipeline.acquire --only dem` → `python -m pipeline.real_ingest --center-lat LAT --center-lon LON` using a **source-backed Mars center**. The compiler reprojects source Equirectangular pixels onto a **local Mars azimuthal-equidistant** metric grid; review `manifest.json` source CRS, analysis CRS, mask, and bounding corners before claiming real travel distances.
 3. **Amr/Malak:** curate two independently source-linked exact targets within that ROI; run `python -m pipeline.targets docs/targets.example.json --bundle public/data`, then `python -m pipeline.preflight --bundle public/data`. If those targets lie outside the crop, choose a defensible new ROI — do not snap them into a convenient map.
 4. **Ali + science reviewer:** verify the asymmetric paths, slope limits, no-data, reverse tree, one known-distance target, and science data attributions; approve with `python -m pipeline.approve --help` **only after** documented evidence gates and human sign-off. Model coefficients, 180-minute planning window, 20-minute reserve and target durations are assumptions.
 

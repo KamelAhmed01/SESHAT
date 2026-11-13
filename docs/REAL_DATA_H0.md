@@ -1,8 +1,8 @@
 # SESHAT — real Mars data integration runbook
 
-**Status:** implementation ready to ingest real files; actual NASA raster bytes and official 2026 challenge Resources membership still require retrieval/confirmation on the team's connected laptop. This is not an invitation to treat test fixtures as planetary evidence.
+**Status:** pipeline implemented and real CTX + orbital datasets ingested into `public/data/`; independent team review and official 2026 challenge Resources capture remain open. Do not treat test fixtures (`public/demo/`) as planetary evidence.
 
-## H0 / 10-minute role split
+## Team role split
 
 - **Shams or Malak:** Open the [official challenge Resources tab](https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/?tab=resources), save a screenshot/PDF under `docs/event-evidence/official-challenge-resources.png`, and record the exact NASA resource URL that is **actually used by SESHAT** in `docs/sources.md`. The program's official Resources list is not conclusively readable from this authoring environment. Do not assume any independently useful USGS dataset is automatically a qualifying challenge-listed NASA source.
 - **Amr:** Run the USGS/PDS downloads and inspect the real file's coordinate reference frame, NoData, vertical units and coverage. Keep the raw bytes outside git in `data/raw`.
@@ -39,7 +39,7 @@ If venue DNS/network fails, download the **exact original URL** on a teammate's 
 
 ## B. Verify a chosen 4–5 km science study area
 
-The CTX DTM samples at roughly **20 projected m/pixel**. A `--side 220` source window covers roughly 4.4 km north–south but a smaller real east–west ground extent near 18.5°N. H4 reprojects that window into a **220×220 local Mars AEQD grid** with separately recorded 20 m analysis sampling; source-window coverage outside the true bounds becomes NoData, never fabricated terrain. The real full extent is much larger: **do not take its center as a guaranteed Western Delta science location**.
+The CTX DTM samples at roughly **20 projected m/pixel**. A `--side 220` source window covers roughly 4.4 km north–south but a smaller real east–west ground extent near 18.5°N. The compiler reprojects that window into a **220×220 local Mars AEQD grid** with separately recorded 20 m analysis sampling; source-window coverage outside the true bounds becomes NoData, never fabricated terrain. The real full extent is much larger: **do not take its center as a guaranteed Western Delta science location**.
 
 If verified mission-observation lat/lon are available, choose the crop by **planetocentric latitude and positive-east longitude**:
 

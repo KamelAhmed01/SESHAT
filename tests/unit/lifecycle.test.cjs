@@ -23,7 +23,7 @@ function event(mission, bundle, details) {
   return recordEvent(mission, bundle, {details, description: 'Observed change', channel: 'AUTO_SENSOR_INPUT'});
 }
 
-test('directed costs on Jezero match the compiled H4 outbound and return fields', () => {
+test('directed costs on Jezero match the compiled outbound and return fields', () => {
   const root = 'public/data/';
   const manifest = JSON.parse(readFileSync(root + 'manifest.json'));
   const f64 = name => {

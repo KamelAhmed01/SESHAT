@@ -1,6 +1,6 @@
-# SESHAT implementation status — archived H4 checkpoint
+# SESHAT implementation status — archived checkpoint
 
-For the current Jezero build, see [the mission lifecycle and data audit](MISSION_LIFECYCLE.md) and [local release checks](VERIFICATION_RELEASE.md). The status below describes the original H4 archive.
+For the current Jezero build, see [the mission lifecycle and data audit](MISSION_LIFECYCLE.md) and [local release checks](VERIFICATION_RELEASE.md). The status below describes the baseline archive before Command Center UI and live Playwright integration.
 
 This is the executable-source status, not a NASA claim. Refer to [`CHECKPOINT_REPORT.md`](CHECKPOINT_REPORT.md) for the most recent automated snapshot and the strict [`VERIFICATION_RELEASE.md`](VERIFICATION_RELEASE.md) for blockers.
 
@@ -19,13 +19,13 @@ This is the executable-source status, not a NASA claim. Refer to [`CHECKPOINT_RE
 
 ## Outstanding evidence gates — not passed
 
-- [ ] C0: Archive written Cairo organizer authorization and any applicable global-organizer permission for Friday H0.
+- [ ] C0: Archive written Cairo organizer authorization and any applicable global-organizer permission for Friday local start.
 - [ ] C1: Official 2026 selected-challenge Resources capture and proof of an **actually used** qualifying NASA source.
 - [ ] G1: Download/inspect/hash the actual USGS/PDS original bytes, confirm Mars planetary frame and vertical datum.
 - [ ] G2: Validate source target coordinates against the ROI and one independently verified geodesic/location oracle; obtain at least two precise scientific targets.
 - [ ] Frontend: generate and commit `pnpm-lock.yaml` on an internet-connected machine; install Astryx/Next. Build, typecheck, lint and **run real Playwright E2E**.
 - [ ] Capture genuine Next.js desktop/mobile evidence and produce the production static export/offline copy.
-- [ ] Connect team GitHub remote, push honest H0–H4 history, confirm access and CI.
+- [ ] Connect team GitHub remote, push honest commit history, confirm access and CI.
 - [ ] Deploy live Vercel/Cloudflare URL; verify TLS and actual security headers, then offline fallback on two machines.
 - [ ] Human scientific review, independent UX trial, demo/pitch/video and official submission receipt.
 

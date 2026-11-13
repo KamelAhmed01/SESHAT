@@ -1,6 +1,6 @@
 # SESHAT release verification
 
-Run: 2026-11-13T19:27:06.383669+00:00
+Run: 2026-11-13T23:20:17.343090+00:00
 Mode: RELEASE
 Overall result: PASS; offline PASS does not imply release PASS.
 
@@ -9,7 +9,7 @@ Overall result: PASS; offline PASS does not imply release PASS.
 ```text
 
 ...........................                                              [100%]
-27 passed in 0.94s
+27 passed in 0.97s
 ```
 
 ## PASS: TypeScript scientific compile
@@ -21,10 +21,10 @@ Overall result: PASS; offline PASS does not imply release PASS.
 ## PASS: Node scientific oracles
 
 ```text
-✔ partial movement, delay and approval preserve the original baseline and completed stop (1.120708ms)
-✔ a new hazard causes a detour and a closed landing cell prevents an abort route (0.760583ms)
-✔ replanning retains the astronaut’s highest-priority stop under oxygen loss (0.960125ms)
-✔ discovery insertion, accessibility, and repeated pace changes alter only pending legs (1.408542ms)
+✔ partial movement, delay and approval preserve the original baseline and completed stop (1.102625ms)
+✔ a new hazard causes a detour and a closed landing cell prevents an abort route (0.938459ms)
+✔ replanning retains the astronaut’s highest-priority stop under oxygen loss (0.872583ms)
+✔ discovery insertion, accessibility, and repeated pace changes alter only pending legs (1.299792ms)
 ℹ tests 37
 ℹ suites 0
 ℹ pass 37
@@ -32,7 +32,7 @@ Overall result: PASS; offline PASS does not imply release PASS.
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 119.565042
+ℹ duration_ms 113.022292
 ```
 
 ## PASS: Dependency lockfile presence
@@ -66,7 +66,7 @@ Overall result: PASS; offline PASS does not imply release PASS.
 ```text
   Collecting page data using 4 workers ...
   Generating static pages using 4 workers (0/3) ...
-✓ Generating static pages using 4 workers (3/3) in 229ms
+✓ Generating static pages using 4 workers (3/3) in 236ms
   Finalizing page optimization ...
 
 Route (app)
@@ -87,10 +87,10 @@ Route (app)
 Running 5 tests using 1 worker
 
   ✓  1 tests/e2e/mission-lifecycle.spec.ts:3:1 › Jezero baseline survives an event, approval, a reload and return (1.6s)
-  ✓  2 tests/e2e/mission-lifecycle.spec.ts:39:1 › real planning view fits the mobile viewport (420ms)
-  ✓  3 tests/e2e/production.spec.ts:3:1 › production static export loads the evidence-gated workbench (146ms)
-  ✓  4 tests/e2e/production.spec.ts:14:1 › the synthetic fixture is visibly disclosed, and clock reset is deterministic (266ms)
-  ✓  5 tests/e2e/production.spec.ts:25:1 › mobile has no document-wide horizontal overflow (198ms)
+  ✓  2 tests/e2e/mission-lifecycle.spec.ts:39:1 › real planning view fits the mobile viewport (415ms)
+  ✓  3 tests/e2e/production.spec.ts:3:1 › production static export loads the evidence-gated workbench (142ms)
+  ✓  4 tests/e2e/production.spec.ts:14:1 › the synthetic fixture is visibly disclosed, and clock reset is deterministic (262ms)
+  ✓  5 tests/e2e/production.spec.ts:25:1 › mobile has no document-wide horizontal overflow (194ms)
 
   5 passed (3.5s)
 ```

@@ -1928,21 +1928,6 @@
   }
 
   /* Mission Lifecycle specific controls */
-  .mission-phases {
-    display: flex;
-    align-items: center;
-    gap: clamp(10px, 1.8vw, 24px);
-    color: var(--s-muted);
-    font-size: 12px;
-  }
-
-  .mission-phases [aria-current] {
-    color: var(--s-accent-bright);
-    border-bottom: 2px solid var(--s-accent);
-    padding-block: 4px;
-    font-weight: 600;
-  }
-
   .mission-source-strip {
     padding: 12px 22px;
     margin: 0 22px 8px;
@@ -2313,11 +2298,6 @@
 
     .cc-user-pill {
       display: none;
-    }
-
-    .mission-phases {
-      order: 3;
-      width: 100%;
     }
 
     .cc-sidebar-bottom {

@@ -43,7 +43,7 @@ with sync_playwright() as p:
     page.locator('#preview-profile summary').click()
     assert page.locator('#profile-svg path').count()==1
     assert 'ascent' in page.locator('#profile-ascent').inner_text()
-    page.screenshot(path=str(shots/'seshat-acceptance-h2-profile.png'),full_page=True)
+    page.screenshot(path=str(shots/'seshat-acceptance-profile.png'),full_page=True)
     page.locator('#export-preview').click()
     assert 'SYNTHETIC TEST FIXTURE' in page.evaluate('window.SESHAT_PREVIEW_LAST_BRIEF')
     assert 'Target:' in page.evaluate('window.SESHAT_PREVIEW_LAST_BRIEF')
@@ -54,7 +54,7 @@ with sync_playwright() as p:
     assert page.locator('#lost-targets').inner_text()!='0', 'Expected a lost example in the synthetic fixture'
     assert page.locator('.opportunity-meta em').count()>=1
     page.screenshot(path=str(shots/'seshat-acceptance-after-delay.png'),full_page=True)
-    page.screenshot(path=str(shots/'seshat-h3-opportunity-ledger.png'),full_page=True)
+    page.screenshot(path=str(shots/'seshat-acceptance-opportunity-ledger.png'),full_page=True)
     page.locator('[data-select="2"]').click()
     assert 'Eastern traverse' in page.locator('#selected-target').inner_text()
     assert page.locator('#outbound').inner_text()!='Unknown'
@@ -71,7 +71,7 @@ with sync_playwright() as p:
     mobile.screenshot(path=str(shots/'seshat-acceptance-mobile.png'),full_page=True)
     mobile.locator('#advance').click()
     assert mobile.locator('#lost-targets').inner_text()!='0'
-    mobile.screenshot(path=str(shots/'seshat-h3-mobile-delayed.png'),full_page=True)
+    mobile.screenshot(path=str(shots/'seshat-acceptance-mobile-delayed.png'),full_page=True)
     overflow=mobile.evaluate('document.documentElement.scrollWidth > innerWidth')
     assert not overflow, 'Mobile viewport has unwanted horizontal overflow'
     print('BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow')

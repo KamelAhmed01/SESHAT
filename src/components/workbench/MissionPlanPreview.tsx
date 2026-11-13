@@ -185,7 +185,6 @@ export function AnalysisDonutRings({bundle, plan, spent}: {bundle: FieldBundle; 
     <div className="cc-donuts-wrap">
       <div className="cc-donuts-header">
         <h3>Terrain &amp; budget analysis</h3>
-        <span className="cc-micro-tag">MODEL + CTX 20 M DEM</span>
       </div>
       <DonutChart slices={budgetSlices} title={`Traverse allocation · ${budget.minutes} min window`} />
       <DonutChart slices={terrainSlices} title={`CTX DEM relief & mask · ${bundle.manifest.width}×${bundle.manifest.height}`} />

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start:export": "python3 -m http.server 4173 --bind 127.0.0.1 -d out",
+    "start:export": "python3 -c \"import functools,http.server;s=type('S',(http.server.ThreadingHTTPServer,),{'request_queue_size':128,'allow_reuse_address':True});s(('127.0.0.1',4173),functools.partial(http.server.SimpleHTTPRequestHandler,directory='out')).serve_forever()\"",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run check:engine:offline",

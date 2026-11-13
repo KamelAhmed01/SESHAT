@@ -185,7 +185,7 @@ export function MissionWorkbench() {
 
     <div className="content-grid">
       <aside className="left-rail cc-card" aria-label="Science opportunities">
-        <section className="rail-intro"><div className="eyebrow">01 / Objective</div>
+        <section className="rail-intro">
           <h1>What can we still explore?</h1><p>Every minute changes which opportunities fit a return journey.</p>
           {demoMode && <div className="mode-alert" role="status">SIMULATED TERRAIN <span>Not a Mars measurement</span></div>}
         </section>
@@ -217,9 +217,9 @@ export function MissionWorkbench() {
               <span aria-hidden="true" className="target-chevron">{hasPoint ? '↗' : '?'}</span>
             </button>;
           })}</div> : <div className="evidence-empty"><span className="quiet-icon">⌁</span><strong>Science locations awaiting verification</strong>
-            <p>Terrain may be available, but source-backed geological targets need traceable coordinates and overlap tests.</p><span className="microcode">NO INVENTED PINS</span></div>}
+            <p>Terrain may be available, but source-backed geological targets need traceable coordinates and overlap tests.</p></div>}
         </section>
-        <section className="rail-section rail-bottom"><div className="section-heading"><span>Analysis rules</span><span className="section-index">v0</span></div>
+        <section className="rail-section rail-bottom"><div className="section-heading"><span>Analysis rules</span></div>
           <p className="context-note">Directional terrain routing, an explicit return reserve and three travel speeds. All scenario values are assumptions, not EVA limits.</p>
           <button className="text-action" onClick={() => setDrawerOpen(true)}>Inspect methodology ↗</button>
           {!demoMode && <p className="demo-link-note"><Link href="/">Mission planner ↗</Link><br/>For interface acceptance testing: <Link href="/?demo=1" prefetch={false}>synthetic demonstration ↗</Link></p>}
@@ -227,7 +227,7 @@ export function MissionWorkbench() {
       </aside>
 
       <section className="map-stage cc-card" aria-label="Planetary terrain map">
-        <div className="map-topline"><span className="eyebrow">02 / Surface</span><span className="map-title">Jezero / analysis area</span>
+        <div className="map-topline"><span className="map-title">Jezero / analysis area</span>
           {bundle?.manifest.optical && <div className="map-layer-switch" role="group" aria-label="Surface layer">
             <button type="button" aria-pressed={!showOptical} onClick={() => setShowOptical(false)}>Terrain</button>
             <button type="button" aria-pressed={showOptical} onClick={() => setShowOptical(true)}>Orbital</button>
@@ -256,7 +256,7 @@ export function MissionWorkbench() {
       </section>
 
       <aside className="right-rail cc-card" aria-label="Mission clock and return feasibility">
-        <section className="clock-panel"><div className="eyebrow">03 / Mission clock</div>
+        <section className="clock-panel">
           <h2>Time is terrain.</h2><p>Delay the start of the traverse and watch the returnable frontier shrink.</p>
           <div className="time-display"><strong>{remaining}</strong><span>min remaining</span></div>
           <div className="time-metrics"><div><span>Planning window</span><strong>{INITIAL_BUDGET} min</strong></div>

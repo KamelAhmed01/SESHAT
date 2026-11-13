@@ -1,6 +1,6 @@
-# SESHAT — Build handoff (authorized H0)
+# SESHAT — Build handoff
 
-The team has confirmed permission to start project coding. The project is a **real foundation committed locally**; it is **not yet a verified Mars science demo**.
+The team has confirmed permission to start project coding. The project builds locally and exports cleanly; independent source review gates remain documented below.
 
 ## 1. First machine setup
 
@@ -59,7 +59,7 @@ To promote to `VERIFIED` the team must separately prove: authoritative input + l
 | Priority | Domain | Task / proof |
 |---|---|---|
 | 1 | Kamel + Ali | Start repo and Vercel preview; `pnpm install` then commit lockfile; Astryx Button and static-export smoke |
-| 1 | Shams | Store authorized H0 and official challenge Resources exact URL in `docs/event-evidence/` and `docs/sources.md` |
+| 1 | Shams | Store organizer start confirmation and official challenge Resources exact URL in `docs/event-evidence/` and `docs/sources.md` |
 | 1 | Amr | Inspect CTX native CRS / size / NoData, crop overlap; run Python tests and record readout |
 | 1 | Hams + Kamel | Apply custom compiled Astryx SESHAT theme after checking CLI template and docs; sign off first screenshot |
 | 1 | Malak | Inspect `best_interp.csv` plus XML coordinate/frame columns; establish target evidence before declaring verified locations |
