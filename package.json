@@ -10,10 +10,13 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run check:engine:offline",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "verify": "python3 -m tools.verify --release",
     "astryx": "node node_modules/@astryxdesign/cli/clients/cli/bin/astryx.mjs",
     "check:engine:offline": "tsc -p tsconfig.engine.json && node --test tests/unit/*.test.cjs",
-    "check:pipeline": "python3 -m pytest -q pipeline/tests"
+    "check:pipeline": "python3 -m pytest -q pipeline/tests",
+    "verify:offline": "python3 -m tools.verify --offline",
+    "test:e2e": "playwright test",
+    "test:security": "python3 -m pytest -q tests/security"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.14",
@@ -34,7 +37,8 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@playwright/test": "^1.57.0"
   },
   "engines": {
     "node": ">=22.0.0"

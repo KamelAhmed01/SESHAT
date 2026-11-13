@@ -1,12 +1,15 @@
 # SESHAT
 
+> **Current operator entrypoint:** [`docs/QUICK_RUN_SHEET.md`](docs/QUICK_RUN_SHEET.md). The definitive local metric model/assumption source is [`src/config/mission-scenario.json`](src/config/mission-scenario.json).
+
+
 **Mars surface science, under a changing clock.**
 
 SESHAT is an evidence-traceable planetary surface science opportunity workbench for the NASA Space Apps Challenge. It models how an assumed returnable exploration frontier contracts under time delay, directional terrain and science activity.
 
 ## Start here
 
-Read **[`docs/START_CODING.md`](docs/START_CODING.md)** and **[`AGENTS.md`](AGENTS.md)** before implementation. The scientific/product contract is in **[`SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.2.md`](SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.2.md)**.
+Read **[`docs/START_CODING.md`](docs/START_CODING.md)** and **[`AGENTS.md`](AGENTS.md)** before implementation. The scientific/product contract is in **[`SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md`](SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md)**.
 
 ```bash
 corepack enable
@@ -33,7 +36,7 @@ python3 -m pytest -q pipeline/tests
 
 See [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md) for real Mars source acquisition, source review, and target alignment. `screenshots/seshat-acceptance-*.png` are explicitly synthetic **visual-harness** renders rather than production Next screenshots.
 
-## Live execution checklist (H3)
+## Live execution checklist (H4)
 
 [`docs/CHECKPOINT_REPORT.md`](docs/CHECKPOINT_REPORT.md) distinguishes **verified local tests**, **implemented but not production-integrated work**, and **missing external gates**. Refresh the report before each handoff or team merge:
 
@@ -60,3 +63,7 @@ python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md
 ```
 
 The acceptance preview is **not** the Next.js runtime: its synthetic terrain and labels exist solely to test visual states and user interactions. Real NASA terrain, scientific targets, full Next build, live deployment and official challenge Resources evidence are separate open gates.
+
+## H4 verification and source review
+
+`python3 -m tools.verify --offline` checks the local Python, security and Node scientific contracts; it does **not** build Next.js. `pnpm verify` runs the release sequence and correctly fails until a committed lockfile, installed dependencies, static build and Playwright are available. See `docs/VERIFICATION_LATEST.md`, `docs/SECURITY_AND_DEPLOYMENT.md` and `docs/QUICK_RUN_SHEET.md`. Source equirectangular metres are not treated as surface metres: `pipeline.compile` reprojects into a bounded local Mars AEQD raster before graph compilation. Model and UI derive assumptions from one JSON file.

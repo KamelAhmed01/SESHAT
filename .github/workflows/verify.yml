@@ -2,7 +2,18 @@ name: Verify
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
+  science:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - run: python -m pytest -q pipeline/tests tests/security
   web:
     runs-on: ubuntu-latest
     steps:
@@ -13,17 +24,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: pnpm
-      - run: pnpm install --no-frozen-lockfile # H0 bootstrap: switch to frozen once team commits pnpm-lock.yaml
+      - name: Check lockfile is committed
+        run: test -f pnpm-lock.yaml || { echo 'Run pnpm install and commit pnpm-lock.yaml before CI can pass'; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-  science:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: pip install -r pipeline/requirements.txt
-      - run: python -m pytest -q pipeline/tests
+      - run: pnpm exec playwright install chromium
+      - run: pnpm test:e2e

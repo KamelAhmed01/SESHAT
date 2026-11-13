@@ -212,3 +212,27 @@ test('H3-O07: cartography bounds filter rejects invalid source-grid coordinates'
   const ledger=buildOpportunityLedger(b,scenario(),[t]);
   assert.deepEqual(targetMarkers(ledger.entries,1,2),[]);
 });
+
+const canonicalMission = require('../../src/config/mission-scenario.json');
+test('H4-O01: scenario budget, reserve and model are one visible versioned contract', () => {
+  assert.equal(canonicalMission.timeBudgetMinutes,180);
+  assert.equal(canonicalMission.reserveMinutes,20);
+  assert.equal(canonicalMission.referenceSpeedMetersPerSecond,0.75);
+  assert.deepEqual(canonicalMission.speedMultipliers,[0.8,1,1.2]);
+  assert.equal(canonicalMission.evidenceStatus,'SCENARIO_ASSUMPTION');
+  const s={...scenario(),timeBudgetMinutes:canonicalMission.timeBudgetMinutes,
+    reserveMinutes:canonicalMission.reserveMinutes,
+    referenceSpeedMetersPerSecond:canonicalMission.referenceSpeedMetersPerSecond};
+  assert.equal(validateScenario(s),null);
+  const evaluated=assessTarget(target(),s,route(15),route(20));
+  assert.equal(evaluated.nominalMarginMinutes,105);
+});
+
+test('H4-O02: scenario model factors are version-locked to the testable feasibility engine', () => {
+  assert.deepEqual(canonicalMission.speedMultipliers, [0.8,1,1.2]);
+  assert.equal(canonicalMission.gradeModelId,'terrain-scenario-v0');
+  assert.equal(canonicalMission.uphillCoefficient,4);
+  assert.equal(canonicalMission.downhillCoefficient,1.8);
+  assert.equal(canonicalMission.maxSlopeDegrees,25);
+  assert.equal(canonicalMission.connectivity,8);
+});

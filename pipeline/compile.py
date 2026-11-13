@@ -15,6 +15,9 @@ from PIL import Image
 import rasterio
 from pyproj import CRS as PyprojCRS
 from rasterio.windows import Window, transform as window_transform
+from rasterio.warp import reproject, Resampling
+from rasterio.transform import from_origin, rowcol, xy
+from pyproj import Transformer
 
 try:
     from .route_fields import TerrainScenario, compute_route_fields, export_fields
@@ -44,6 +47,84 @@ def render_hillshade(z: np.ndarray, mask: np.ndarray, dx: float, dy: float) -> I
     return Image.fromarray(rgb, mode='RGBA')
 
 
+def local_mars_analysis(src, window: Window, base_source_cell: tuple[int, int],
+                        resolution_m: float | None = None):
+    """Reproject Mars source pixels to a local azimuthal equidistant metric grid.
+
+    Source projected metres are NOT necessarily ground metres. In particular,
+    an equirectangular grid at 18°N has E/W ground lengths scaled by cos(lat).
+    This routine keeps the source window for provenance but creates a new grid
+    whose XY units are local surface distances, centred on the candidate base.
+    NO source coordinate or 20-m nominal resolution is silently interpreted as
+    geodesic ground spacing.
+    """
+    if not src.crs:
+        raise ValueError('Source CRS missing')
+    proj = PyprojCRS.from_wkt(src.crs.to_wkt())
+    radius = float(proj.ellipsoid.semi_major_metre)
+    if not 3_000_000 < radius < 3_600_000:
+        raise ValueError('Source is not a Mars-class planetary CRS')
+    minor = float(proj.ellipsoid.semi_minor_metre)
+    if abs(radius - minor) > radius * 1e-6:
+        raise ValueError('Non-spherical Mars ellipsoid requires an explicitly reviewed planetary transform')
+    if not src.crs.is_projected:
+        raise ValueError('Mars terrain must use a projected source CRS')
+    # The raster can be nominally 20m; preserve source-native pixel scale as
+    # the target sampling *resolution*, not as an assumed physical pixel length.
+    if resolution_m is None:
+        resolution_m = min(abs(float(src.transform.a)), abs(float(src.transform.e)))
+    if not (np.isfinite(resolution_m) and 0 < resolution_m <= 1000):
+        raise ValueError('Analysis cell resolution must be finite and in (0, 1000] m')
+    br, bc = base_source_cell
+    if not (0 <= br < window.height and 0 <= bc < window.width):
+        raise ValueError('Source-base cell must lie inside source window')
+    source_affine = window_transform(window, src.transform)
+    base_x, base_y = xy(source_affine, br, bc)
+    geographic = PyprojCRS.from_proj4(f'+proj=longlat +a={radius} +b={radius} +type=crs +no_defs')
+    lon, lat = Transformer.from_crs(proj, geographic, always_xy=True).transform(base_x, base_y)
+    if not (np.isfinite(lat) and np.isfinite(lon) and -90 <= lat <= 90):
+        raise ValueError('Mars base geodetic coordinate could not be verified')
+    local_proj4 = (f'+proj=aeqd +lat_0={lat:.12f} +lon_0={lon:.12f} '
+                   f'+a={radius:.4f} +b={radius:.4f} +units=m +type=crs +no_defs')
+    local_crs = rasterio.crs.CRS.from_string(local_proj4)
+    h, w = int(window.height), int(window.width)
+    target_affine = from_origin(-w * resolution_m / 2, h * resolution_m / 2,
+                                resolution_m, resolution_m)
+    original = src.read(1, window=window, masked=True).astype('float64')
+    source_values = np.ma.filled(original, np.nan).astype('float64')
+    out = np.full((h, w), np.nan, dtype='float64')
+    reproject(
+        source=source_values, destination=out,
+        src_transform=source_affine, src_crs=src.crs, src_nodata=np.nan,
+        dst_transform=target_affine, dst_crs=local_crs, dst_nodata=np.nan,
+        resampling=Resampling.bilinear,
+        init_dest_nodata=True,
+    )
+    good = np.isfinite(out)
+    if not np.any(good):
+        raise ValueError('Local Mars metric reprojection returned no valid terrain')
+    mapped_row, mapped_col = rowcol(target_affine, 0.0, 0.0)
+    mapped_row = max(0, min(h-1, int(mapped_row)))
+    mapped_col = max(0, min(w-1, int(mapped_col)))
+    if not good[mapped_row, mapped_col]:
+        rr, cc = np.nonzero(good)
+        nearest = np.argmin((rr - mapped_row)**2 + (cc - mapped_col)**2)
+        mapped_row, mapped_col = int(rr[nearest]), int(cc[nearest])
+    return {
+        'elevation': out,
+        'mask': good.astype('u1'),
+        'transform': target_affine,
+        'crs': local_crs,
+        'centerLatPlanetocentric': float(lat),
+        'centerLonEast': float(lon % 360),
+        'baseCell': (mapped_row, mapped_col),
+        'resolutionMeters': float(resolution_m),
+        'sourceTransform': source_affine,
+        'sourceCrsWkt': src.crs.to_wkt(),
+        'sourceRadiusMeters': radius,
+    }
+
+
 def compile_dem(args: argparse.Namespace):
     top, left, height, width = args.window
     if not (0 < height <= args.max_side and 0 < width <= args.max_side and top >= 0 and left >= 0):
@@ -65,16 +146,19 @@ def compile_dem(args: argparse.Namespace):
         if src.crs.linear_units not in ('metre', 'meter', 'metres', 'meters', 'm'):
             raise ValueError(f'Unverified CRS linear units: {src.crs.linear_units!r}; convert to meters explicitly')
         w = Window(left, top, width, height)
-        elevation = src.read(1, window=w, masked=True).astype('float64')
-        good = ~np.ma.getmaskarray(elevation) & np.isfinite(np.ma.getdata(elevation))
-        z = np.ma.getdata(elevation)
-        mask = np.where(good, 1, 0).astype('u1')
-        transform = window_transform(w, src.transform)
-        crs_wkt = src.crs.to_wkt()
-        dx, dy = float(src.transform.a), abs(float(src.transform.e))
+        local = local_mars_analysis(src, w, tuple(args.base_cell), getattr(args, 'analysis_resolution_m', None))
+        z = local['elevation']
+        mask = local['mask']
+        transform = local['transform']
+        crs_wkt = local['crs'].to_wkt()
+        dx = dy = local['resolutionMeters']
         source_nodata = src.nodata
-    base = tuple(args.base_cell)
-    model = TerrainScenario()
+    base = local['baseCell']
+    try:
+        from .scenario import load_terrain_model
+    except ImportError:
+        from scenario import load_terrain_model
+    model = load_terrain_model()
     fields = compute_route_fields(z, mask, dx, dy, base, model)
     dest.mkdir(parents=True, exist_ok=True)
     records = export_fields(fields, dest)
@@ -91,7 +175,12 @@ def compile_dem(args: argparse.Namespace):
         'height': height, 'width': width, 'baseIndex': fields['_base_index'],
         'cellWidthMeters': dx, 'cellHeightMeters': dy,
         'crsWkt': crs_wkt, 'rasterTransform': list(transform)[:6],
-        'planetaryBody': 'Mars', 'sourceBodyRadiusMeters': radius,
+        'planetaryBody': 'Mars', 'sourceBodyRadiusMeters': local['sourceRadiusMeters'],
+        'analysisProjection': 'MARS_LOCAL_AZIMUTHAL_EQUIDISTANT',
+        'analysisCenterPlanetocentricLat': local['centerLatPlanetocentric'],
+        'analysisCenterPositiveEastLon': local['centerLonEast'],
+        'analysisMetricGridValidatedBy': 'MARS_SPHERICAL_AEQD_REPROJECT_V1',
+        'sourceCrsWkt': local['sourceCrsWkt'], 'sourceRasterTransform': list(local['sourceTransform'])[:6],
         'nativeNodata': source_nodata, 'sourceWindow': list(args.window),
         'files': records,
         'imagery': {'path': 'imagery/study-area.webp', 'sha256': hashlib.sha256(image_bytes).hexdigest(), 'bytes': len(image_bytes)},
@@ -110,4 +199,5 @@ if __name__ == '__main__':
     p.add_argument('--source-id', required=True)
     p.add_argument('--source-url', required=True)
     p.add_argument('--max-side', type=int, default=250)
+    p.add_argument('--analysis-resolution-m', type=float, help='Target local Mars analysis sampling (metres)')
     compile_dem(p.parse_args())

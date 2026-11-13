@@ -8,7 +8,7 @@
 - No glass blur, purple gradients, generic AI hero or fake scientific telemetry. Details are editorial and functional.
 - Map is dominant; left panel contains *science choices*, right panel *clock and evidence-based feasibility*.
 - Use consistent 4/8 px spacing and always label `UNKNOWN`, not just a warning color.
-- At H3 generate **the actual compiled Astryx SESHAT theme** with the installed CLI and replace the temporary neutral Theme in `src/app/providers.tsx`; keep the exact Tailwind layer order.
+- The **custom Astryx SESHAT theme source is already wired** into `src/app/providers.tsx` using the documented `defineTheme` extension. Verify its real package build/SSR and compile via the installed CLI on the networked machine; do not claim compiled theme acceptance until it actually builds. Keep the exact Tailwind layer order.
 - No external font calls. The H0 fallback uses platform sans; choose/local-bundle licensed Inter/Geist + mono when team confirms rights.
 
 ## Visual acceptance (not yet passed)

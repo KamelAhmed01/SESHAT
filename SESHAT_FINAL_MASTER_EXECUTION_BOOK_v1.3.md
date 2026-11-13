@@ -5,7 +5,7 @@
 **Team:** SESHAT Explorers · Kamel · Ali · Hams · Amr · Shams · Malak  
 **Challenge:** Interplanetary Survival Guide: Martian Map  
 **Planning baseline:** 48-hour authorized sprint, using event-relative gates  
-**Document edition:** v1.2 · 13 November 2026 · execution-rehearsed, decision-locked specification
+**Document edition:** v1.3 · 13 November 2026 · implementation-aligned, execution-rehearsed specification
 
 > **Our product promise**  
 > SESHAT helps a surface-science mission planner see which documented Martian scientific opportunities remain reachable *and returnable* as terrain, activity time, return reserve, and remaining mission time interact. A simulated delay changes the geography of opportunity. Every change can be explained, inspected, and traced to data or to a clearly named planning assumption.
@@ -28,11 +28,33 @@ This book is written for **six teammates and the coding assistants they supervis
 | §§ 18–20 | Failure handling, definition of done, and sources with evidence status |
 | Appendices A–F | Model oracle, H0 work queue, release packet, evidence handoff, runnable reference contracts, and failure-injection rehearsal |
 
-**Operating status.** This is an implementation plan, not a claim that the team has already built the app or that project tests have passed. Published source metadata and official library documentation have been checked; final raster contents, field-generated coordinates, venue approval, installed-version commands and production performance require real H0 evidence. Appendix F rehearses likely failures; Appendix E gives implementation contracts and commands.
+**Operating status.** The H0–H4 **source implementation exists and has passing local Python/TypeScript science and security checks**, recorded separately in `docs/VERIFICATION_LATEST.md`. This does **not** prove a production Next.js build, verified live Mars geometry, NASA challenge Resources eligibility, organizer-written authorization, Vercel deployment, or successful submission. Every claim remains gated by its own evidence. The operational entrypoint is [`docs/QUICK_RUN_SHEET.md`](docs/QUICK_RUN_SHEET.md); this book is the authoritative scientific/product reference, while the actual code schemas are authoritative for committed file layout.
 
 **Working conventions.** `H0` means the **documented, organizer-authorized** beginning of SESHAT implementation, not an assumed Friday morning. `H+12` means 12 elapsed hours after that moment. `P0` is an indispensable competition feature, `P1` is an expected premium feature, and `P2` is a conditional enhancement. A feature is *shipped* only if its inputs, behavior, error handling, and visual treatment have passed their acceptance tests. 
 
 Information is labeled **Verified**, **To verify at H0**, **Scenario assumption**, or **Contingency** where the distinction affects a consequential claim. Research sources are cited as `[R#]`, resolved in §20. Nothing labeled “To verify” may quietly become an asserted fact in code or presentation.
+
+
+## Release and implementation control — live code contract
+
+The following are **required artifacts**, not aspirational pseudocode:
+
+| Contract | Implementation file | Proof required |
+|---|---|---|
+| Unified scenario budget, reserve, speed, coefficients | `src/config/mission-scenario.json` | Python and TypeScript oracles agree; actual time budget chosen to match sourced targets |
+| Source Mars projection → ground-metric analysis | `pipeline/compile.py`, `pipeline/real_ingest.py` | Geodesic-distance, coordinate roundtrip and target-overlap tests; independent real-file review |
+| Real-source travel feasibility preflight | `pipeline/preflight.py` | Rejects impossible distant destinations, distinguishes unknown from hard/time-limited |
+| Directed route costs and return trees | `pipeline/route_fields.py` | SciPy oracle and integrity checks, no synthetic evidence promotion |
+| Frontend map and UI system | Next.js, Astryx custom theme, Leaflet `CRS.Simple` | Installed Next production build, React E2E + desktop/mobile QA |
+| Security and deployment | `vercel.json`, `docs/SECURITY_AND_DEPLOYMENT.md` | Actual deployed HTTP response headers / TLS, not just source presence |
+| CI / local verification | `tools/verify.py`, `.github/workflows/verify.yml` | Python+TS passing; **release fails without a committed pnpm lockfile, production build and Playwright** |
+| Team workflow and AI attribution | `AGENTS.md`, `.github/pull_request_template.md`, `docs/ai-use.md` | Reviewable change, truthful disclosure, no invented team GitHub handles |
+
+**Verification commands:** `python3 -m tools.verify --offline` checks local science/security contracts; `pnpm verify` requires full frontend install/build/browser evidence. A passing offline report **must not** be described as a passing production release. See the live checklist and two-page run sheet in `docs/QUICK_RUN_SHEET.md`.
+
+**Security posture:** Vercel headers are configured for a public static export. The CSP temporarily allows `unsafe-inline` for actual Next/Astryx compatibility; it does not establish an ideal strict nonce/hash policy. Live response inspection remains obligatory. A report-only passive scan may be used after deployment, but must not delay real data and judge-flow validation.
+
+**Competition authorization:** Local organizer verbal confirmation has been reported, but preserved written approval for the Friday schedule and its relationship to NASA's global organizing authority remain **unverified in repository evidence**; document accurately and never rewrite commit timestamps.
 
 ---
 
@@ -178,6 +200,10 @@ NASA's 2026 legal terms require that original submitted material be available wi
 
 # 4. The scientific scenario and target evidence
 
+### Quantitative scenario gate
+
+Never assume named Jezero destinations are within a single short field excursion. The code's **default 180-minute research scenario** (20-minute reserve, target-specific science minutes, 0.75 m/s reference movement, [0.8,1.0,1.2] speed factors) is read from `src/config/mission-scenario.json`. These are not NASA EVA constraints. A **105-minute scenario** with 20 minutes fieldwork and 20 minutes reserve leaves 65 minutes for movement, or about 1,462.5 metres *one-way on flat ground at nominal speed* when outbound and return are symmetric; terrain constraints only reduce nominal reach. The science preflight (`python -m pipeline.preflight --bundle public/data`) calculates optimistic lower bounds and then actual directed model costs for accepted target cells; a reachable *lower bound* is never proof that the real route is feasible. To stage an informative +15-minute demonstration, select the source-backed target group and an openly disclosed scenario that naturally produces the change. Never modify route costs to produce a story.
+
 ## 4.1 Study site and mission framing
 
 **Study region:** a bounded common-overlap crop around the **Jezero western delta / fan**, subject to raster and target coverage verification. It offers a documented Mars 2020 scientific narrative, excellent terrain data candidates, and the chance to combine surface observations with orbital remote sensing [R13–R16].
@@ -275,7 +301,7 @@ The companion **CTX ortho is a separate product**, not guaranteed to be 9.3 MB. 
 
 Mars uses different reference-body assumptions from Earth; planetary datasets may use planetocentric or planetographic latitude, positive-east or positive-west longitude, `0–360°` or `−180–180°` longitude, and specialized projected coordinate systems. Never assume that `EPSG:4326`, ordinary Google Maps distance, or Earth Web Mercator gives physically correct meters on Mars.
 
-**One internal system:** create a **projected local analysis plane in meters**, with documented Mars reference body and transform. Preserve source longitude/latitude as metadata; transform **once** into analysis coordinates. Let raster pixel indices derive from that transform, not from visual approximation. Every distance and grade calculation uses analysis-space meters and elevation meters.
+**One internal system:** create a **Mars spherical local azimuthal-equidistant (AEQD) analysis plane in actual ground meters** centered on a documented base, with source and analysis CRS/WKT and both affine transforms preserved. An equirectangular Mars source labelled 20 m/pixel is **not** a universally 20 m × 20 m ground grid away from its standard parallel; for 20 m at ~18.5°N, its east-west surface spacing is about 19 m. The compiler **must warp** before treating any pixel spacing as physical grade or travel distance. Keep source-native resolution distinct from the locally resampled analysis cell size. Preserve source longitude/latitude as metadata; transform **once** into analysis coordinates. Let raster pixel indices derive from that transform, not from visual approximation. Every distance and grade calculation uses analysis-space meters and elevation meters.
 
 Implement and test:
 
@@ -293,6 +319,8 @@ NASA source pixel / rover pose
 
 **Coordinate mapping (single source of truth):** if the north-up exported image/grid has `height=H`, `width=W`, and row `0` at the top, mount `L.imageOverlay('/data/imagery/study-area.webp', [[0,0],[H,W]])`. Define the center of analysis cell `(row,col)` to be **Leaflet** `[lat=H-(row+0.5), lng=col+0.5]`; the inverse for an in-bounds map click is `row=floor(H-lat), col=floor(lng)`. Leaflet's `LatLng` is only a viewer `[y,x]` container here—**not a real latitude/longitude**. No CSS rotation, flipped image or independently scaled overlay is permitted. All overlays, target pins, paths and selection use these two conversion functions. An actual Mars coordinate readout comes from **raster affine inverse/forward and validated Mars CRS transformation**, never from displayed `LatLng`.
 
+**Implemented CRS contract (H4):** `pipeline.compile.local_mars_analysis` takes a bounded source window and source-base pixel, derives a compatible Mars-radius geographic CRS from the source, then creates `+proj=aeqd +lat_0=... +lon_0=... +a=... +b=... +units=m`. It transforms/resamples the actual source window to a north-up local metric analysis grid using bilinear elevation resampling with explicit NoData masking. The manifest records `sourceCrsWkt` and `sourceRasterTransform` **separately** from the `crsWkt` and `rasterTransform` that target points and the browser consume. The tests assert equirectangular horizontal ground-length correction, spherical geodesic-to-grid length, coordinate roundtrip, and Mars radius. Missing coverage must remain invalid; do not fill a missing source pixel with invented terrain. Relative source elevations remain unchanged by a horizontal reprojection. The local AEQD ground-distance approximation is suitable for the small analysis ROI but requires independent review of source planetocentric/graphic and vertical-datum assumptions, never an unqualified safety statement. See `pipeline/tests/test_projection_metric.py`.
+
 **Export invariant:** normalize the imagery/DEM/mask into the **same north-up, nonrotated grid** (affine `b=d=0`, `a>0`, `e<0`) before browser export; a skewed/rotated GeoTIFF must be reprojected before using the cell-to-Leaflet rule. Unit tests cover four corner cell centers, cell `(0,0)`, last row/column, one route polyline and an off-grid click. If this viewer approach fails, **fix its binding or fall back to the same bounded raster in a simple canvas**; do not reintroduce a second mapping architecture during the hackathon.
 
 ### Mandatory spatial assertions
@@ -308,7 +336,7 @@ NASA source pixel / rover pose
 
 ## 5.4 Raster processing rules
 
-**Pipeline:** `fetch → metadata → inspect → crop/reproject → mask → derive → validate → publish`. **H10 spatial release requirement:** the three science candidates, base and verified data mask must have a *measured common coverage*. If they do not, the domain lead selects a smaller **coherent group of targets inside coverage** or the USGS broader Jezero Science Investigation mosaic; do not claim that a 2×2 km crop magically covers far-separated sites. The science narrative and budget are adjusted openly, never the source coordinates.
+**Pipeline:** `fetch → metadata → inspect → select source window → local Mars AEQD warp → mask → derive → validate → publish`. **H10 spatial release requirement:** the three science candidates, base and verified data mask must have a *measured common coverage*. If they do not, the domain lead selects a smaller **coherent group of targets inside coverage** or the USGS broader Jezero Science Investigation mosaic; do not claim that a 2×2 km crop magically covers far-separated sites. The science narrative and budget are adjusted openly, never the source coordinates.
 
 1. **Ingest:** preserve original source label and metadata (`.xml`, `.lbl`, GeoTIFF metadata, publication page). Never treat a screenshot or Web tile as a DEM.
 2. **Inspect:** print `CRS`, bounds, resolution, vertical unit, shape, nodata marker, pixel value range and source checksum. Reject mismatches before transformation.
@@ -465,7 +493,7 @@ Then:
  t_{uv,s}=\frac{d(u,v)}{v_{uv,s}}.
 \]
 
-**Versioned initial model (`terrain-scenario-v0`):** set **`v_ref=0.75 m/s`, `a=4.0`, `b=1.8`, `max_slope_deg=25°` (`max |grade|=tan 25°≈0.4663`)**, and sensitivity `0.8× / 1.0× / 1.2×`. These are **clearly visible scenario assumptions, not published Mars EVA limits or calibrated astronaut physiology**. Each slope estimate is across analysis-grid cell centers, not an observation of footstep obstacles. The grade threshold is a **compiler-configurable scenario rule fixed in the shipped field bundle**, not a live slider or a certification of safe passage. A changed threshold requires recompilation and a distinct model/dataset revision. Start with `activity_minutes=20`, `return_reserve_minutes=20`, `delay_minutes=15` as demo assumptions unless a particular activity has a directly sourced duration. The headline **EVA time budget is selected from the actual accepted paths** after G1 so that the demonstrated delay has a genuine consequence; never fake the path metrics. Record the chosen budget and target IDs in `mission-scenario.json` and rehearse with that exact version.
+**Versioned initial model (`terrain-scenario-v0`):** set **`v_ref=0.75 m/s`, `a=4.0`, `b=1.8`, `max_slope_deg=25°` (`max |grade|=tan 25°≈0.4663`)**, and sensitivity `0.8× / 1.0× / 1.2×`. These are **clearly visible scenario assumptions, not published Mars EVA limits or calibrated astronaut physiology**. Each slope estimate is across analysis-grid cell centers, not an observation of footstep obstacles. The grade threshold is a **compiler-configurable scenario rule fixed in the shipped field bundle**, not a live slider or a certification of safe passage. A changed threshold requires recompilation and a distinct model/dataset revision. Start with `activity_minutes=20`, `return_reserve_minutes=20`, `delay_minutes=15` as demo assumptions unless a particular activity has a directly sourced duration. The headline **EVA time budget is selected from the actual accepted paths** after G1 so that the demonstrated delay has a genuine consequence; never fake the path metrics. Record the chosen budget and target IDs in `src/config/mission-scenario.json` and rehearse with that exact version.
 
 `a` and `b` are **dimensionless planning-model coefficients**, not empirically determined Mars EVA physiology. They may be **revised only with a new named model version and regenerated path fields**, after inspecting grade histograms and tests. A frontend slider must **not** silently change `a`, `b`, grid resolution or base point when only cached paths for the old model exist. The function intentionally makes ascent and descent costs different while declining to invent precise energy expenditure. If the data or references cannot justify asymmetric traversal, use a **symmetric distance/time model** and say exactly what is disabled.
 
@@ -1157,7 +1185,7 @@ At H0, Kamel creates `AGENTS.md`, a short tool-neutral contract. Every teammate 
 - The model is a scenario simulation. No model output may be called NASA-certified safety guidance.
 
 **UI and product**
-- **Astryx (`@astryxdesign/core`) is mandatory for shared conventional UI components.** Next.js 19+ React/Tailwind v4 integration follows §8.1A. Never scaffold shadcn as the foundation or duplicate Astryx controls locally.
+- **Astryx (`@astryxdesign/core`) is mandatory for shared conventional UI components.** React 19+ and Next.js App Router/Tailwind v4 integration follows §8.1A. Never scaffold shadcn as the foundation or duplicate Astryx controls locally.
 - **Before writing a component, run the installed Astryx CLI** (`pnpm exec astryx component --list`, `... component <Name>`, `... docs tokens`) and use the documented API. No hallucinated imports, wrong variants, invented props or versions.
 - No feature may create its own style system. All common colors, type and spacing derive from the **compiled SESHAT Astryx theme** and explicit scientific domain tokens.
 - Do not change installed Astryx or its theme dependencies without Kamel/Ali review and a static-export/browser smoke test; Astryx is beta and the lockfile is deliberate.
@@ -1435,7 +1463,7 @@ Build target comparisons, fixed-base shortest-path fields, route/profile lookups
 
 Build the +15-minute action, state transition, Why changed audit, before/after explanation, and keyboard/mouse flow. Use a **declared scenario budget** for the real validated routes so that the delay changes a meaningful target state; retain real computed travel numbers. Connect source links inside the resulting target card.
 
-**G3 / H22:**
+**G3 / H22 (first complete mission demonstration; at H20 deliver the earlier real-CTX/2-point integration slice even if nonessential polish is unfinished):**
 
 - [ ] One judge can complete **objective → target → route → +15 delay → changed state → Why changed → evidence** without coaching.
 - [ ] Changing time never expands frontier or improves margin.
@@ -1612,7 +1640,7 @@ Use Playwright for the crucial deterministic flow; use human screenshot reviews 
 
 Give them four tasks *without teaching them the interface*:
 
-**Task A — choose.** “You have a stated science objective, a 105-minute planning budget and a required return reserve. Which target would you attempt conservatively, and what evidence supports it?”
+**Task A — choose.** “You have a stated science objective, the planning budget read directly from `src/config/mission-scenario.json`, and a required return reserve. Which target would you attempt conservatively, and what evidence supports it?”
 
 **Task B — react.** “A 15-minute delay occurs. Which target changes state? Which alternative is still available and why?”
 

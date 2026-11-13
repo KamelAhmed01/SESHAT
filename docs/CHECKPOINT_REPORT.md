@@ -1,12 +1,12 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-13 10:08 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-13 11:32 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
 ## Verified locally
 
-- [x] Python terrain/science tests — passed
+- [x] Python science + security tests — passed
 - [x] TypeScript engine compile — passed
 - [x] Node scientific/unit oracles — passed
 - [x] Synthetic Chromium acceptance harness — passed
@@ -23,6 +23,9 @@ Generated **2026-11-13 10:08 UTC** using `python -m tools.checkpoint --run-tests
 - [x] Elevation profiles and exportable mission briefs
 - [x] Evidence-gated all-target opportunity ledger and map pin contract
 - [x] Scientific assumptions and AI engineering rules
+- [x] Mars local metric projection and geographic proof
+- [x] Shared model scenario and science reachability preflight
+- [x] Release/security integration and AI governance
 - [x] Custom Astryx theme source exists; compile and inspect both modes
 
 ## Missing / blocked / unverified
@@ -30,7 +33,8 @@ Generated **2026-11-13 10:08 UTC** using `python -m tools.checkpoint --run-tests
 - [ ] Screenshot of NASA 2026 challenge Resources listing and a visibly used qualifying NASA source (C1)
 - [ ] Actual USGS Jezero CTX DEM bytes downloaded, hashed, projection/coverage inspected
 - [ ] Real Mars study-area compiled into public/data/ (synthetic /demo is not accepted)
-- [ ] Generate/commit pnpm-lock.yaml on connected laptop, change CI to frozen lockfile
+- [ ] H4 strict release PASS (full Next.js build and production Playwright E2E) — blocked until dependencies and pnpm-lock.yaml are available
+- [ ] Generate/commit pnpm-lock.yaml on connected laptop; CI already requires frozen lockfile
 - [ ] Install real Next.js + Astryx dependencies; run Next typecheck and build
 - [ ] Next production static export and genuine Next browser screenshot
 - [ ] Connect SESHAT GitHub remote, push committed history, confirm teammate access
@@ -41,15 +45,15 @@ Generated **2026-11-13 10:08 UTC** using `python -m tools.checkpoint --run-tests
 
 ## Test execution evidence
 
-- Python terrain/science tests: PASS; last output: `...................                                                      [100%]
-19 passed in 0.97s`
+- Python science + security tests: PASS; last output: `...........................                                              [100%]
+27 passed in 1.29s`
 - TypeScript engine compile: PASS; last output: ``
-- Node scientific/unit oracles: PASS; last output: `# pass 29
+- Node scientific/unit oracles: PASS; last output: `# pass 31
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 92.623097`
+# duration_ms 85.627443`
 - Synthetic Chromium acceptance harness: PASS; last output: `BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow
 CHECKPOINT: start frontier cells 27870 after +15min 24855`
 

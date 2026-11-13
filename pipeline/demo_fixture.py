@@ -32,7 +32,8 @@ def build_fixture(out: Path, shape=(160, 190), cell_m=32):
     # An intentional hard constraint in a remote corner, visible on the hillshade.
     mask[100:117, 8:22] = 2
     base = (h//2, w//2)
-    model = TerrainScenario()
+    from .scenario import load_terrain_model
+    model = load_terrain_model()
     fields = compute_route_fields(z, mask, cell_m, cell_m, base, model)
     out.mkdir(parents=True, exist_ok=True)
     files = export_fields(fields, out)

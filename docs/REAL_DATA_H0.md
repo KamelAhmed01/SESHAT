@@ -39,7 +39,7 @@ If venue DNS/network fails, download the **exact original URL** on a teammate's 
 
 ## B. Verify a chosen 4–5 km science study area
 
-The CTX DTM is roughly **20 m/pixel**, so `--side 220` yields a **4.4 km** wide analysis area. The real full extent is much larger: **do not take its center as a guaranteed Western Delta science location**.
+The CTX DTM samples at roughly **20 projected m/pixel**. A `--side 220` source window covers roughly 4.4 km north–south but a smaller real east–west ground extent near 18.5°N. H4 reprojects that window into a **220×220 local Mars AEQD grid** with separately recorded 20 m analysis sampling; source-window coverage outside the true bounds becomes NoData, never fabricated terrain. The real full extent is much larger: **do not take its center as a guaranteed Western Delta science location**.
 
 If verified mission-observation lat/lon are available, choose the crop by **planetocentric latitude and positive-east longitude**:
 
@@ -51,7 +51,7 @@ python -m pipeline.real_ingest --side 220 \
 
 Until then, running `python -m pipeline.real_ingest --side 220` creates an **exploratory central crop** only. This is allowed as a temporary planning surface, not as evidence that particular science targets lie there.
 
-Always inspect `public/data/manifest.json`: confirm `planetaryBody`, `sourceBodyRadiusMeters`, `crsWkt`, `rasterTransform`, `sourceWindow`, NoData mask, and source SHA. GeoTIFF bytes and a plausible file name **do not prove** the file is the linked USGS product.
+Always inspect `public/data/manifest.json`: confirm `planetaryBody`, `sourceBodyRadiusMeters`, **`sourceCrsWkt` and `sourceRasterTransform`**, **local** `crsWkt` and `rasterTransform`, `analysisProjection`, `sourceWindow`, NoData mask, and source SHA. Recheck geographic target alignment after the warp. GeoTIFF bytes and a plausible file name **do not prove** the file is the linked USGS product.
 
 If the point is outside the selected 220×220 cells, `pipeline.targets` **fails**. Change ROI and recompile. Never snap a scientific target to the nearest convenient cell.
 
@@ -65,6 +65,15 @@ python -m pipeline.targets docs/targets.example.json --bundle public/data
 
 An `APPROXIMATE_REGION` stays unroutable / `UNKNOWN`, even if it has interesting science. Extracting Sol rows from PLACES is useful for rover context, but **not sufficient** to label a rock outcrop as a precise target.
 
+Run the distance/budget gate before declaring target feasibility:
+
+```bash
+python -m pipeline.preflight --bundle public/data \
+  --output data/reports/science-reachability.json
+```
+
+This rejects targets that exceed even optimistic straight-line travel, and separately reports modeled directed paths. It does not guarantee any route is safe.
+
 ## D. Optional, genuinely aligned orbital imagery
 
 When you have a **georeferenced**, public Mars orbital optical GeoTIFF that actually overlaps the chosen terrain area (e.g. the USGS Mars 2020 CTX 6m orthomosaic; inspect product size before downloading), use:
@@ -77,7 +86,7 @@ python -m pipeline.optical \
   --source-url 'https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-context-camera-orthorectified-image-mosaic'
 ```
 
-The command uses the DEM's original Mars projection and raster transform, reprojects to the **exact same rows and columns**, emits a hashed WebP, and makes the app's **Terrain / Orbital** layer switch available. A mismatched or disjoint image is rejected. No manual CSS stretch or Mars-to-Earth Web Mercator hack.
+The command uses the **local metric analysis CRS and affine** from `manifest.json`, reprojects from the orbital source CRS to the **exact same rows and columns**, emits a hashed WebP, and makes the app's **Terrain / Orbital** layer switch available. A mismatched or disjoint image is rejected. No manual CSS stretch or Mars-to-Earth Web Mercator hack.
 
 ## E. Team science/Resources review gate
 
@@ -106,6 +115,8 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
 pnpm dev
 ```
 

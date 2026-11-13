@@ -14,9 +14,10 @@ import { ElevationProfile } from '@/components/visualizations/ElevationProfile';
 import { buildMissionBrief } from '@/engine/mission-brief';
 import { buildOpportunityLedger, opportunityExplanation } from '@/engine/opportunity-ledger';
 import { explainDelay } from '@/engine/explain';
+import scenarioDefaults from '@/config/mission-scenario.json';
 
-const INITIAL_BUDGET = 180; // Assumed research scenario, NOT NASA flight guidance.
-const RESERVE = 20;
+const INITIAL_BUDGET = scenarioDefaults.timeBudgetMinutes; // Scenario assumption, never EVA guidance.
+const RESERVE = scenarioDefaults.reserveMinutes;
 const sourceKind = (state: BundleResult['state']) => state === 'DEMO' ? 'SYNTHETIC TEST SCENE' :
   state === 'VERIFIED' ? 'TEAM-REVIEWED MARS DATA' : state === 'SOURCE_REVIEW_REQUIRED' ? 'REAL-DATA REVIEW PENDING' : 'DATA GATE PENDING';
 
@@ -28,7 +29,7 @@ function customTarget(row: number, col: number): ScienceTarget {
     objectiveTags: ['scenario'],
     science: { summary: 'User-selected location. No geologic properties are inferred from a click.',
       sourceIds: [], evidence: [], limitations: ['Not a verified geological target', 'Activity duration is assumed'] },
-    activity: { minutes: 20, basis: 'SCENARIO_ASSUMPTION' },
+    activity: { minutes: scenarioDefaults.defaultScienceMinutes, basis: 'SCENARIO_ASSUMPTION' },
   };
 }
 
@@ -86,10 +87,10 @@ export function MissionWorkbench() {
   const isReady = bundle !== null;
   const remaining = Math.max(0, INITIAL_BUDGET - elapsed);
   const scenario: MissionScenario = useMemo(() => ({
-    id: 'research-scenario-v0', label: 'Illustrative EVA planning scenario',
+    id: scenarioDefaults.id, label: scenarioDefaults.label,
     timeBudgetMinutes: INITIAL_BUDGET, elapsedMinutes: elapsed, reserveMinutes: RESERVE,
-    referenceSpeedMetersPerSecond: 0.75, speedMultipliers: [0.8, 1, 1.2],
-    gradeModelId: 'terrain-scenario-v0', datasetRevision: bundle?.manifest.sourceId ?? 'AWAITING_SOURCE',
+    referenceSpeedMetersPerSecond: scenarioDefaults.referenceSpeedMetersPerSecond, speedMultipliers: [0.8, 1, 1.2],
+    gradeModelId: scenarioDefaults.gradeModelId, datasetRevision: bundle?.manifest.sourceId ?? 'AWAITING_SOURCE',
   }), [elapsed, bundle]);
 
   const ledger = useMemo(() => bundle ? buildOpportunityLedger(bundle, scenario) : null, [bundle, scenario]);

@@ -43,12 +43,15 @@ def snapshot(run_tests: bool = False) -> str:
         ('Elevation profiles and exportable mission briefs', ['src/components/visualizations/ElevationProfile.tsx', 'src/engine/mission-brief.ts']),
         ('Evidence-gated all-target opportunity ledger and map pin contract', ['src/engine/opportunity-ledger.ts', 'src/cartography/target-markers.ts']),
         ('Scientific assumptions and AI engineering rules', ['AGENTS.md', 'docs/REAL_DATA_H0.md']),
+        ('Mars local metric projection and geographic proof', ['pipeline/compile.py', 'pipeline/tests/test_projection_metric.py']),
+        ('Shared model scenario and science reachability preflight', ['src/config/mission-scenario.json','pipeline/preflight.py']),
+        ('Release/security integration and AI governance', ['vercel.json', '.github/pull_request_template.md','tools/verify.py','docs/SECURITY_AND_DEPLOYMENT.md']),
     ):
         (implemented if all((ROOT / p).is_file() for p in paths) else pending).append(description)
 
     if run_tests:
         for label, command in (
-            ('Python terrain/science tests', [sys.executable, '-m', 'pytest', '-q', 'pipeline/tests']),
+            ('Python science + security tests', [sys.executable, '-m', 'pytest', '-q', 'pipeline/tests', 'tests/security']),
             ('TypeScript engine compile', ['tsc', '-p', 'tsconfig.engine.json']),
             ('Node scientific/unit oracles', ['node', '--test', 'tests/unit/engine.test.cjs']),
             ('Synthetic Chromium acceptance harness', [sys.executable, 'tools/preview/test_preview.py']),
@@ -96,10 +99,12 @@ def snapshot(run_tests: bool = False) -> str:
         except (ValueError, OSError):
             pending.append('Real-source manifest JSON parses and passes integrity loader')
 
+    pending.append('H4 strict release PASS (full Next.js build and production Playwright E2E) — blocked until dependencies and pnpm-lock.yaml are available')
+
     if (ROOT / 'pnpm-lock.yaml').is_file():
         implemented.append('Version-pinned pnpm lockfile committed or available locally')
     else:
-        pending.append('Generate/commit pnpm-lock.yaml on connected laptop, change CI to frozen lockfile')
+        pending.append('Generate/commit pnpm-lock.yaml on connected laptop; CI already requires frozen lockfile')
 
     if not (ROOT / 'node_modules/@astryxdesign/core').exists():
         pending.append('Install real Next.js + Astryx dependencies; run Next typecheck and build')

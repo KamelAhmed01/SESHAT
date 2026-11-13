@@ -1,0 +1,3 @@
+# Quick GitHub protection configuration
+
+As soon as the team repository is created, set `main` to require **one PR review** and the two workflow statuses **Verify / web** and **Verify / science**. Allow Kamel/Ali to perform emergency merges after review; do not block the whole team with a highly complex approval matrix. Only configure CODEOWNERS for `tests/oracles/` once the real account usernames and folder ownership are confirmed. Do not invent or add placeholder usernames to a running CODEOWNERS file. No force pushes or history rewriting. Preserve the Friday H0 approval record and existing commit history.
