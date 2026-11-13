@@ -1,22 +1,70 @@
-# Jezero mission lifecycle
+# SESHAT final master execution plan
 
-The Cairo team confirmed a Saturday, November 14, 2026, 1:00 p.m. local submission deadline. Use 12:15 p.m. Cairo time as the team's delivery target. Cairo requires its own form and the global team project page. The global window opens Saturday at 9:00 a.m. and closes Sunday at 11:59 p.m. local time. Keep the organizer's written Friday build-start record with the team. [Cairo FAQs](https://spaceappscairo.com/faqs) · [Global schedule](https://www.spaceappschallenge.org/2026/) · [Global terms](https://www.spaceappschallenge.org/legal/)
+**Edition 2.0 · 13 November 2026 · SESHAT Explorers**
 
-## Rehearse the judge story
+**Challenge:** Interplanetary Survival Guide: Martian Map
 
-Run `pnpm build`, then `pnpm start:export` and open `http://127.0.0.1:4173/`.
+**Build baseline:** `223f831` on `codex/mission-lifecycle`
 
-1. Add **Shuyak · Cape Nukshak**, **Hazeltop · Wildcat Ridge**, and **Swift Run · Skinner Ridge**. Switch to **Orbital** and show the sequence and return reserves. The scenario landing site is near the western fan. The historical Perseverance landing is a separate map marker.
-2. Choose **Approve & lock baseline plan**, then **Complete next stop**. In the default three-stop scenario, the completed stop is Shuyak.
-3. Under **Record an event**, choose **Destination inaccessible** and select **Hazeltop · Wildcat Ridge**. Choose **Record event & recalculate**. The review preserves Shuyak and defers Hazeltop.
-4. Choose **Approve revision & continue**, **Complete next stop**, then **Return to Landing Site**. In the tested default scenario, the simulated return is T+01:31 after visits to Shuyak and Swift Run.
-5. Download the JSON mission archive. It contains the frozen baseline, active plan, traveled geometry, event inputs, and review decisions. The Markdown and print actions provide readable summaries. Use **Resume saved mission** to recover the browser's latest recorded state.
+This is the current team plan for the Cairo submission. Use the [v1.3 execution book](../SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md) for historical design and H4 engineering detail. The [event ledger](event-brief.md) records organizer evidence and the [release report](VERIFICATION_RELEASE.md) records software checks.
 
-Use the science cards to compare sedimentary observations at Amalik, Wildcat Ridge and Skinner Ridge. The planning budget is 180 min, 540 L O₂ and 900 Wh, with separate reserves of 20 min, 90 L and 150 Wh. These are scenario parameters. Approval requires meeting all three reserves at each modeled speed (0.8×, 1.0× and 1.2×). The DEM is sampled at 20 m. The planner models grade and NoData, and computes optional outdoor contingency stops from the local grid and modeled reserve. No shelter structures, boulder hazards, current weather, or physiology are inferred. Simulated sensors and instruments use the same manual review flow as field input.
+**Local deadline:** Saturday, November 14 at **1:00 p.m. Cairo time**, as confirmed by the team. **Delivery target:** 12:15 p.m. Cairo time. Submit through the Cairo form and the global team Project tab. The global portal window is Saturday at 9:00 a.m. through Sunday at 11:59 p.m. local time. The team reports a Friday 9:00 a.m. build start. Written authorization and the local pitch slot still require organizer evidence. [Cairo FAQs](https://spaceappscairo.com/faqs) · [Global schedule](https://www.spaceappschallenge.org/2026/) · [Global terms](https://www.spaceappschallenge.org/legal/)
 
-## Resource audit and downloads
+## 1. Mission and acceptance criteria
 
-I opened all five links on the [challenge Resources tab](https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/?tab=resources).
+A simulated astronaut leaves a hypothetical landing site near Jezero's western fan, compares published sedimentary exposures, and returns to base. The app uses MRO CTX topography and imagery together with Mars 2020 Perseverance sample records and surface imagery. Perseverance's historical landing appears separately for context.
+
+| Phase | Accepted behavior |
+| --- | --- |
+| 1 · Plan and approve | Select one stop in **Single** mode or build a multi-stop itinerary of up to four in **Multiple** mode. Add documented sites or a valid custom map point, change activity duration, and set priorities. Compare the astronaut's order against optimized directed routes and a feasible subset when available. Review terrain, travel and activity schedule, resource margins, and outdoor contingency stops before locking the baseline. |
+| 2 · Execute and replan | Move partway along an approved leg or complete a stop. Track simulated position, elapsed time, resource usage, and completed visits. A recorded event pauses movement and recomputes the remaining itinerary from the current cell. Inspect the proposal against the previous remaining plan, then approve, hold, or choose a supported direct abort route. |
+| 3 · Continue, return, and archive | Repeat the event and review loop as needed. Completed stops and traveled legs remain in history. The mission completes when the simulated astronaut reaches the scenario landing site. Export JSON for geometry, event inputs and decisions, Markdown for a readable report, or print the displayed plan. **Resume saved mission** recovers the latest state for this browser and terrain bundle. |
+
+### Planning rules
+
+- Use the configured scenario budgets of **180 min, 540 L O₂, and 900 Wh**, with reserves of **20 min, 90 L, and 150 Wh**. Normal approval requires all three margins to be nonnegative at **0.8×, 1.0×, and 1.2×**. The default activity duration is 20 min. [Scenario configuration](../src/config/mission-scenario.json)
+- The planner checks permutations of the selected stops, including the return leg. Within a feasibility rank, it prefers the shorter modeled travel time. The gentler-terrain option applies a slope penalty to path selection. If deferrals are needed, the astronaut's listed priorities determine which stops to retain first. A replan can propose shorter activities before dropping a prioritized stop. [Planner](../src/engine/multi-leg-planner.ts)
+- The graph uses directed, grade-weighted movement on the 20 m local analysis grid. NoData blocks routing and may leave a route verdict unknown. The model blocks edges above the configured 25° threshold. A contingency waypoint requires a local slope below 4° and enough modeled resources to return at the conservative pace. [Terrain routing](../src/engine/traverse-graph.ts) · [Waypoint criteria](../src/engine/multi-leg-planner.ts)
+- The landing site, mobility model, consumables, and events are scenario assumptions. Environment fields report the limits of available data. Local weather, radiation forecasts, physical shelters, boulder-scale hazard detection, and live suit or instrument telemetry are outside this release. Use **research prototype** in the pitch and project description.
+
+### Event inputs and effects
+
+Each event records a simulated timestamp, location, input channel, category, and applicable measurements or field note. The channels are manual field input, simulated suit sensor, and simulated mission instrument.
+
+| Category | Effect |
+| --- | --- |
+| Mission delay | Adds elapsed time and stationary resource consumption. |
+| Resource loss | Subtracts the recorded oxygen and/or battery use from the available supply. |
+| New terrain hazard | Adds a map exclusion zone and evaluates detours. |
+| Terrain or conditions changed | Reduces the pace used to predict the remaining traverse. |
+| Destination inaccessible | Excludes the chosen upcoming stop from the proposal. |
+| New scientific discovery | Evaluates a user-entered map point and activity within the remaining stop capacity and resource reserves. |
+
+Normal revision approval uses the same reserve rule as the baseline. During review or hold, a supported direct abort route remains available and flags reserve risk when relevant. If the graph has no supported return path, the abort action is unavailable. Hold position and record the unresolved route. [Execution state and event handling](../src/engine/lifecycle-store.ts)
+
+## 2. Rehearse the judge story
+
+On a machine with Node 22 or newer, pnpm and Python 3 installed, run the following from the repository root. Use a second terminal for the static server if needed.
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm start:export
+```
+
+Open `http://127.0.0.1:4173/`.
+
+1. Add **Shuyak · Cape Nukshak**, **Hazeltop · Wildcat Ridge**, and **Swift Run · Skinner Ridge**. Switch to **Orbital**. Show the sequence, modeled arrival times, and return reserves.
+2. Choose **Approve & lock baseline plan**, then **Complete next stop**. Shuyak appears as completed.
+3. Under **Record an event**, choose **Destination inaccessible**, select **Hazeltop · Wildcat Ridge**, and choose **Record event & recalculate**. Show Shuyak in history, Hazeltop deferred, and the proposed route to Swift Run and base.
+4. Choose **Approve revision & continue**, **Complete next stop**, then **Return to Landing Site**. The tested run returns at **T+01:31** after visits to Shuyak and Swift Run.
+5. Download the JSON archive and show the retained baseline, event, and approval.
+
+[Planning screenshot](../screenshots/seshat-jezero-planning.png) · [Replan screenshot](../screenshots/seshat-jezero-replan.png)
+
+## 3. Resource audit and downloads
+
+All five links were inspected on the [challenge Resources tab](https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/?tab=resources).
 
 | Resource | Download path and role |
 | --- | --- |
@@ -38,7 +86,7 @@ The CTX file is 1,596 × 1,512, equirectangular with a 3,396,190 m Mars sphere. 
 
 The points come from the Mars 2020 sample dossiers, chapters 11, 14 and 16. Hawksbill Gap is the broader region for Swift Run and Hazeltop. The UI labels the locations as source-reported pending independent review. The current bundle keeps the team's `SOURCE_REVIEW_REQUIRED` status. [PDS sample dossiers](https://pds-geosciences.wustl.edu/missions/mars2020/returned_sample_science.htm) · [NASA sample catalog](https://science.nasa.gov/mission/mars-2020-perseverance/mars-rock-samples/)
 
-## Reproduce the terrain, imagery and reachability check
+### Reproduce the terrain, imagery and reachability check
 
 The generated bundle is in `public/data`. The following commands build a scratch copy of the numeric terrain and aligned mosaic without modifying the shipped bundle. The three small credited surface-photo derivatives and the historical landing marker are already included in the shipped bundle.
 
@@ -56,11 +104,28 @@ python -m pipeline.preflight --bundle data/review-jezero
 
 The orthomosaic download used SHA-256 `842b457afee7c2672022b66e3f60be836c6d52e99474015bfd9ced60099b8615`. The alternate Mars Trek DEM download used `46fb2e1e9f9c1fdd02939c2a96f3e173a8731bd146fbeb969b2060e0a3c8e97e`. The compiler's USGS source SHA and local projection are in [the runtime manifest](../public/data/manifest.json). NASA and USGS data and images retain their original credits and use terms. [NASA media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) · [USGS data reuse](https://www.usgs.gov/faqs/are-usgs-reportspublications-copyrighted)
 
-## Delivery gates
+## 4. Verification and submission
 
-- **Data review** — Amr and Malak check the source coordinate frame, terrain datum, target names and instrument captions, then sign the evidence under the existing H4 review procedure.
-- **Judge demo** — Shams and Ali rehearse the inaccessible-stop scenario. The Cairo FAQ permits an English deck of up to seven slides or a video of up to 30 seconds with English subtitles. Preserve the already-tested local static export.
-- **Public delivery** — Verify the public project link in a signed-out browser. Submit the same project through Cairo's form and the global team Project tab, and retain both receipts.
-- **Scope** — Spatial routing, consumables and the adaptation loop work locally. Local event authorization, independent science attestation, public hosting and portal submission are separate evidence items.
+The local release report records **27 Python and security checks, 37 engine tests, and 5 browser tests passing**. Lint, TypeScript, and the Next.js static export passed. The rehearsal completed with external network requests blocked. The branch includes the compiled terrain and aligned imagery, so the offline rehearsal can run from a copy of `out/` using a local HTTP server. [Release verification](VERIFICATION_RELEASE.md) · [Checkpoint](CHECKPOINT_REPORT.md)
 
-[Production planning screenshot](../screenshots/seshat-jezero-planning.png) · [Production revision screenshot](../screenshots/seshat-jezero-replan.png)
+| Gate | Owner | Close it with |
+| --- | --- | --- |
+| Organizer start and eligibility evidence | Shams / Kamel | Archive the written Cairo start time, its applicable approval, the challenge Resources capture, and the local submission instructions. Record the pitch slot and format when confirmed. |
+| Independent science review | Amr / Malak | Review the planetary frame, datum, coverage, published sample coordinates, image captions and attribution. Record the reviewers and evidence. The current bundle remains `SOURCE_REVIEW_REQUIRED`. |
+| Hosted delivery and backup | Kamel / Ali, with Hams on QA | Check the public app, demo and project links from a signed-out browser. Run the selected scenario on the deployed build. Rehearse the local export on the backup laptop. |
+| English demo and project copy | Shams / Ali | Prepare one official demo link. The working default is a five-slide deck covering the mission question, data, baseline, event and revision, and return with limitations. Cairo's FAQ permits up to seven slides or a video up to 30 seconds with English subtitles. Include the exact data credits and AI disclosure. |
+| Submission | Kamel / Shams | Submit through both portals, verify that each submission is recorded, and save both receipts and timestamps. |
+
+### Saturday handoff
+
+These are internal targets in Cairo time. The team-confirmed local cutoff is **1:00 p.m.**.
+
+| By | Action |
+| --- | --- |
+| 9:00 a.m. | Confirm both submission routes and check the global Project tab. |
+| 10:30 a.m. | Finish the independent science review, public smoke test, and offline rehearsal. |
+| 11:30 a.m. | Freeze the submission links, English demo, credits, and AI disclosure. |
+| 12:15 p.m. | Submit through both portals and capture receipts. |
+| 1:00 p.m. | Local submission closes. |
+
+If the hosted app fails, use the local export for the live rehearsal and keep fixing the required public link. If a science review item remains open, keep its source-reported or provisional label and limit the claim in the demo. If an upload fails, record the error and use the remaining time to retry through the affected portal. [Cairo FAQs](https://spaceappscairo.com/faqs) · [Global submission window](https://www.spaceappschallenge.org/2026/)

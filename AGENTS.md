@@ -43,7 +43,7 @@ Build SESHAT, an evidence-traceable Martian surface-science planning research pr
 - Assign AI parallel tasks by file boundary. A UI agent may not change raster contracts. An engine agent may not invent UI tokens.
 
 ## Authoritative references
-1. `SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md` — full scientific, product and schedule contract.
+1. `docs/MISSION_LIFECYCLE.md` — current mission scope and submission plan. The v1.3 execution book records the H4 design.
 2. `docs/event-brief.md` — authorization and authoritative deadlines.
 3. `docs/sources.md` — qualified challenge-resource and actual build provenance.
 4. `docs/decisions.md` — current frozen decisions; any conflict requires human decision.

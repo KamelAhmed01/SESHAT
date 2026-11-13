@@ -1,6 +1,6 @@
 # Science and compliance source ledger
 
-The [resource audit](MISSION_LIFECYCLE.md#resource-audit-and-downloads) records the live challenge listing, inspected download URLs, product hashes, crop and target coordinates. The default workbench uses the Mars Trek CTX terrain and optical mosaic and NASA Perseverance evidence. The entries below are the original H4 investigation notes.
+The [resource audit](MISSION_LIFECYCLE.md#3-resource-audit-and-downloads) records the live challenge listing, inspected download URLs, product hashes, crop and target coordinates. The default workbench uses the Mars Trek CTX terrain and optical mosaic and NASA Perseverance evidence. The entries below are the original H4 investigation notes.
 
 | ID | Candidate | URL | Evidence status | Intended role | Next validation |
 |---|---|---|---|---|---|

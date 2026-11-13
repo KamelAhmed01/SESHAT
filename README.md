@@ -1,9 +1,9 @@
 # SESHAT
 
 
-**Current build:** the Jezero mission planner opens at `/`. Start with the [mission rehearsal and resource audit](docs/MISSION_LIFECYCLE.md). The H4 opportunity frontier is at `/?opportunities=1`; `/?demo=1` uses the labeled synthetic fixture.
+**Current build:** the Jezero mission planner opens at `/`. Start with the [final master execution plan](docs/MISSION_LIFECYCLE.md). The H4 opportunity frontier is at `/?opportunities=1`; `/?demo=1` uses the labeled synthetic fixture.
 
-> **Current operator entrypoint:** [`docs/QUICK_RUN_SHEET.md`](docs/QUICK_RUN_SHEET.md). The definitive local metric model/assumption source is [`src/config/mission-scenario.json`](src/config/mission-scenario.json).
+The local metric model and assumptions are defined in [`src/config/mission-scenario.json`](src/config/mission-scenario.json).
 
 
 **Mars surface science, under a changing clock.**
@@ -12,7 +12,7 @@ SESHAT is an evidence-traceable planetary surface science opportunity workbench 
 
 ## Start here
 
-Read **[`docs/START_CODING.md`](docs/START_CODING.md)** and **[`AGENTS.md`](AGENTS.md)** before implementation. The scientific/product contract is in **[`SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md`](SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md)**.
+Read **[`docs/START_CODING.md`](docs/START_CODING.md)** and **[`AGENTS.md`](AGENTS.md)** before implementation. The [v1.3 book](SESHAT_FINAL_MASTER_EXECUTION_BOOK_v1.3.md) records the H4 design and original event-relative plan.
 
 ```bash
 corepack enable
@@ -24,7 +24,7 @@ pnpm dev
 
 **Scientific honesty:** the UI does not ship fake terrain, fabricated science pins, or NASA-certified activity numbers. After downloading and reviewing actual Mars data, a bounded metric analysis grid can be compiled to local binary files. The data manifest remains `SOURCE_REVIEW_REQUIRED` until supported validation gates are recorded.
 
-**Current state:** The checked-in bundle uses real CTX terrain and orbital imagery, plus three published Perseverance sample-site anchors. The browser runs single- and multi-stop planning, nominal and conservative reserve checks, event-driven revisions, and mission archives. See [release verification](docs/VERIFICATION_RELEASE.md) for local checks and [delivery gates](docs/MISSION_LIFECYCLE.md#delivery-gates) for external evidence.
+**Current state:** The checked-in bundle uses real CTX terrain and orbital imagery, plus three published Perseverance sample-site anchors. The browser runs single- and multi-stop planning, nominal and conservative reserve checks, event-driven revisions, and mission archives. See [release verification](docs/VERIFICATION_RELEASE.md) for local checks and [delivery gates](docs/MISSION_LIFECYCLE.md#4-verification-and-submission) for external evidence.
 
 **Released-data integration instructions:** [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md). For explicitly labeled synthetic app testing: `/?demo=1`. For a **standalone browser layout acceptance harness** (not a Next.js screenshot): `python tools/preview/build.py` and `python tools/preview/test_preview.py` after fixture generation.
 

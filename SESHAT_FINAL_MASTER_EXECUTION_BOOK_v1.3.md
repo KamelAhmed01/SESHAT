@@ -1,6 +1,8 @@
 # SESHAT
 ## Mars surface science, under a changing clock
 
+> **Historical H4 edition.** Use the [final master execution plan](docs/MISSION_LIFECYCLE.md) for the three-phase build, current data and Cairo submission schedule.
+
 **Master execution book · NASA Space Apps Cairo 2026**  
 **Team:** SESHAT Explorers · Kamel · Ali · Hams · Amr · Shams · Malak  
 **Challenge:** Interplanetary Survival Guide: Martian Map  
