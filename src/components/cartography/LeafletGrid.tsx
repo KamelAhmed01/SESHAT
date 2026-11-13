@@ -5,6 +5,8 @@ import type { FieldBundle } from '@/data/loader';
 import { gridToViewer, viewerToGrid } from '@/cartography/coordinates';
 import { frontierMembership } from '@/engine/frontier';
 import type { RouteSummary } from '@/engine/types';
+import type { OpportunityEntry } from '@/engine/opportunity-ledger';
+import { targetMarkers } from '@/cartography/target-markers';
 
 interface Props {
   bundle: FieldBundle | null;
@@ -16,6 +18,7 @@ interface Props {
   outboundRoute?: RouteSummary | null;
   returnRoute?: RouteSummary | null;
   showOptical?: boolean;
+  opportunities?: readonly OpportunityEntry[];
 }
 
 function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reserve: number): string {
@@ -37,7 +40,8 @@ function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reser
 }
 
 export function LeafletGrid({ bundle, selectedCell, onCellSelect,
-  elapsedMinutes, missionBudgetMinutes, reserveMinutes, outboundRoute, returnRoute, showOptical = false }: Props) {
+  elapsedMinutes, missionBudgetMinutes, reserveMinutes, outboundRoute, returnRoute,
+  showOptical = false, opportunities = [] }: Props) {
   const element = useRef<HTMLDivElement>(null);
   const [mapRevision, setMapRevision] = useState(0);
   const mapRef = useRef<import('leaflet').Map | null>(null);
@@ -136,6 +140,17 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
     const map = mapRef.current, L = leafletRef.current, layer = selectionLayerRef.current;
     if (!map || !L || !layer || !bundle) return;
     layer.clearLayers();
+    const markerColors = { ROBUST: '#c6d6a7', MARGINAL: '#f0b78d', INFEASIBLE: '#dd8d7d', UNKNOWN: '#a6b7b7' };
+    for (const point of targetMarkers(opportunities, bundle.manifest.height, bundle.manifest.width)) {
+      const marker = L.circleMarker([point.viewerLatitude, point.viewerLongitude], {
+        radius: 4.5, color: '#1b2729', weight: 1.5, fillColor: markerColors[point.state], fillOpacity: 0.98,
+      }).addTo(layer);
+      // Leaflet accepts an HTMLElement; textContent prevents untrusted geology titles becoming HTML.
+      const tooltip = document.createElement('span');
+      tooltip.textContent = `${point.title} · ${point.state.toLowerCase()} (research scenario)`;
+      marker.bindTooltip(tooltip);
+      marker.on('click', () => onSelectRef.current(point.row, point.col));
+    }
     const [br, bc] = [Math.floor(bundle.manifest.baseIndex / bundle.manifest.width), bundle.manifest.baseIndex % bundle.manifest.width];
     L.circleMarker(gridToViewer(br, bc, bundle.manifest.height), {
       radius: 6, color: '#f5e8d7', weight: 2, fillColor: '#b27757', fillOpacity: 1,
@@ -145,7 +160,7 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
         radius: 7, color: '#f0b792', weight: 2, fillColor: '#eb9564', fillOpacity: 1,
       }).addTo(layer).bindTooltip('Selected scenario destination');
     }
-  }, [bundle, selectedCell, mapRevision]);
+  }, [bundle, selectedCell, opportunities, mapRevision]);
 
   return <div className="map-root" ref={element} role="application" aria-label="Mars local-grid map viewer; select a cell only after scientific data is loaded" />;
 }

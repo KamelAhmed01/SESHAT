@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
 import { loadScientificBundle } from '@/data/loader';
@@ -12,6 +12,8 @@ import { routeSummary } from '@/engine/route-summary';
 import { countFrontier, frontierMembership } from '@/engine/frontier';
 import { ElevationProfile } from '@/components/visualizations/ElevationProfile';
 import { buildMissionBrief } from '@/engine/mission-brief';
+import { buildOpportunityLedger, opportunityExplanation } from '@/engine/opportunity-ledger';
+import { explainDelay } from '@/engine/explain';
 
 const INITIAL_BUDGET = 180; // Assumed research scenario, NOT NASA flight guidance.
 const RESERVE = 20;
@@ -37,6 +39,8 @@ export function MissionWorkbench() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [showOptical, setShowOptical] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeDrawerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -53,6 +57,31 @@ export function MissionWorkbench() {
     return () => { alive = false; };
   }, []);
 
+  // Modal accessibility: focus enters the evidence panel, Tab stays inside,
+  // Escape closes, and focus returns to the trigger on exit.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeDrawerRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setDrawerOpen(false); return; }
+      if (event.key !== 'Tab') return;
+      const panel = drawerRef.current;
+      const controls = panel ? Array.from(panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )) : [];
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !panel?.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !panel?.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus(); };
+  }, [drawerOpen]);
+
   const bundle = data.state === 'DEMO' || data.state === 'VERIFIED' || data.state === 'SOURCE_REVIEW_REQUIRED' ? data.bundle : null;
   const isReady = bundle !== null;
   const remaining = Math.max(0, INITIAL_BUDGET - elapsed);
@@ -62,6 +91,8 @@ export function MissionWorkbench() {
     referenceSpeedMetersPerSecond: 0.75, speedMultipliers: [0.8, 1, 1.2],
     gradeModelId: 'terrain-scenario-v0', datasetRevision: bundle?.manifest.sourceId ?? 'AWAITING_SOURCE',
   }), [elapsed, bundle]);
+
+  const ledger = useMemo(() => bundle ? buildOpportunityLedger(bundle, scenario) : null, [bundle, scenario]);
 
   const target = useMemo(() => {
     if (!bundle || !selected) return null;
@@ -113,16 +144,32 @@ export function MissionWorkbench() {
           <h1>What can we still explore?</h1><p>Every minute changes which opportunities fit a return journey.</p>
           {demoMode && <div className="mode-alert" role="status">SIMULATED TERRAIN <span>Not a Mars measurement</span></div>}
         </section>
-        <section className="rail-section"><div className="section-heading"><span>Science opportunities</span><span className="section-index">{bundle?.manifest.scienceTargets?.length ?? 0} TARGETS</span></div>
-          {bundle?.manifest.scienceTargets?.length ? <div className="target-list">{bundle.manifest.scienceTargets.map((t, i) => {
+        <section id="science-opportunities" className="rail-section"><div className="section-heading"><span>Science opportunities</span><span className="section-index">{bundle?.manifest.scienceTargets?.length ?? 0} TARGETS</span></div>
+          {ledger && ledger.entries.length > 0 && <div className="opportunity-overview" aria-live="polite">
+            <div className="opportunity-kpi"><strong>{ledger.currentFeasible}<span> / {ledger.entries.length}</span></strong><small>Feasible in ≥1 modeled speed</small></div>
+            <div className="opportunity-delta"><strong>{ledger.lost > 0 ? `−${ledger.lost}` : '0'}</strong><small>Lost since start</small></div>
+            <div className="opportunity-delta"><strong>{ledger.downgraded}</strong><small>Speed-sensitive shift</small></div>
+            {ledger.uncertain > 0 && <p>{ledger.uncertain} location(s) remain unknown; no availability claim.</p>}
+          </div>}
+          {ledger && ledger.entries.length ? <div className="target-list">{ledger.entries.map((entry, i) => {
+            const t = entry.target;
             const r = t.location.gridRow, c = t.location.gridCol;
-            const selectedTarget = selected && r === selected[0] && c === selected[1];
+            const hasPoint = r !== null && c !== null && t.location.confidence !== 'APPROXIMATE_REGION';
+            const selectedTarget = hasPoint && selected && r === selected[0] && c === selected[1];
             return <button className={'target-item' + (selectedTarget ? ' target-selected' : '')}
-              type="button" key={t.id} disabled={r === null || c === null}
-              aria-pressed={Boolean(selectedTarget)} onClick={() => { if (r !== null && c !== null) setSelected([r,c]); }}>
-              <span className="target-num">0{i + 1}</span><span className="target-body"><strong>{t.name}</strong>
-                <span>{t.science.summary}</span><small>{t.location.confidence === 'USER_SELECTED' ? 'Scenario location' : t.location.confidence.replace('_', ' ')}</small></span>
-              <span aria-hidden="true" className="target-chevron">↗</span>
+              type="button" key={t.id} aria-pressed={Boolean(selectedTarget)}
+              aria-label={`${t.name}: ${entry.current.state.toLowerCase()}. ${opportunityExplanation(entry)}`}
+              onClick={() => { if (hasPoint) setSelected([r, c]); else setDrawerOpen(true); }}>
+              <span className="target-num">{String(i + 1).padStart(2, '0')}</span>
+              <span className="target-body"><strong>{t.name}</strong>
+                <span>{t.science.summary}</span>
+                <span className="opportunity-meta"><span className={`opportunity-status op-${entry.current.state.toLowerCase()}`}>{stateLabel(entry.current.state)}</span>
+                  {entry.change === 'LOST' && <em>LOST AFTER DELAY</em>}
+                  {entry.change === 'DOWNGRADED' && <em>NOW SPEED-SENSITIVE</em>}
+                </span>
+                <small>{t.location.confidence === 'USER_SELECTED' ? 'Scenario location' : t.location.confidence.replace('_', ' ')} · {entry.current.nominalMarginMinutes === null ? 'UNKNOWN MARGIN' : `${minutesText(entry.current.nominalMarginMinutes)} NOMINAL MARGIN`}</small>
+              </span>
+              <span aria-hidden="true" className="target-chevron">{hasPoint ? '↗' : '?'}</span>
             </button>;
           })}</div> : <div className="evidence-empty"><span className="quiet-icon">⌁</span><strong>Science locations awaiting verification</strong>
             <p>Terrain may be available, but source-backed geological targets need traceable coordinates and overlap tests.</p><span className="microcode">NO INVENTED PINS</span></div>}
@@ -143,7 +190,13 @@ export function MissionWorkbench() {
         </div>
         <LeafletGrid bundle={bundle} elapsedMinutes={elapsed} missionBudgetMinutes={INITIAL_BUDGET} reserveMinutes={RESERVE}
           selectedCell={selected} onCellSelect={(r,c) => { if (isReady) setSelected([r,c]); }}
-          outboundRoute={outbound} returnRoute={returnRoute} showOptical={showOptical}/>
+          outboundRoute={outbound} returnRoute={returnRoute} showOptical={showOptical}
+          opportunities={ledger?.entries}/>
+        {ledger && ledger.entries.length > 0 && <div className="map-mobile-opportunity">
+          <strong>{ledger.currentFeasible} / {ledger.entries.length} opportunities</strong>
+          <span>{ledger.lost > 0 ? `${ledger.lost} lost after +${elapsed} min` : 'Under the current assumptions'}</span>
+          <a href="#science-opportunities">Inspect destinations ↓</a>
+        </div>}
         <div className="map-north" aria-hidden="true">↑ N</div>
         {(!isReady || data.state === 'SOURCE_REVIEW_REQUIRED' || data.state === 'DEMO') && <div className={'map-caution' + (isReady ? ' map-caution-compact' : '')} role="status"><i aria-hidden="true"/><div>
           <strong>{data.state === 'DEMO' ? 'SYNTHETIC — NOT MARS' : data.state === 'SOURCE_REVIEW_REQUIRED' ? 'REAL TERRAIN / SOURCE REVIEW PENDING' : 'MARS DATA NOT YET LOADED'}</strong>
@@ -192,7 +245,7 @@ export function MissionWorkbench() {
               </details>}
             <div className="brief-actions"><Button label="Export mission brief (.md)" variant="primary" onClick={exportBrief}/>
               <span>Includes scenario, evidence status and limitations.</span></div>
-            {elapsed > 0 && baseline?.state !== assessment.state && <p className="change-explanation">After +{elapsed} min, <b>{baseline?.state.toLowerCase()}</b> becomes <b>{assessment.state.toLowerCase()}</b>.</p>}
+            {elapsed > 0 && <p className="change-explanation">{explainDelay(baseline, assessment)}</p>}
           </> : <div className="assessment-pending"><strong>Decision awaiting a destination</strong>
             <p>{isReady ? 'Select a target or a covered map cell to compute an exploratory round trip.' :
               'Load source-backed terrain or use the labeled test scene to exercise the workflow.'}</p></div>}
@@ -202,8 +255,8 @@ export function MissionWorkbench() {
     </div>
     <footer className="site-footer"><span>SESHAT / SPACE APPS 2026</span><span>Evidence before certainty.</span><span>Research prototype · not safety-certified</span></footer>
     {drawerOpen && <div className="drawer-scrim" onClick={() => setDrawerOpen(false)}>
-      <aside className="evidence-drawer" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Evidence and method">
-        <div className="drawer-top"><span className="eyebrow">Method / evidence</span><button onClick={() => setDrawerOpen(false)} aria-label="Close panel">×</button></div>
+      <aside ref={drawerRef} className="evidence-drawer" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Evidence and method">
+        <div className="drawer-top"><span className="eyebrow">Method / evidence</span><button ref={closeDrawerRef} onClick={() => setDrawerOpen(false)} aria-label="Close evidence panel">×</button></div>
         <h2>We show what the data can support.</h2>
         <p>Sources, coordinate frames and analysis assumptions remain visible. A valid bundle is not automatically a certified or globally applicable route.</p>
         {([['Bundle state',data.state],['Terrain source',bundle?.manifest.sourceId ?? 'Not accepted'],

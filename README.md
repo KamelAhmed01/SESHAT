@@ -33,7 +33,7 @@ python3 -m pytest -q pipeline/tests
 
 See [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md) for real Mars source acquisition, source review, and target alignment. `screenshots/seshat-acceptance-*.png` are explicitly synthetic **visual-harness** renders rather than production Next screenshots.
 
-## Live execution checklist (H2)
+## Live execution checklist (H3)
 
 [`docs/CHECKPOINT_REPORT.md`](docs/CHECKPOINT_REPORT.md) distinguishes **verified local tests**, **implemented but not production-integrated work**, and **missing external gates**. Refresh the report before each handoff or team merge:
 
@@ -44,3 +44,19 @@ python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md
 The H2 workbench source adds DEM-based outbound/return elevation profiles and a downloadable evidence-labeled mission brief (`.md`). The analysis now distinguishes a known modeled hard obstruction from insufficient data, conservatively returning `UNKNOWN` if missing cells might hide a route. Data acquisition can be safely re-run without erasing a previously recorded original URL/hash when the bytes match. Browser acceptance still uses **synthetic terrain** and is not the Next.js runtime.
 
 For the next team priority, open `docs/CHECKPOINT_REPORT.md`: **official Resources evidence, real CTX/PDS downloads, two precise source-backed targets, npm lockfile + Astryx theme, production Next build, deployment, and final submission** remain open.
+
+## H3: Opportunity ledger and original Astryx theme
+
+The decision board evaluates **every** source-backed candidate through the same scientific functions used for a selected route. Its ledger shows the ROBUST / MARGINAL / INFEASIBLE / UNKNOWN states, nominal time margins, and which opportunities are lost or downgraded after a departure delay. UNKNOWN is not counted as a lost opportunity. The map pin layer excludes approximate geological regions and uses text-only tooltips. Evidence-panel keyboard focus handling has been added to the React source.
+
+The bespoke design system lives in `src/themes/seshat/seshatTheme.ts` and extends Meta Astryx Neutral using `defineTheme`; it currently uses Astryx's documented **runtime CSS injection**, not a falsely claimed precompiled theme. The official installed `@astryxdesign/cli` must compile and validate it on a networked laptop before deployment. Use the pinned dependencies in `package.json` and consult `pnpm exec astryx docs theme` for the installed CLI's exact build command.
+
+Repeatable local checks when the required tools are present:
+
+```bash
+python3 tools/preview/build.py
+python3 tools/preview/test_preview.py
+python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md
+```
+
+The acceptance preview is **not** the Next.js runtime: its synthetic terrain and labels exist solely to test visual states and user interactions. Real NASA terrain, scientific targets, full Next build, live deployment and official challenge Resources evidence are separate open gates.

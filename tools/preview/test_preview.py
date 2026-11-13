@@ -35,6 +35,8 @@ with sync_playwright() as p:
     start=int(page.locator('#frontier-count').inner_text().replace(',',''))
     assert start>0
     assert 'ROBUST' in page.locator('#status').inner_text()
+    assert page.locator('#lost-targets').inner_text()=='0'
+    assert page.locator('.opportunity-status').count()==3
     page.screenshot(path=str(shots/'seshat-acceptance-desktop.png'),full_page=True)
     page.locator('#preview-profile summary').click()
     assert page.locator('#profile-svg path').count()==1
@@ -47,12 +49,16 @@ with sync_playwright() as p:
     count=int(page.locator('#frontier-count').inner_text().replace(',',''))
     assert count<=start, (start,count)
     assert page.locator('#remaining').inner_text()=='165'
+    assert page.locator('#lost-targets').inner_text()!='0', 'Expected a lost example in the synthetic fixture'
+    assert page.locator('.opportunity-meta em').count()>=1
     page.screenshot(path=str(shots/'seshat-acceptance-after-delay.png'),full_page=True)
+    page.screenshot(path=str(shots/'seshat-h3-opportunity-ledger.png'),full_page=True)
     page.locator('[data-select="2"]').click()
     assert 'Eastern traverse' in page.locator('#selected-target').inner_text()
     assert page.locator('#outbound').inner_text()!='Unknown'
     page.locator('#reset').click()
     assert page.locator('#remaining').inner_text()=='180'
+    assert page.locator('#lost-targets').inner_text()=='0'
     page.locator('#evidence-btn').click()
     assert page.locator('#scrim').is_visible()
     page.locator('#close').click()
@@ -61,8 +67,11 @@ with sync_playwright() as p:
     mobile.set_content(page_html,wait_until='load')
     mobile.wait_for_function('window.SESHAT_PREVIEW_READY===true',timeout=10000)
     mobile.screenshot(path=str(shots/'seshat-acceptance-mobile.png'),full_page=True)
+    mobile.locator('#advance').click()
+    assert mobile.locator('#lost-targets').inner_text()!='0'
+    mobile.screenshot(path=str(shots/'seshat-h3-mobile-delayed.png'),full_page=True)
     overflow=mobile.evaluate('document.documentElement.scrollWidth > innerWidth')
     assert not overflow, 'Mobile viewport has unwanted horizontal overflow'
-    print('BROWSER QA PASSED: no JS errors, real compiled fixture loaded, frontier monotonic, +15/reset, target selection, drawer, mobile overflow')
+    print('BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow')
     print('CHECKPOINT: start frontier cells',start,'after +15min',count)
     browser.close()

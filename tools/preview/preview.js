@@ -60,7 +60,23 @@
     $('lines').innerHTML=polyline(pathOut,'#ffd2b0',false)+polyline(pathReturn,'#a6dfbe',true)+
       `<circle cx="${bc+.5}" cy="${br+.5}" r="2" stroke="#fff" fill="#ad593d" stroke-width=".5"/>`+
       `<circle cx="${loc.gridCol+.5}" cy="${loc.gridRow+.5}" r="2.6" stroke="#fff" fill="#e58d52" stroke-width=".65"/>`;
-    $('target-list').innerHTML=manifest.scienceTargets.map((v,i)=>`<button class="target-item ${i===selected?'target-selected':''}" data-select="${i}" aria-pressed="${i===selected}"><span class="target-num">0${i+1}</span><span class="target-body"><strong>${v.name}</strong><span>${v.science.summary}</span><small>Synthetic test target</small></span><span class="target-chevron">↗</span></button>`).join('');
+    function classifyTarget(t,atMinutes){
+      const i=t.location.gridRow*manifest.width+t.location.gridCol,travel=out[i]+ret[i];
+      if(!isFinite(travel))return 'UNKNOWN';
+      const passing=[.8,1,1.2].filter(f=>travel/f+t.activity.minutes+reserve <= budget-atMinutes).length;
+      return passing===3?'ROBUST':passing?'MARGINAL':'INFEASIBLE';
+    }
+    let lost=0,downgraded=0,availableCount=0;
+    const rows=manifest.scienceTargets.map((v,i)=>{
+      const initial=classifyTarget(v,0),now=classifyTarget(v,elapsed);
+      if(now==='ROBUST'||now==='MARGINAL')availableCount++;
+      const becameLost=(initial==='ROBUST'||initial==='MARGINAL')&&now==='INFEASIBLE';
+      const becameMarginal=initial==='ROBUST'&&now==='MARGINAL';
+      if(becameLost)lost++;if(becameMarginal)downgraded++;
+      return `<button class="target-item ${i===selected?'target-selected':''}" data-select="${i}" aria-pressed="${i===selected}"><span class="target-num">0${i+1}</span><span class="target-body"><strong>${v.name}</strong><span>${v.science.summary}</span><span class="opportunity-meta"><span class="opportunity-status op-${now.toLowerCase()}">${now}</span>${becameLost?'<em>LOST AFTER DELAY</em>':becameMarginal?'<em>NOW SPEED-SENSITIVE</em>':''}</span><small>Synthetic test target</small></span><span class="target-chevron">↗</span></button>`;
+    });
+    $('opportunity-overview').innerHTML=`<div class="opportunity-kpi"><strong>${availableCount}<span> / ${manifest.scienceTargets.length}</span></strong><small>Feasible in ≥1 modeled speed</small></div><div class="opportunity-delta"><strong id="lost-targets">${lost?'−'+lost:'0'}</strong><small>Lost since start</small></div><div class="opportunity-delta"><strong>${downgraded}</strong><small>Speed-sensitive shift</small></div>`;
+    $('target-list').innerHTML=rows.join('');
     [...document.querySelectorAll('[data-select]')].forEach(btn=>btn.addEventListener('click',()=>{selected=Number(btn.dataset.select);update()}));
   }
   $('advance').addEventListener('click',()=>{elapsed=Math.min(budget,elapsed+15);update()});

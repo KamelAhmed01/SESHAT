@@ -146,3 +146,69 @@ test('H2-O10: route rendering rejects diagonal corner cuts through unknown cells
   b.manifest.width=2; b.manifest.height=2;
   assert.equal(routeSummary(b,3,'outbound').status,'INVALID_GEOMETRY');
 });
+
+const {buildOpportunityLedger,classifyChange,opportunityExplanation}=require('../../.build/src/engine/opportunity-ledger.js');
+test('H3-O01: initially feasible becomes lost only when the tested time budget expires',()=>{
+  const b=terrain([1,1,1],[0,30,90],[0,40,95],[-1,0,1],[-1,0,1]);
+  const t={...target(),id:'near',location:{...target().location,gridRow:0,gridCol:1},activity:{minutes:20,basis:'SCENARIO_ASSUMPTION'}};
+  const sc={...scenario(0),timeBudgetMinutes:180,reserveMinutes:20};
+  const before=buildOpportunityLedger(b,sc,[t]);
+  const delayed=buildOpportunityLedger(b,{...sc,elapsedMinutes:100},[t]);
+  assert.equal(before.entries[0].current.state,'ROBUST');
+  assert.equal(delayed.entries[0].current.state,'INFEASIBLE');
+  assert.equal(delayed.entries[0].change,'LOST');
+  assert.equal(delayed.lost,1);
+  assert.equal(delayed.entries[0].nominalMarginLostMinutes,100);
+  assert.match(opportunityExplanation(delayed.entries[0]),/No tested speed fits/);
+});
+test('H3-O02: robustness downgrade does not masquerade as a lost target',()=>{
+  assert.equal(classifyChange('ROBUST','MARGINAL'),'DOWNGRADED');
+  assert.equal(classifyChange('ROBUST','INFEASIBLE'),'LOST');
+  assert.equal(classifyChange('MARGINAL','INFEASIBLE'),'LOST');
+  assert.equal(classifyChange('INFEASIBLE','ROBUST'),'UNCHANGED');
+});
+test('H3-O03: approximate region always stays UNKNOWN; not counted as lost',()=>{
+  const b=terrain([1,1],[0,5],[0,6],[-1,0],[-1,0]);
+  const t={...target('APPROXIMATE_REGION'),id:'region',location:{...target().location,confidence:'APPROXIMATE_REGION',gridRow:0,gridCol:1}};
+  const ledger=buildOpportunityLedger(b,{...scenario(70),timeBudgetMinutes:180,reserveMinutes:20},[t]);
+  assert.equal(ledger.counts.UNKNOWN,1);
+  assert.equal(ledger.uncertain,1);
+  assert.equal(ledger.lost,0);
+  assert.equal(ledger.entries[0].current.nominalMarginMinutes,null);
+});
+test('H3-O04: reviewed point and custom grid target share an identical engine pathway',()=>{
+  const b=terrain([1,1],[0,2],[0,4],[-1,0],[-1,0]);
+  const a={...target('VERIFIED_POINT'),id:'science-point',location:{...target().location,gridRow:0,gridCol:1}};
+  const c={...target('USER_SELECTED'),id:'manual',location:{...target().location,gridRow:0,gridCol:1}};
+  const ledger=buildOpportunityLedger(b,{...scenario(15),timeBudgetMinutes:180},[a,c]);
+  assert.equal(ledger.entries[0].current.state,ledger.entries[1].current.state);
+  assert.equal(ledger.entries[0].current.nominalMarginMinutes,ledger.entries[1].current.nominalMarginMinutes);
+});
+test('H3-O05: timeline never restores a known feasible opportunity after an additional delay',()=>{
+  const b=terrain([1,1],[0,50],[0,50],[-1,0],[-1,0]);
+  const t={...target(),location:{...target().location,gridRow:0,gridCol:1},activity:{minutes:20,basis:'SCENARIO_ASSUMPTION'}};
+  const s={...scenario(),timeBudgetMinutes:180,reserveMinutes:20};
+  const t0=buildOpportunityLedger(b,s,[t]);
+  const t20=buildOpportunityLedger(b,{...s,elapsedMinutes:20},[t]);
+  const t70=buildOpportunityLedger(b,{...s,elapsedMinutes:70},[t]);
+  assert.ok(t0.currentFeasible>=t20.currentFeasible&&t20.currentFeasible>=t70.currentFeasible);
+});
+
+const {targetMarkers}=require('../../.build/src/cartography/target-markers.js');
+test('H3-O06: approximate geology regions never become precise selectable map pins',()=>{
+  const b=terrain([1,1,1],[0,2,3],[0,2,3],[-1,0,1],[-1,0,1]);
+  const ts=['VERIFIED_POINT','APPROXIMATE_REGION','USER_SELECTED'].map((confidence,i)=>({
+    ...target(confidence),id:'id-'+i,location:{...target().location,confidence,gridRow:0,gridCol:i},
+  }));
+  const ledger=buildOpportunityLedger(b,scenario(),ts);
+  const markers=targetMarkers(ledger.entries,1,3);
+  assert.equal(markers.length,2);
+  assert.deepEqual(markers.map(m=>m.id),['id-0','id-2']);
+  assert.deepEqual([markers[1].viewerLatitude,markers[1].viewerLongitude],[0.5,2.5]);
+});
+test('H3-O07: cartography bounds filter rejects invalid source-grid coordinates',()=>{
+  const b=terrain([1,1],[0,1],[0,1],[-1,0],[-1,0]);
+  const t={...target(),location:{...target().location,gridRow:0,gridCol:2}};
+  const ledger=buildOpportunityLedger(b,scenario(),[t]);
+  assert.deepEqual(targetMarkers(ledger.entries,1,2),[]);
+});

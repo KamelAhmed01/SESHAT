@@ -81,6 +81,43 @@
   .brief-actions button { font-size: 11px; }
   .brief-actions span { font-size: 10px; color: var(--s-muted); line-height: 1.5; }
 }
+
+@layer components {
+  /* Evidence-first opportunity ledger: compact enough to stay a workbench. */
+  .opportunity-overview { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 5px;
+    margin-top: 18px; padding: 13px 0 12px; border-top: 1px solid #394749; border-bottom: 1px solid #394749; }
+  .opportunity-kpi,.opportunity-delta { display:flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .opportunity-overview strong { color: #e0e8dc; font: 600 21px/1.1 ui-monospace,monospace; letter-spacing: -.05em; }
+  .opportunity-overview strong span { font-size: 12px; color:#9eaaa5;letter-spacing:0; }
+  .opportunity-overview small { color: #aab4ae; font: 9px/1.45 ui-monospace, monospace; }
+  .opportunity-overview p { grid-column: 1/-1; margin: 3px 0 0; color: #e1bc9d; font: 10px/1.5 ui-monospace,monospace; }
+  .opportunity-meta { display: flex !important; align-items:center; gap: 8px; flex-wrap: wrap;
+    overflow: visible !important; -webkit-line-clamp: unset !important; }
+  .opportunity-status { display: inline-flex; align-items:center; width:max-content; padding: 3px 6px;
+    border: 1px solid #465753; border-radius: 2px; color:#d5e2d5; background:#20302e;
+    font: 9px ui-monospace,monospace; letter-spacing: .045em; text-transform:uppercase; }
+  .op-robust { color: #d9e4c4; background: #28362a; border-color: #52644d; }
+  .op-marginal { color: #edc29a; background: #3b2b22; border-color: #72513d; }
+  .op-infeasible { color: #f1a994; background: #3b2827; border-color: #73514b; }
+  .op-unknown { color: #bbccca; background: #273034; border-color: #45565e; }
+  .opportunity-meta em { font: 600 9px ui-monospace,monospace; font-style: normal; color:#efb493; }
+  .target-body small { line-height: 1.55; }
+  @media(max-width:1190px){.opportunity-overview {gap: 7px;} .opportunity-overview strong{font-size:17px;}}
+}
+
+
+@layer components {
+  .map-mobile-opportunity { display:none; }
+  @media(max-width:640px) {
+    .map-mobile-opportunity { position: absolute; z-index: 570; display: flex; align-items:center;
+      gap: 9px; flex-wrap: wrap; left:14px; right:14px; bottom:48px; padding: 9px 10px;
+      background:#10191ce8; border:1px solid #4c5d59; font:10px ui-monospace,monospace; }
+    .map-mobile-opportunity strong { color:#e1eace; font-size: 11px; }
+    .map-mobile-opportunity span { color:#b7bdb5; }
+    .map-mobile-opportunity a { color:#f1bd98; text-decoration:underline; text-underline-offset:2px; }
+    .frontier-stats { right:14px; bottom:97px; min-width:140px; }
+  }
+}
 .preview-button-primary,.preview-button{font:500 12px sans-serif;padding:10px 12px;border-radius:5px;border:1px solid #4b5758;background:#1d2c2e;color:#ebede6}
 .preview-button-primary{background:#c78b68;color:#11181b;border:1px solid #d39a74}.preview-button:hover{background:#324345}
 [hidden]{display:none!important}
@@ -95,7 +132,7 @@
 <main class="workbench"><header class="mission-header"><div class="brand-lockup"><div class="brand-mark">S<span>·</span></div><div class="brand-text"><strong>SESHAT</strong><span>MARS SURFACE SCIENCE</span></div></div>
 <div class="mission-id"><span class="eyebrow">Field study</span><span>Jezero crater</span><span class="tiny-separator">/</span><span>Opportunity navigator</span></div><div class="header-right"><span class="live-state">● SYNTHETIC TEST SCENE</span><button id="evidence-btn" class="text-action">Evidence & methods ↗</button></div></header>
 <div class="content-grid"><aside class="left-rail"><section class="rail-intro"><div class="eyebrow">01 / Objective</div><h1>What can we still explore?</h1><p>Every minute changes which opportunities fit a return journey.</p><div class="mode-alert">SIMULATED TERRAIN <span>Not a Mars measurement</span></div></section>
-<section class="rail-section"><div class="section-heading"><span>Science opportunities</span><span class="section-index">03 TEST TARGETS</span></div><div class="target-list" id="target-list"></div></section>
+<section class="rail-section"><div class="section-heading"><span>Science opportunities</span><span class="section-index">03 TEST TARGETS</span></div><div class="opportunity-overview" id="opportunity-overview" aria-live="polite"></div><div class="target-list" id="target-list"></div></section>
 <section class="rail-section rail-bottom"><div class="section-heading"><span>Analysis rules</span><span class="section-index">v0</span></div><p class="context-note">Directional terrain routing, a defined return reserve, and three travel speeds. Values are assumptions; no EVA safety claims.</p></section></aside>
 <section class="map-stage"><div class="map-topline"><span class="eyebrow">02 / Surface</span><span class="map-title">Illustrative analysis area</span></div>
 <div class="map-root"><img id="terrain" class="preview-map-image" alt="Synthetic shaded elevation, not Mars" src="/demo/imagery/study-area.webp"><canvas id="frontier" class="preview-frontier"></canvas><svg id="lines" class="preview-lines" viewBox="0 0 190 160" preserveAspectRatio="none"></svg></div>

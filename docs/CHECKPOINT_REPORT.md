@@ -1,6 +1,6 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-13 09:21 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-13 10:08 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
@@ -9,7 +9,8 @@ Generated **2026-11-13 09:21 UTC** using `python -m tools.checkpoint --run-tests
 - [x] Python terrain/science tests — passed
 - [x] TypeScript engine compile — passed
 - [x] Node scientific/unit oracles — passed
-- [x] Standalone Chromium acceptance preview screenshots exist — synthetic only, not a Next.js build
+- [x] Synthetic Chromium acceptance harness — passed
+- [x] Standalone Chromium acceptance screenshots exist — synthetic only, not a Next.js build
 
 ## Implemented in source, still requiring runtime/science evidence
 
@@ -20,7 +21,9 @@ Generated **2026-11-13 09:21 UTC** using `python -m tools.checkpoint --run-tests
 - [x] Science targets and human source gate
 - [x] Optional imagery alignment pipeline
 - [x] Elevation profiles and exportable mission briefs
+- [x] Evidence-gated all-target opportunity ledger and map pin contract
 - [x] Scientific assumptions and AI engineering rules
+- [x] Custom Astryx theme source exists; compile and inspect both modes
 
 ## Missing / blocked / unverified
 
@@ -29,7 +32,6 @@ Generated **2026-11-13 09:21 UTC** using `python -m tools.checkpoint --run-tests
 - [ ] Real Mars study-area compiled into public/data/ (synthetic /demo is not accepted)
 - [ ] Generate/commit pnpm-lock.yaml on connected laptop, change CI to frozen lockfile
 - [ ] Install real Next.js + Astryx dependencies; run Next typecheck and build
-- [ ] Compiled bespoke SESHAT Astryx theme, beyond custom CSS color variables
 - [ ] Next production static export and genuine Next browser screenshot
 - [ ] Connect SESHAT GitHub remote, push committed history, confirm teammate access
 - [ ] Judge-ready live URL, TLS, Vercel deployment and fully local fallback verified on two laptops
@@ -40,14 +42,16 @@ Generated **2026-11-13 09:21 UTC** using `python -m tools.checkpoint --run-tests
 ## Test execution evidence
 
 - Python terrain/science tests: PASS; last output: `...................                                                      [100%]
-19 passed in 0.92s`
+19 passed in 0.97s`
 - TypeScript engine compile: PASS; last output: ``
-- Node scientific/unit oracles: PASS; last output: `# pass 22
+- Node scientific/unit oracles: PASS; last output: `# pass 29
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 72.909796`
+# duration_ms 92.623097`
+- Synthetic Chromium acceptance harness: PASS; last output: `BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow
+CHECKPOINT: start frontier cells 27870 after +15min 24855`
 
 ## Immediate handoff order
 

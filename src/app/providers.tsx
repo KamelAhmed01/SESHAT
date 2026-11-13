@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { Theme } from '@astryxdesign/core/theme';
 import { LinkProvider } from '@astryxdesign/core/Link';
-import { neutralTheme } from '@astryxdesign/theme-neutral/built';
+import { seshatTheme } from '@/themes/seshat/seshatTheme';
 
-/** Astryx verified upstream setup. H3 replaces Neutral with compiled SESHAT theme. */
+/** Original SESHAT Astryx theme. Compiled CSS remains an online verification step. */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <Theme theme={neutralTheme} mode="dark">
+    <Theme theme={seshatTheme} mode="dark">
       <LinkProvider component={Link}>{children}</LinkProvider>
     </Theme>
   );

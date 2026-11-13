@@ -1,13 +1,14 @@
-# Implementation status — H2 local execution checkpoint
+# Implementation status — H3 local execution checkpoint
 
 ## Executed and proved in the authoring environment
 
 - [x] Source tree, Next.js App Router static export configuration, Meta Astryx component/provider CSS layer foundation, Tailwind v4 and Leaflet local-grid viewer created.
 - [x] Deterministic mission clock, manifest verifier, inspectable no-data/UNKNOWN state, and scenario feasibility engine implemented.
 - [x] SciPy directed 4/8-neighbor graph compiler with no-corner-cut, slope constraints, source/no-data masks, outward/reverse Dijkstra and little-endian binary exporter.
-- [x] 22 TypeScript-engine synthetic oracles passed using global TypeScript and Node test runner (including modeled hard-vs-unknown blockage, profile math and brief export).
+- [x] 29 TypeScript-engine synthetic oracles passed using global TypeScript and Node test runner (including modeled hard-vs-unknown blockage, profile math and brief export).
 - [x] 19 Python tests passed: routing plus Mars-class GeoTIFF, source-provenance, repeat-download SHA preservation, ROI centering, target importer and optical alignment fixtures.
 - [x] Outbound/return DEM-scale elevation profiles implemented in Next source and exercised in the browser harness; report export produces a Markdown evidence brief and clearly marks synthetic/pending data. The actual Next app has NOT been built here.
+- [x] H3 evidence-gated all-target opportunity ledger, conservative lost-vs-unknown semantics, Astryx custom theme source, precise marker filtering, and evidence-drawer keyboard focus behavior implemented in React source (production build still unverified).
 - [x] Machine-readable checkpoint command implemented: `python -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md`.
 - [ ] Actual NASA/USGS GeoTIFF bytes acquired in this sandbox: **not yet; network/DNS blocked**. Verified remote catalogs and direct product URLs, implemented downloader and acceptance-tested ingestion on controlled Mars-projected GeoTIFF fixture; official 2026 challenge-Resources membership still needs human capture.
 - [ ] Exact science-target coordinates proven against PDS geology and overlap: **not yet**. Validation/importer exists and rejects unsourced precision.
@@ -18,7 +19,7 @@
 
 ## Handoff rules
 
-The checked-in H0 model parameters and timer are research **scenario assumptions**. Actual Mars output requires reviewed source inputs. Do not change the bundled manifest to VERIFIED for screenshot aesthetics. Run `pnpm install` on an internet-connected team machine, commit the generated `pnpm-lock.yaml`, switch CI to `--frozen-lockfile`, and run `pnpm lint && pnpm typecheck && pnpm test && pnpm build` before claiming the frontend works. The H3 Astryx custom-theme work remains a separate quality gate.
+The checked-in H0 model parameters and timer are research **scenario assumptions**. Actual Mars output requires reviewed source inputs. Do not change the bundled manifest to VERIFIED for screenshot aesthetics. Run `pnpm install` on an internet-connected team machine, commit the generated `pnpm-lock.yaml`, switch CI to `--frozen-lockfile`, and run `pnpm lint && pnpm typecheck && pnpm test && pnpm build` before claiming the frontend works. H3 Astryx theme source is committed, but compiled CSS and the full Next.js build remain unverified until networked installation.
 
 ## Single source of truth for execution status
 

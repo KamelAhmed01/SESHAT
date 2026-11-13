@@ -41,6 +41,7 @@ def snapshot(run_tests: bool = False) -> str:
         ('Science targets and human source gate', ['pipeline/targets.py', 'pipeline/approve.py']),
         ('Optional imagery alignment pipeline', ['pipeline/optical.py']),
         ('Elevation profiles and exportable mission briefs', ['src/components/visualizations/ElevationProfile.tsx', 'src/engine/mission-brief.ts']),
+        ('Evidence-gated all-target opportunity ledger and map pin contract', ['src/engine/opportunity-ledger.ts', 'src/cartography/target-markers.ts']),
         ('Scientific assumptions and AI engineering rules', ['AGENTS.md', 'docs/REAL_DATA_H0.md']),
     ):
         (implemented if all((ROOT / p).is_file() for p in paths) else pending).append(description)
@@ -50,6 +51,7 @@ def snapshot(run_tests: bool = False) -> str:
             ('Python terrain/science tests', [sys.executable, '-m', 'pytest', '-q', 'pipeline/tests']),
             ('TypeScript engine compile', ['tsc', '-p', 'tsconfig.engine.json']),
             ('Node scientific/unit oracles', ['node', '--test', 'tests/unit/engine.test.cjs']),
+            ('Synthetic Chromium acceptance harness', [sys.executable, 'tools/preview/test_preview.py']),
         ):
             okay, info = run(command)
             (completed if okay else pending).append(label + (' — passed' if okay else ' — failed or unavailable'))
@@ -59,7 +61,7 @@ def snapshot(run_tests: bool = False) -> str:
 
     screenshots = list((ROOT / 'screenshots').glob('seshat-acceptance-*.png'))
     if screenshots:
-        completed.append('Standalone Chromium acceptance preview screenshots exist — synthetic only, not a Next.js build')
+        completed.append('Standalone Chromium acceptance screenshots exist — synthetic only, not a Next.js build')
     else:
         pending.append('Standalone browser acceptance screenshots')
 
