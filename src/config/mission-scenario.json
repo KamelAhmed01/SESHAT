@@ -1,0 +1,16 @@
+{
+  "id": "seshat-research-scenario-v1",
+  "label": "Exploratory Mars science-traverse scenario",
+  "timeBudgetMinutes": 180,
+  "reserveMinutes": 20,
+  "defaultScienceMinutes": 20,
+  "referenceSpeedMetersPerSecond": 0.75,
+  "speedMultipliers": [0.8, 1.0, 1.2],
+  "gradeModelId": "terrain-scenario-v0",
+  "uphillCoefficient": 4.0,
+  "downhillCoefficient": 1.8,
+  "maxSlopeDegrees": 25.0,
+  "connectivity": 8,
+  "evidenceStatus": "SCENARIO_ASSUMPTION",
+  "disclaimer": "Exploratory model only. Not NASA EVA guidance or a safety-certified speed or slope limit."
+}

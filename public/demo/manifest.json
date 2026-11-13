@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "DEMO_SYNTHETIC",
+  "sourceId": "SYNTHETIC_INTEGRATION_FIXTURE_01",
+  "sourceUrl": "",
+  "modelId": "terrain-scenario-v0",
+  "height": 160,
+  "width": 190,
+  "baseIndex": 15295,
+  "cellWidthMeters": 32,
+  "cellHeightMeters": 32,
+  "crsWkt": "SYNTHETIC PLANAR GRID \u2014 NOT A GEODETIC CRS",
+  "coordinateFrameVerified": false,
+  "challengeResourceQualified": false,
+  "viewLayerKind": "SYNTHETIC_DEM_DERIVED_HILLSHADE",
+  "files": {
+    "outbound-costs.bin": {
+      "bytes": 243200,
+      "sha256": "a3165ace0dff17da7892a326fadbb5939bad399d86f3c6dc89988c79fa02b2dc",
+      "dtype": "float64"
+    },
+    "return-costs.bin": {
+      "bytes": 243200,
+      "sha256": "04be77ebe8caaf5a13644da6a1974e4e6062850609dd814375dd237510fcedad",
+      "dtype": "float64"
+    },
+    "outbound-parents.bin": {
+      "bytes": 121600,
+      "sha256": "449b63319f0cc0e2b3266277f9bdb18bdd97c96bcdafcef77a5c23a74fab9e2b",
+      "dtype": "int32"
+    },
+    "return-next.bin": {
+      "bytes": 121600,
+      "sha256": "034dc1eb4aeb14cc96ef4540fde91f06490c19b8e206caf34e2994ecabfe992a",
+      "dtype": "int32"
+    },
+    "elevation.bin": {
+      "bytes": 121600,
+      "sha256": "6a4f5bc8dcc5ff7c1def27151d2d40f8749fd5baeefcfb7b3a3b7194a04cebe6",
+      "dtype": "float32"
+    },
+    "validity-mask.bin": {
+      "bytes": 30400,
+      "sha256": "adcbaf043557e419279d57256fe32bc1ce7144fb8a2a6073ab291f4fbb28c780",
+      "dtype": "uint8"
+    }
+  },
+  "imagery": {
+    "path": "imagery/study-area.webp",
+    "bytes": 10926,
+    "sha256": "40373fb04775edec233df95541bd82796d0a0c2ed8efdcf638faa825d16b33d2"
+  },
+  "scienceTargets": [
+    {
+      "id": "demo-1",
+      "name": "Northern escarpment",
+      "location": {
+        "originalCoordinateText": "Synthetic cell (50,69)",
+        "coordinateFrame": "SYNTHETIC_LOCAL_TEST_GRID",
+        "gridRow": 50,
+        "gridCol": 69,
+        "confidence": "USER_SELECTED",
+        "locationSource": "GENERATED_ACCEPTANCE_FIXTURE"
+      },
+      "objectiveTags": [
+        "synthetic-test"
+      ],
+      "science": {
+        "summary": "Illustrative slope-sensitive ridge scenario. No geographic or scientific observation is claimed.",
+        "sourceIds": [],
+        "evidence": [],
+        "limitations": [
+          "Synthetic terrain",
+          "Hypothetical activity duration",
+          "Not Mars geography"
+        ]
+      },
+      "activity": {
+        "minutes": 25,
+        "basis": "SCENARIO_ASSUMPTION"
+      }
+    },
+    {
+      "id": "demo-2",
+      "name": "The layered basin",
+      "location": {
+        "originalCoordinateText": "Synthetic cell (44,28)",
+        "coordinateFrame": "SYNTHETIC_LOCAL_TEST_GRID",
+        "gridRow": 44,
+        "gridCol": 28,
+        "confidence": "USER_SELECTED",
+        "locationSource": "GENERATED_ACCEPTANCE_FIXTURE"
+      },
+      "objectiveTags": [
+        "synthetic-test"
+      ],
+      "science": {
+        "summary": "Illustrative time-threshold crossing scenario. No geographic or scientific observation is claimed.",
+        "sourceIds": [],
+        "evidence": [],
+        "limitations": [
+          "Synthetic terrain",
+          "Hypothetical activity duration",
+          "Not Mars geography"
+        ]
+      },
+      "activity": {
+        "minutes": 25,
+        "basis": "SCENARIO_ASSUMPTION"
+      }
+    },
+    {
+      "id": "demo-3",
+      "name": "Eastern traverse",
+      "location": {
+        "originalCoordinateText": "Synthetic cell (21,174)",
+        "coordinateFrame": "SYNTHETIC_LOCAL_TEST_GRID",
+        "gridRow": 21,
+        "gridCol": 174,
+        "confidence": "USER_SELECTED",
+        "locationSource": "GENERATED_ACCEPTANCE_FIXTURE"
+      },
+      "objectiveTags": [
+        "synthetic-test"
+      ],
+      "science": {
+        "summary": "Illustrative initially time-limited destination. No geographic or scientific observation is claimed.",
+        "sourceIds": [],
+        "evidence": [],
+        "limitations": [
+          "Synthetic terrain",
+          "Hypothetical activity duration",
+          "Not Mars geography"
+        ]
+      },
+      "activity": {
+        "minutes": 20,
+        "basis": "SCENARIO_ASSUMPTION"
+      }
+    }
+  ],
+  "notice": "SYNTHETIC ACCEPTANCE TEST. Not Mars or NASA imagery. No operational safety conclusions."
+}

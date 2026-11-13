@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "CommonJS", "moduleResolution": "node",
+    "strict": true, "skipLibCheck": true, "rootDir": ".", "outDir": ".build",
+    "noEmit": false, "esModuleInterop": true, "resolveJsonModule": true
+  },
+  "include": ["src/engine/**/*.ts", "src/cartography/coordinates.ts", "src/cartography/target-markers.ts", "src/engine/frontier.ts", "src/data/loader.ts"]
+}
