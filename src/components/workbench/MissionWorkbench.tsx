@@ -136,17 +136,55 @@ export function MissionWorkbench() {
 
   if (bundle && !demoMode && !opportunityMode) return <MissionLifecycle bundle={bundle} />;
 
-  return <main className="workbench">
-    <header className="mission-header">
-      <div className="brand-lockup"><div className="brand-mark" aria-hidden="true">S<span>·</span></div>
-        <div className="brand-text"><strong>SESHAT</strong><span>MARS SURFACE SCIENCE</span></div></div>
-      <div className="mission-id"><span className="eyebrow">Field study</span><span>Jezero crater</span><span className="tiny-separator">/</span><span>Opportunity navigator</span></div>
-      <div className="header-right"><span className="live-state">● {sourceKind(data.state)}</span>
-        <button className="text-action" onClick={() => setDrawerOpen(true)}>Evidence & methods ↗</button></div>
+  return <div className="cc-backdrop"><main className="workbench cc-shell cc-workbench">
+    <aside className="cc-sidebar" aria-label="Command navigation">
+      <div className="cc-brand">
+        <div className="cc-logo-ring" aria-hidden="true">S</div>
+        <div className="brand-text"><strong>SESHAT</strong><span>MARS SURFACE SCIENCE</span></div>
+      </div>
+      <nav className="cc-nav" aria-label="Workspace sections">
+        <Link href="/" className="cc-nav-item" prefetch={false}>
+          <span className="cc-nav-icon" aria-hidden="true">⌂</span>
+          <span>Command center</span>
+        </Link>
+        <Link href="/?opportunities=1" className={`cc-nav-item${!demoMode ? ' cc-nav-active' : ''}`} prefetch={false}>
+          <span className="cc-nav-icon" aria-hidden="true">◫</span>
+          <span>Opportunity frontier</span>
+        </Link>
+        <Link href="/?demo=1" className={`cc-nav-item${demoMode ? ' cc-nav-active' : ''}`} prefetch={false}>
+          <span className="cc-nav-icon" aria-hidden="true">◈</span>
+          <span>Synthetic test scene</span>
+        </Link>
+      </nav>
+      <div className="cc-sidebar-bottom">
+        <button type="button" className="cc-nav-item" onClick={() => setDrawerOpen(true)}>
+          <span className="cc-nav-icon" aria-hidden="true">⚙</span>
+          <span>Evidence &amp; methods</span>
+        </button>
+        <div className="cc-help-card">
+          <div className="cc-help-title">
+            <span className="cc-help-badge" aria-hidden="true">?</span>
+            <strong>Need help?</strong>
+          </div>
+          <p>Review provenance, frames &amp; scenario limits</p>
+          <button type="button" className="cc-help-btn" onClick={() => setDrawerOpen(true)}>Documentation</button>
+          <div className="cc-mars-orb" aria-hidden="true" />
+        </div>
+      </div>
+    </aside>
+
+    <div className="cc-workspace">
+    <header className="mission-header cc-topbar">
+      <div className="cc-title-block">
+        <span className="cc-main-title">{demoMode ? 'Synthetic Acceptance Scene' : 'Opportunity Frontier'}</span>
+        <span className="cc-subtitle">Jezero crater · Opportunity navigator</span>
+      </div>
+      <div className="header-right cc-topbar-right"><span className="live-state">● {sourceKind(data.state)}</span>
+        <button className="text-action" onClick={() => setDrawerOpen(true)}>Evidence &amp; methods ↗</button></div>
     </header>
 
     <div className="content-grid">
-      <aside className="left-rail" aria-label="Science opportunities">
+      <aside className="left-rail cc-card" aria-label="Science opportunities">
         <section className="rail-intro"><div className="eyebrow">01 / Objective</div>
           <h1>What can we still explore?</h1><p>Every minute changes which opportunities fit a return journey.</p>
           {demoMode && <div className="mode-alert" role="status">SIMULATED TERRAIN <span>Not a Mars measurement</span></div>}
@@ -188,7 +226,7 @@ export function MissionWorkbench() {
         </section>
       </aside>
 
-      <section className="map-stage" aria-label="Planetary terrain map">
+      <section className="map-stage cc-card" aria-label="Planetary terrain map">
         <div className="map-topline"><span className="eyebrow">02 / Surface</span><span className="map-title">Jezero / analysis area</span>
           {bundle?.manifest.optical && <div className="map-layer-switch" role="group" aria-label="Surface layer">
             <button type="button" aria-pressed={!showOptical} onClick={() => setShowOptical(false)}>Terrain</button>
@@ -217,7 +255,7 @@ export function MissionWorkbench() {
           <span>{bundle ? `${bundle.manifest.width} × ${bundle.manifest.height} · ${bundle.manifest.cellWidthMeters.toFixed(0)} M/CELL` : 'DATA GATE · PENDING'}</span></div>
       </section>
 
-      <aside className="right-rail" aria-label="Mission clock and return feasibility">
+      <aside className="right-rail cc-card" aria-label="Mission clock and return feasibility">
         <section className="clock-panel"><div className="eyebrow">03 / Mission clock</div>
           <h2>Time is terrain.</h2><p>Delay the start of the traverse and watch the returnable frontier shrink.</p>
           <div className="time-display"><strong>{remaining}</strong><span>min remaining</span></div>
@@ -261,6 +299,7 @@ export function MissionWorkbench() {
       </aside>
     </div>
     <footer className="site-footer"><span>SESHAT / SPACE APPS 2026</span><span>Evidence before certainty.</span><span>Research prototype · not safety-certified</span></footer>
+    </div>
     {drawerOpen && <div className="drawer-scrim" onClick={() => setDrawerOpen(false)}>
       <aside ref={drawerRef} className="evidence-drawer" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Evidence and method">
         <div className="drawer-top"><span className="eyebrow">Method / evidence</span><button ref={closeDrawerRef} onClick={() => setDrawerOpen(false)} aria-label="Close evidence panel">×</button></div>
@@ -275,5 +314,5 @@ export function MissionWorkbench() {
         {target?.science.evidence.map(source => <p key={source.sourceId} className="source-url"><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a></p>)}
         <p className="drawer-disclaimer">All numerical models are experimental. No astronaut-grade safety claim, NASA endorsement, or synthetic-as-real substitution.</p>
       </aside></div>}
-  </main>;
+  </main></div>;
 }

@@ -78,10 +78,26 @@ function validateTargets(targets: unknown, m: DatasetManifest): asserts targets 
       throw new Error('Synthetic fixture cannot declare verified point');
   }
 }
+/** Fetch with small backoff so single-threaded local static servers never drop concurrent asset reads. */
+async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok || res.status < 500 || attempt === retries) return res;
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries) throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, 60 * (attempt + 1)));
+  }
+  throw lastError instanceof Error ? lastError : new Error(`Failed to fetch ${url}`);
+}
+
 /** `/demo` is opt-in only, including for static exports. `/data` remains the science gate. */
 export async function loadScientificBundle(root: '/data' | '/demo' = '/data'): Promise<BundleResult> {
   let response: Response;
-  try { response = await fetch(`${root}/manifest.json`, { cache: 'no-store' }); }
+  try { response = await fetchWithRetry(`${root}/manifest.json`); }
   catch { return { state: 'NO_DATA', message: 'No accepted data bundle is installed yet.' }; }
   if (!response.ok) return { state: 'NO_DATA', message: 'No accepted data bundle is installed yet.' };
   try {
@@ -113,21 +129,24 @@ export async function loadScientificBundle(root: '/data' | '/demo' = '/data'): P
       ['outbound-parents.bin', 'i32', 'int32'], ['return-next.bin', 'i32', 'int32'],
       ['elevation.bin', 'f32', 'float32'], ['validity-mask.bin', 'u8', 'uint8'],
     ] as const;
-    const arrays = await Promise.all(specs.map(async ([name, kind, dtype]) => {
+    const loadSpec = async ([name, kind, dtype]: (typeof specs)[number]) => {
       const record = m.files[name];
       if (!record || record.dtype !== dtype && !(kind === 'u8' && record.dtype === 'uint8') ||
           record.bytes !== m.width * m.height * (kind === 'f64' ? 8 : kind === 'u8' ? 1 : 4) ||
           !/^[0-9a-f]{64}$/.test(record.sha256))
         throw new Error(`Invalid file contract: ${name}`);
-      const r = await fetch(`${root}/${name}`, { cache: 'no-store' });
+      const r = await fetchWithRetry(`${root}/${name}`);
       if (!r.ok) throw new Error(`Missing file: ${name}`);
       const data = await r.arrayBuffer();
       if (data.byteLength !== record.bytes || await sha256Hex(data) !== record.sha256)
         throw new Error(`Hash / byte count mismatch: ${name}`);
       return readNumeric(data, kind);
-    }));
+    };
+    const batchOne = await Promise.all(specs.slice(0, 3).map(loadSpec));
+    const batchTwo = await Promise.all(specs.slice(3).map(loadSpec));
+    const arrays = [...batchOne, ...batchTwo];
     // Image integrity is checked *before* the browser attempts to render the layer.
-    const imageResponse = await fetch(`${root}/${m.imagery.path}`, { cache: 'no-store' });
+    const imageResponse = await fetchWithRetry(`${root}/${m.imagery.path}`);
     if (!imageResponse.ok) throw new Error('Missing shaded relief imagery');
     const imageBytes = await imageResponse.arrayBuffer();
     if (imageBytes.byteLength !== m.imagery.bytes || await sha256Hex(imageBytes) !== m.imagery.sha256)
@@ -136,7 +155,7 @@ export async function loadScientificBundle(root: '/data' | '/demo' = '/data'): P
       if (!isSafeAssetPath(m.optical.path) || !/^[0-9a-f]{64}$/.test(m.optical.sha256) ||
           !(m.optical.bytes > 0) || !m.optical.sourceUrl.startsWith('https://'))
         throw new Error('Invalid orbital layer manifest');
-      const opticalResponse = await fetch(`${root}/${m.optical.path}`, { cache: 'no-store' });
+      const opticalResponse = await fetchWithRetry(`${root}/${m.optical.path}`);
       if (!opticalResponse.ok) throw new Error('Missing orbital imagery');
       const opticalBytes = await opticalResponse.arrayBuffer();
       if (opticalBytes.byteLength !== m.optical.bytes || await sha256Hex(opticalBytes) !== m.optical.sha256)
