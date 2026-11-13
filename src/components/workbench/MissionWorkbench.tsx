@@ -10,6 +10,8 @@ import { assessTarget } from '@/engine/feasibility';
 import { minutesText, stateLabel } from '@/engine/formatting';
 import { routeSummary } from '@/engine/route-summary';
 import { countFrontier, frontierMembership } from '@/engine/frontier';
+import { ElevationProfile } from '@/components/visualizations/ElevationProfile';
+import { buildMissionBrief } from '@/engine/mission-brief';
 
 const INITIAL_BUDGET = 180; // Assumed research scenario, NOT NASA flight guidance.
 const RESERVE = 20;
@@ -83,6 +85,18 @@ export function MissionWorkbench() {
     bundle.outboundMinutes, bundle.returnMinutes, bundle.mask, 0, INITIAL_BUDGET, RESERVE)) : null,
     [bundle]);
   const frontierLoss = frontierCount === null || originalFrontierCount === null ? null : originalFrontierCount - frontierCount;
+  const exportBrief = () => {
+    if (!bundle || !target || !assessment) return;
+    const report = buildMissionBrief({ target, assessment, scenario, source: bundle.manifest,
+      movementFrontierCells: frontierCount, initialFrontierCells: originalFrontierCount });
+    const url = URL.createObjectURL(new Blob([report], { type: 'text/markdown;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `seshat-mission-brief-${target.id.replace(/[^a-z0-9_-]/gi, '_').slice(0, 45)}.md`;
+    document.body.appendChild(link); link.click(); link.remove();
+    // Delay cleanup one render turn to let the browser begin the download.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   return <main className="workbench">
     <header className="mission-header">
@@ -168,6 +182,16 @@ export function MissionWorkbench() {
             </div>}
             <div className="scenario-lines">{assessment.scenarios.map(s => <div key={s.factor}><span>{s.factor.toFixed(1)}×</span>
               <span>{minutesText(s.marginMinutes)}</span><span>{s.feasible === null ? 'Unknown' : s.feasible ? 'Within budget' : 'Over budget'}</span></div>)}</div>
+            {bundle && outbound?.status === 'READY' && returnRoute?.status === 'READY' &&
+              <details className="terrain-detail"><summary>Inspect terrain profile <span>DEM-SCALE / BOTH LEGS</span></summary>
+                <ElevationProfile route={outbound} cellWidthMeters={bundle.manifest.cellWidthMeters}
+                  cellHeightMeters={bundle.manifest.cellHeightMeters} label="Outbound" />
+                <ElevationProfile route={returnRoute} cellWidthMeters={bundle.manifest.cellWidthMeters}
+                  cellHeightMeters={bundle.manifest.cellHeightMeters} label="Return" />
+                <p>Elevation sampled from the compiled DEM. The profile does not resolve small surface hazards.</p>
+              </details>}
+            <div className="brief-actions"><Button label="Export mission brief (.md)" variant="primary" onClick={exportBrief}/>
+              <span>Includes scenario, evidence status and limitations.</span></div>
             {elapsed > 0 && baseline?.state !== assessment.state && <p className="change-explanation">After +{elapsed} min, <b>{baseline?.state.toLowerCase()}</b> becomes <b>{assessment.state.toLowerCase()}</b>.</p>}
           </> : <div className="assessment-pending"><strong>Decision awaiting a destination</strong>
             <p>{isReady ? 'Select a target or a covered map cell to compute an exploratory round trip.' :

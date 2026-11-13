@@ -11,7 +11,7 @@ shots=ROOT/'screenshots';shots.mkdir(exist_ok=True)
 page_html=(ROOT/'tools/preview/dist/index.html').read_text()
 js=(ROOT/'tools/preview/dist/preview.js').read_text()
 files=['manifest.json','outbound-costs.bin','return-costs.bin','outbound-parents.bin',
-       'return-next.bin','validity-mask.bin']
+       'return-next.bin','validity-mask.bin','elevation.bin']
 raw={ '/demo/'+f: base64.b64encode((ROOT/'public/demo'/f).read_bytes()).decode() for f in files }
 bootstrap='''<script>const PREVIEW_FIXTURE_B64 = DATA_HERE;
 window.fetch=async function(input){const key=String(input), encoded=PREVIEW_FIXTURE_B64[key];
@@ -36,6 +36,13 @@ with sync_playwright() as p:
     assert start>0
     assert 'ROBUST' in page.locator('#status').inner_text()
     page.screenshot(path=str(shots/'seshat-acceptance-desktop.png'),full_page=True)
+    page.locator('#preview-profile summary').click()
+    assert page.locator('#profile-svg path').count()==1
+    assert 'ascent' in page.locator('#profile-ascent').inner_text()
+    page.screenshot(path=str(shots/'seshat-acceptance-h2-profile.png'),full_page=True)
+    page.locator('#export-preview').click()
+    assert 'SYNTHETIC TEST FIXTURE' in page.evaluate('window.SESHAT_PREVIEW_LAST_BRIEF')
+    assert 'Target:' in page.evaluate('window.SESHAT_PREVIEW_LAST_BRIEF')
     page.locator('#advance').click()
     count=int(page.locator('#frontier-count').inner_text().replace(',',''))
     assert count<=start, (start,count)

@@ -17,6 +17,11 @@ Build SESHAT, an evidence-traceable Martian surface-science planning research pr
 9. **No hidden external runtime dependency.** Static-export/web + offline backup. The scientific route decision works without cloud AI. No API secrets in browsers or commits.
 10. **No silent false claims.** Don't say "verified", "tested", "NASA-approved", "safety certified", "production ready", or "100%" without recorded evidence. NASA is a data source, not an endorser.
 
+## Every-checkpoint evidence and commit rule
+- Run `python -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md` and commit the resulting report with each meaningful code checkpoint.
+- Report engine tests, Python tests, browser acceptance, Next.js production build, downloaded Mars files, deployment, and official Resources status **separately**.
+- Do not replace a missing production screenshot with the synthetic acceptance-harness screenshot.
+
 ## PR acceptance
 - Brief issue with outcome, existing contract, touched files, proof and reviewer.
 - Typecheck/lint/tests for touched code; output actual commands and results, not assumed green.

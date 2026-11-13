@@ -72,3 +72,19 @@
   .map-layer-switch button{font:10px ui-monospace,monospace;color:#a6b3af;background:none;border:0;padding:7px 11px;border-radius:2px}
   .map-layer-switch button[aria-pressed="true"]{color:#151c1e;background:#e3b495}
 }
+
+@layer components {
+  .terrain-detail { margin-top: 16px; border-top: 1px solid var(--s-line); border-bottom: 1px solid var(--s-line); padding: 13px 0; }
+  .terrain-detail summary { cursor: pointer; color: #e7c4a9; font-size: 12px; font-weight: 600; list-style-position: inside; }
+  .terrain-detail summary span { float: right; color: #95a29d; font: 9px ui-monospace, monospace; letter-spacing: .03em; padding-top: 3px; }
+  .terrain-detail>p { font-size: 10px; line-height: 1.6; color: var(--s-muted); margin: 11px 0 0; }
+  .profile-chart { margin-top: 17px; }
+  .profile-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 11px; }
+  .profile-heading strong { color: #e5d8ce; font-weight: 600; }
+  .profile-heading span { color: #aab5ac; font: 10px ui-monospace, monospace; }
+  .profile-chart svg { width: 100%; height: auto; display: block; margin-top: 7px; }
+  .profile-metrics { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px; font: 9px ui-monospace, monospace; color: #b0b7ae; }
+  .brief-actions { margin-top: 17px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .brief-actions button { font-size: 11px; }
+  .brief-actions span { font-size: 10px; color: var(--s-muted); line-height: 1.5; }
+}

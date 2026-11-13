@@ -54,9 +54,19 @@ def fetch_one(kind: str, destination: Path, timeout: int = 25) -> dict:
         data = out.read_bytes()
         validate_signature(kind, data)
         digest = hashlib.sha256(data).hexdigest()
+        # Do not erase a previous successful acquisition on a harmless rerun.
+        # An independently supplied file remains unverified, even if its name fits.
+        ledger = destination / 'acquisition.json'
+        previous = json.loads(ledger.read_text()).get(kind, {}) if ledger.is_file() else {}
+        recorded = previous.get('url') in item['urls'] and previous.get('sha256') == digest
         result = {'kind': kind, 'file': str(out), 'bytes': len(data), 'sha256': digest,
-                  'url': 'EXISTING_FILE_ORIGIN_UNCONFIRMED', 'citation': item['citation'],
-                  'verifiedSourceFile': False, 'warning': 'Existing file: independently verify origin against original download!'}
+                  'url': previous['url'] if recorded else 'EXISTING_FILE_ORIGIN_UNCONFIRMED',
+                  'citation': item['citation'], 'publication': item['publication'],
+                  'retrievedAtUTC': previous.get('retrievedAtUTC') if recorded else None,
+                  'verifiedSourceFile': False,
+                  'warning': ('Existing file matches previous recorded acquisition URL/SHA; '
+                              'scientific review still required' if recorded else
+                              'Existing file origin cannot be established; inspect manually')}
         return result
 
     errors = []

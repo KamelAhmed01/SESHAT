@@ -5,10 +5,10 @@
   if(manifest.status!=='DEMO_SYNTHETIC')throw Error('Preview must use synthetic fixture');
   const n=manifest.width*manifest.height;
   async function numbers(name,kind){const b=await (await fetch(root+name)).arrayBuffer();const v=new DataView(b);
-    const arr=new Array(n);for(let i=0;i<n;i++){let ofs=kind==='f64'?i*8:kind==='i32'?i*4:i;
-      arr[i]=kind==='f64'?v.getFloat64(ofs,true):kind==='i32'?v.getInt32(ofs,true):v.getUint8(ofs)}return arr;}
-  const [out,ret,parents,retNext,mask]=await Promise.all([
-    numbers('outbound-costs.bin','f64'),numbers('return-costs.bin','f64'),numbers('outbound-parents.bin','i32'),numbers('return-next.bin','i32'),numbers('validity-mask.bin','u8')]);
+    const arr=new Array(n);for(let i=0;i<n;i++){let ofs=kind==='f64'?i*8:kind==='i32'||kind==='f32'?i*4:i;
+      arr[i]=kind==='f64'?v.getFloat64(ofs,true):kind==='i32'?v.getInt32(ofs,true):kind==='f32'?v.getFloat32(ofs,true):v.getUint8(ofs)}return arr;}
+  const [out,ret,parents,retNext,mask,elevation]=await Promise.all([
+    numbers('outbound-costs.bin','f64'),numbers('return-costs.bin','f64'),numbers('outbound-parents.bin','i32'),numbers('return-next.bin','i32'),numbers('validity-mask.bin','u8'),numbers('elevation.bin','f32')]);
   let selected=0,elapsed=0;const budget=180,reserve=20;
   const $=id=>document.getElementById(id);
   const fmt=v=>isFinite(v)?(Math.round(v*10)/10).toFixed(1)+' min':'Unknown';
@@ -36,6 +36,26 @@
     $('speed-rows').innerHTML=scenarios.map(s=>`<div><span>${s.f.toFixed(1)}×</span><span>${fmt(s.margin)}</span><span>${s.margin>=0?'Within budget':'Over budget'}</span></div>`).join('');
     $('change-line').textContent=elapsed?'Elapsed time reduces every scenario margin by '+elapsed+' min.':'';
     const pathOut=chain(idx,'out'),pathReturn=chain(idx,'ret');
+    const chartZ=pathOut.map(i=>elevation[i]);
+    if(chartZ.length){
+      const lo=Math.min(...chartZ),hi=Math.max(...chartZ),den=Math.max(hi-lo,1),maxI=Math.max(chartZ.length-1,1);
+      const line=chartZ.map((z,i)=>`${i?'L':'M'}${8+(i/maxI)*304},${89-(z-lo)/den*75}`).join(' ');
+      $('profile-svg').innerHTML=`<line x1="8" y1="92" x2="312" y2="92" stroke="#657070"/>`+
+        `<path d="${line}" fill="none" stroke="#ddb18e" stroke-width="2"/>`;
+      $('profile-length').textContent=pathOut.length+' sample vertices';
+      $('profile-ascent').textContent='↑ '+Math.round(chartZ.reduce((s,z,i)=>s+(i?Math.max(0,z-chartZ[i-1]):0),0))+' m ascent';
+    }
+    $('export-preview').onclick=()=>{
+      const content=['# SESHAT / Preview mission brief','',
+        '> **SYNTHETIC TEST FIXTURE — NOT MARS DATA**',
+        '> Research-only values. No astronaut safety guidance.',
+        '',`Target: ${t.name}`,`Model outcome: ${status}`,`Elapsed: ${elapsed} min`,
+        `Outbound: ${fmt(a)}`,`Return: ${fmt(b)}`,'Source: generated demonstration fixture'].join('\n');
+      window.SESHAT_PREVIEW_LAST_BRIEF=content;
+      const url=URL.createObjectURL(new Blob([content],{type:'text/markdown'}));
+      const link=document.createElement('a');link.href=url;link.download='seshat-synthetic-preview.md';
+      document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    };
     const br=Math.floor(manifest.baseIndex/manifest.width),bc=manifest.baseIndex%manifest.width;
     $('lines').innerHTML=polyline(pathOut,'#ffd2b0',false)+polyline(pathReturn,'#a6dfbe',true)+
       `<circle cx="${bc+.5}" cy="${br+.5}" r="2" stroke="#fff" fill="#ad593d" stroke-width=".5"/>`+

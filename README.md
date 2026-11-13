@@ -32,3 +32,15 @@ python3 -m pytest -q pipeline/tests
 ```
 
 See [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md) for real Mars source acquisition, source review, and target alignment. `screenshots/seshat-acceptance-*.png` are explicitly synthetic **visual-harness** renders rather than production Next screenshots.
+
+## Live execution checklist (H2)
+
+[`docs/CHECKPOINT_REPORT.md`](docs/CHECKPOINT_REPORT.md) distinguishes **verified local tests**, **implemented but not production-integrated work**, and **missing external gates**. Refresh the report before each handoff or team merge:
+
+```bash
+python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md
+```
+
+The H2 workbench source adds DEM-based outbound/return elevation profiles and a downloadable evidence-labeled mission brief (`.md`). The analysis now distinguishes a known modeled hard obstruction from insufficient data, conservatively returning `UNKNOWN` if missing cells might hide a route. Data acquisition can be safely re-run without erasing a previously recorded original URL/hash when the bytes match. Browser acceptance still uses **synthetic terrain** and is not the Next.js runtime.
+
+For the next team priority, open `docs/CHECKPOINT_REPORT.md`: **official Resources evidence, real CTX/PDS downloads, two precise source-backed targets, npm lockfile + Astryx theme, production Next build, deployment, and final submission** remain open.
