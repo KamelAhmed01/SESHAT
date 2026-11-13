@@ -1,0 +1,95 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SESHAT — acceptance preview (synthetic)</title><style>
+@layer components {
+  :root {color-scheme:dark;--s-bg:#0a0e11;--s-surface:#0f1417;--s-text:#eae4db;--s-muted:#9ca5a2;--s-line:#2a3438;--s-accent:#ce8967;}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--s-bg);color:var(--s-text)}
+  body{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  button{cursor:pointer}button:focus-visible,a:focus-visible{outline:2px solid #e8a784;outline-offset:3px}
+  .workbench{max-width:2200px;margin:auto;display:flex;flex-direction:column;min-height:100svh}
+  .mission-header{height:77px;flex-shrink:0;padding:0 26px;display:flex;align-items:center;gap:32px;border-bottom:1px solid var(--s-line)}
+  .brand-lockup{display:flex;align-items:center;gap:12px;flex-shrink:0}.brand-mark{width:40px;height:40px;display:grid;place-items:center;border:1px solid #876d5e;border-radius:100%;font:24px Georgia,serif;color:#e9ab86;position:relative}
+  .brand-mark span{position:absolute;right:4px;bottom:2px;font-size:12px;color:#879394}.brand-text{display:flex;flex-direction:column;gap:3px}.brand-text strong{font:600 21px Georgia,serif;letter-spacing:.025em}.brand-text span{font-size:8px;letter-spacing:.17em;color:var(--s-muted)}
+  .eyebrow{font-size:10px;font-weight:600;letter-spacing:.105em;text-transform:uppercase;color:#8a9a9c}.mission-id{display:flex;align-items:center;gap:12px;color:#b2b8b3;font-size:12px}.tiny-separator{color:#49555b}
+  .header-right{margin-left:auto;display:flex;align-items:center;gap:20px}.live-state{font:10px ui-monospace,monospace;color:#b2bcb2;white-space:nowrap}.text-action{color:#f0b594;background:none;border:0;text-align:left;font-size:12px;padding:7px 0}
+  .content-grid{display:grid;grid-template-columns:minmax(260px,300px) minmax(400px,1fr) minmax(290px,330px);flex:1;min-height:min(770px,calc(100svh - 117px))}
+  .left-rail,.right-rail{background:var(--s-surface);display:flex;flex-direction:column;min-width:0}.left-rail{border-right:1px solid var(--s-line)}.right-rail{border-left:1px solid var(--s-line)}
+  .rail-intro{padding:28px 23px;border-bottom:1px solid var(--s-line)}.rail-intro h1,.clock-panel h2{font:400 28px/1.17 Georgia,serif;letter-spacing:-.015em;margin:19px 0 12px}.rail-intro p,.clock-panel p{color:var(--s-muted);font-size:13px;line-height:1.65}
+  .rail-section{padding:24px 22px;border-bottom:1px solid var(--s-line)}.section-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#d4d6d0;font-size:12px;font-weight:600}.section-index{font:10px ui-monospace,monospace;color:#7a8a8d;white-space:nowrap}
+  .evidence-empty{margin-top:21px;background:#171e21;border:1px solid #2c383b;padding:21px 17px;border-radius:3px}.quiet-icon{font:29px Georgia,serif;color:var(--s-accent)}.evidence-empty strong,.assessment-pending strong{display:block;font-size:13px;font-weight:550;margin-top:12px}
+  .evidence-empty p,.context-note,.assessment-pending p{font-size:12px;color:var(--s-muted);line-height:1.65;margin:9px 0 0}.microcode{font:10px ui-monospace,monospace;color:var(--s-accent);letter-spacing:.055em;display:block;margin-top:16px}.rail-bottom,.right-bottom{margin-top:auto}
+  .map-stage{position:relative;overflow:hidden;min-width:0;background:#151a1c}.map-root{position:absolute;inset:0;background:radial-gradient(ellipse 60% 70% at 50% 50%,#2c2b2a,#13181b)}.map-topline{position:absolute;top:22px;left:24px;z-index:550;display:flex;flex-direction:column;gap:6px;pointer-events:none}.map-title{font:21px Georgia,serif;color:#ede8df}.map-north{position:absolute;z-index:550;right:24px;top:26px;font:15px ui-monospace,monospace;color:#d3c2ac;pointer-events:none}
+  .map-caution{z-index:550;position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);width:min(390px,82%);background:#0e1417ee;border:1px solid #62524a;display:flex;gap:13px;padding:18px;pointer-events:none}.map-caution i{width:8px;height:8px;margin-top:3px;background:#db956e;border-radius:100%;flex-shrink:0}.map-caution strong{font:11px ui-monospace,monospace;color:#f2bc97;letter-spacing:.07em}.map-caution span{display:block;font-size:12px;color:#aab3b1;line-height:1.55;margin-top:8px}
+  .map-footer{z-index:550;position:absolute;left:24px;right:24px;bottom:20px;display:flex;justify-content:space-between;gap:14px;pointer-events:none;font:9px ui-monospace,monospace;letter-spacing:.06em;color:#a5b2ae}
+  .map-root .leaflet-control-zoom{border:1px solid #384348;box-shadow:none}.map-root .leaflet-control-zoom a{background:#1d282b;color:#e9e5dc;border-color:#384348}.map-root .leaflet-control-zoom a:hover{background:#364043}
+  .clock-panel{padding:28px 25px 23px;border-bottom:1px solid var(--s-line)}.time-display{display:flex;gap:10px;align-items:baseline;margin-top:27px}.time-display strong{font:500 63px/1 ui-monospace,Menlo,monospace;letter-spacing:-.07em;font-variant-numeric:tabular-nums}.time-display span{font-size:11px;color:var(--s-muted)}
+  .time-metrics{margin-top:22px;border-top:1px solid var(--s-line)}.time-metrics>div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #253035}.time-metrics span{font-size:12px;color:var(--s-muted)}.time-metrics strong{font:12px ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .clock-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:24px}.clock-actions button{font-size:12px}.clock-panel .assumption-note{font-size:11px;color:#83918f;margin-top:17px}
+  .assessment-panel{padding:22px 25px;border-bottom:1px solid var(--s-line)}.assessment-pending{border-left:2px solid #72827e;padding:3px 0 3px 15px;margin-top:26px}.assessment-pending strong{margin-top:0}.assessment-state{font:22px Georgia,serif;margin:24px 0 10px}.state-robust{color:#cbd9b4}.state-marginal{color:#e6b88e}.state-infeasible{color:#ea9c83}.state-unknown{color:#adbab6}
+  .scenario-lines{margin-top:17px}.scenario-lines>div{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--s-line);font:11px ui-monospace,monospace}.scenario-lines>div span:last-child{color:var(--s-muted)}.right-bottom{border-bottom:0}
+  .site-footer{min-height:40px;padding:0 25px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid var(--s-line);font:10px ui-monospace,monospace;color:#85918f}
+  .drawer-scrim{position:fixed;inset:0;z-index:900;background:#0009;display:flex;justify-content:flex-end}.evidence-drawer{background:#121a1e;border-left:1px solid #445052;width:min(450px,95vw);height:100%;overflow:auto;padding:32px;box-shadow:-15px 0 55px #0007}.drawer-top{display:flex;align-items:center;justify-content:space-between}.drawer-top button{background:none;color:var(--s-text);border:0;font-size:26px}.evidence-drawer h2{font:400 32px/1.15 Georgia,serif;margin:43px 0 18px}.evidence-drawer>p{font-size:13px;line-height:1.7;color:var(--s-muted)}.drawer-fact{display:flex;justify-content:space-between;gap:18px;padding:13px 0;border-top:1px solid var(--s-line)}.drawer-fact span{font-size:12px;color:var(--s-muted)}.drawer-fact strong{font-size:11px;text-align:right;word-break:break-word}.source-url{word-break:break-word}.source-url a{color:#f0b594}.evidence-drawer .drawer-disclaimer{margin-top:30px;border-top:1px solid var(--s-line);padding-top:18px}
+  @media(max-width:1190px){.content-grid{grid-template-columns:250px minmax(300px,1fr)280px}.mission-id{display:none}.rail-intro,.rail-section,.clock-panel,.assessment-panel{padding-left:16px;padding-right:16px}}
+  @media(max-width:900px){.content-grid{grid-template-columns:minmax(0,1fr)285px}.left-rail{grid-row:2;grid-column:1/-1;border-top:1px solid var(--s-line)}.map-stage{min-height:545px}.right-rail{grid-row:1;grid-column:2}.rail-bottom{margin-top:0}}
+  @media(max-width:640px){.mission-header{height:67px;padding:0 15px}.brand-text strong{font-size:18px}.brand-text span{font-size:7px}.live-state{display:none}.content-grid{display:flex;flex-direction:column}.map-stage{order:0;min-height:390px}.right-rail{order:1;border-left:0}.left-rail{order:2;border-right:0}.time-display strong{font-size:54px}.site-footer{padding:11px 15px;flex-wrap:wrap;font-size:9px}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+}
+
+@layer components {
+  .mode-alert{margin-top:22px;border-top:1px solid #80634f;padding:10px 0 0;color:#f5b793;font-size:10px;font-weight:600;letter-spacing:.09em}
+  .mode-alert span{display:block;font-size:11px;letter-spacing:normal;color:#aab1ab;font-weight:400;margin-top:6px}
+  .target-list{display:flex;flex-direction:column;gap:0;margin-top:16px}
+  .target-item{background:none;color:inherit;display:grid;grid-template-columns:27px 1fr 14px;text-align:left;gap:9px;padding:15px 9px;width:100%;border:0;border-top:1px solid #2c3639}
+  .target-item:hover{background:#202a2c}.target-selected{background:#24302f;border-left:2px solid #d69e7b;padding-left:7px}
+  .target-item:disabled{opacity:.5;cursor:not-allowed}
+  .target-num{font:10px ui-monospace,monospace;color:#e1a680;padding-top:2px}
+  .target-body{display:flex;flex-direction:column;gap:7px}.target-body strong{font-size:12px;font-weight:650}
+  .target-body>span{font-size:11px;color:#a3aeaa;line-height:1.45;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  .target-body small{font:9px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.07em;color:#b8a08e}
+  .target-chevron{font-size:12px;color:#bb9280}
+  .selected-target{font-size:11px;color:#d0ab90;margin-top:22px;letter-spacing:.025em}
+  .route-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:17px}
+  .route-metrics>div{border:1px solid #293438;background:#151d20;padding:10px 7px;display:flex;flex-direction:column;gap:7px;min-width:0}
+  .route-metrics small{font-size:10px;color:#91a19e}.route-metrics strong{font:11px ui-monospace,monospace;white-space:nowrap}
+  .change-explanation{font-size:11px;line-height:1.5;border-left:2px solid #bf835f;padding:8px 0 8px 12px;color:#c4c7bc;margin:12px 0 0}
+  .frontier-stats{position:absolute;right:20px;bottom:55px;z-index:560;background:#13191de8;border:1px solid #52605b;padding:14px 17px;min-width:183px;pointer-events:none;display:flex;flex-direction:column;gap:5px}
+  .frontier-stats strong{font:28px ui-monospace,monospace;color:#dae2cd;letter-spacing:-.035em}.frontier-stats span{font-size:10px;color:#b3c2b3}
+  .map-caution-compact{width:min(340px,80%);left:22px;top:100px;transform:none;padding:11px;gap:9px;background:#141b1de8}
+  .map-caution-compact strong{font-size:10px}.map-caution-compact span{font-size:10px;margin-top:4px}
+  .demo-link-note{font-size:11px;line-height:1.6;color:#98a5a1;margin-top:18px}
+  .demo-link-note a{color:#e8b794;text-decoration:underline;text-underline-offset:3px}
+  @media(max-width:640px){.frontier-stats{right:15px;bottom:41px;min-width:140px;padding:9px}.frontier-stats strong{font-size:23px}.map-caution-compact{left:14px;top:95px;width:min(280px,73%)}.map-caution-compact span{display:none}}
+}
+
+@layer components {
+  .map-layer-switch{pointer-events:auto;display:inline-flex;width:max-content;margin-top:9px;border:1px solid #626961;border-radius:3px;background:#151b1c;padding:2px;gap:2px}
+  .map-layer-switch button{font:10px ui-monospace,monospace;color:#a6b3af;background:none;border:0;padding:7px 11px;border-radius:2px}
+  .map-layer-switch button[aria-pressed="true"]{color:#151c1e;background:#e3b495}
+}
+.preview-button-primary,.preview-button{font:500 12px sans-serif;padding:10px 12px;border-radius:5px;border:1px solid #4b5758;background:#1d2c2e;color:#ebede6}
+.preview-button-primary{background:#c78b68;color:#11181b;border:1px solid #d39a74}.preview-button:hover{background:#324345}
+[hidden]{display:none!important}
+
+.preview-map-image{position:absolute;object-fit:fill;image-rendering:auto;left:5%;top:6%;width:90%;height:88%;filter:contrast(1.17) saturate(.83)}
+.preview-frontier{position:absolute;left:5%;top:6%;width:90%;height:88%;pointer-events:none}
+.preview-lines{position:absolute;left:5%;top:6%;width:90%;height:88%;overflow:visible;pointer-events:none}
+.preview-label{position:absolute;z-index:600;background:#172226e6;color:#f6c4a2;border:1px solid #ae7c5f;padding:5px 8px;font-size:10px;pointer-events:none}
+.preview-watermark{position:absolute;z-index:800;transform:rotate(-25deg);left:24%;top:47%;font:600 16px ui-monospace,monospace;letter-spacing:.18em;color:#e6d2bf75;pointer-events:none;text-shadow:0 2px 9px #111}
+@media(max-width:900px){.preview-watermark{font-size:10px}.preview-map-image,.preview-frontier,.preview-lines{top:12%;height:76%;}}
+</style></head><body>
+<main class="workbench"><header class="mission-header"><div class="brand-lockup"><div class="brand-mark">S<span>·</span></div><div class="brand-text"><strong>SESHAT</strong><span>MARS SURFACE SCIENCE</span></div></div>
+<div class="mission-id"><span class="eyebrow">Field study</span><span>Jezero crater</span><span class="tiny-separator">/</span><span>Opportunity navigator</span></div><div class="header-right"><span class="live-state">● SYNTHETIC TEST SCENE</span><button id="evidence-btn" class="text-action">Evidence & methods ↗</button></div></header>
+<div class="content-grid"><aside class="left-rail"><section class="rail-intro"><div class="eyebrow">01 / Objective</div><h1>What can we still explore?</h1><p>Every minute changes which opportunities fit a return journey.</p><div class="mode-alert">SIMULATED TERRAIN <span>Not a Mars measurement</span></div></section>
+<section class="rail-section"><div class="section-heading"><span>Science opportunities</span><span class="section-index">03 TEST TARGETS</span></div><div class="target-list" id="target-list"></div></section>
+<section class="rail-section rail-bottom"><div class="section-heading"><span>Analysis rules</span><span class="section-index">v0</span></div><p class="context-note">Directional terrain routing, a defined return reserve, and three travel speeds. Values are assumptions; no EVA safety claims.</p></section></aside>
+<section class="map-stage"><div class="map-topline"><span class="eyebrow">02 / Surface</span><span class="map-title">Illustrative analysis area</span></div>
+<div class="map-root"><img id="terrain" class="preview-map-image" alt="Synthetic shaded elevation, not Mars" src="/demo/imagery/study-area.webp"><canvas id="frontier" class="preview-frontier"></canvas><svg id="lines" class="preview-lines" viewBox="0 0 190 160" preserveAspectRatio="none"></svg></div>
+<div class="map-north">↑ N</div><div class="map-caution map-caution-compact"><i></i><div><strong>SYNTHETIC — NOT MARS</strong><span>Test landscape generated to validate interaction and routing only.</span></div></div>
+<div class="frontier-stats"><div class="eyebrow">RETURNABLE CELLS</div><strong id="frontier-count">—</strong><span id="frontier-loss">At scenario start</span></div><div class="preview-watermark">SYNTHETIC TEST</div><div class="map-footer"><span>SYNTHETIC TEST DATA</span><span>190 × 160 · 32 M/CELL</span></div></section>
+<aside class="right-rail"><section class="clock-panel"><div class="eyebrow">03 / Mission clock</div><h2>Time is terrain.</h2><p>Delay the traverse and watch the returnable opportunity frontier shrink.</p>
+<div class="time-display"><strong id="remaining">180</strong><span>min remaining</span></div><div class="time-metrics"><div><span>Planning window</span><strong>180 min</strong></div><div><span>Elapsed</span><strong id="elapsed">+0 min</strong></div><div><span>Held in reserve</span><strong>20 min</strong></div></div><div class="clock-actions"><button id="advance" type="button" class="preview-button-primary">Advance +15 min</button><button id="reset" class="preview-button" type="button">Reset</button></div><p class="assumption-note">Illustrative research parameters, not certified EVA guidance.</p></section>
+<section class="assessment-panel"><div class="section-heading"><span>Return feasibility</span><span class="section-index">0.8× / 1× / 1.2×</span></div><div class="selected-target" id="selected-target">—</div>
+<h3 class="assessment-state" id="status">—</h3><p class="context-note" id="margin"></p><div class="route-metrics"><div><small>Outbound</small><strong id="outbound">—</strong></div><div><small>Return</small><strong id="return">—</strong></div><div><small>Fieldwork</small><strong id="activity">—</strong></div></div><div class="scenario-lines" id="speed-rows"></div><p class="change-explanation" id="change-line"></p></section>
+<section class="rail-section right-bottom"><span class="eyebrow">Scientific boundary</span><p class="context-note">All imagery and coordinates here are artificial test inputs. NASA is not associated with this preview.</p></section></aside></div>
+<footer class="site-footer"><span>SESHAT / SPACE APPS 2026</span><span>Evidence before certainty.</span><span>VISUAL ACCEPTANCE PREVIEW · NOT NEXT RUNTIME</span></footer></main>
+<div id="scrim" class="drawer-scrim" hidden><aside class="evidence-drawer"><div class="drawer-top"><span class="eyebrow">Method / evidence</span><button id="close" aria-label="Close panel">×</button></div><h2>We show what the data can support.</h2><p>This visual acceptance harness loads synthetic fields from the real Python compiler. It does NOT display downloaded Mars terrain, verified science or the Next.js application.</p><div class="drawer-fact"><span>Scene</span><strong>DEMO_SYNTHETIC</strong></div><div class="drawer-fact"><span>Speed</span><strong>0.75 m/s assumption</strong></div><div class="drawer-fact"><span>Routing</span><strong>Directed, grade-penalized</strong></div><p class="drawer-disclaimer">No NASA endorsement or safety claim.</p></aside></div>
+<script src="/preview/preview.js" defer></script></body></html>

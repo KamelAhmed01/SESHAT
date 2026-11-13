@@ -13,6 +13,7 @@ import sys
 import numpy as np
 from PIL import Image
 import rasterio
+from pyproj import CRS as PyprojCRS
 from rasterio.windows import Window, transform as window_transform
 
 try:
@@ -51,6 +52,10 @@ def compile_dem(args: argparse.Namespace):
     with rasterio.open(args.dem) as src:
         if src.count < 1 or not src.crs:
             raise ValueError('Raster must have explicit georeferencing and one DEM band')
+        # A georeferenced *Earth* raster is not Mars terrain.
+        radius = float(PyprojCRS.from_wkt(src.crs.to_wkt()).ellipsoid.semi_major_metre)
+        if not 3_000_000 < radius < 3_600_000:
+            raise ValueError(f'Planetary radius {radius:.1f} m is not a Mars-class datum; do not use Earth CRS')
         if src.crs.is_geographic:
             raise ValueError('Geographic-degree raster cannot be used as a metric grid; reproject using a verified Mars CRS first')
         if src.transform.a <= 0 or src.transform.e >= 0 or abs(src.transform.b) > 1e-10 or abs(src.transform.d) > 1e-10:
@@ -86,10 +91,11 @@ def compile_dem(args: argparse.Namespace):
         'height': height, 'width': width, 'baseIndex': fields['_base_index'],
         'cellWidthMeters': dx, 'cellHeightMeters': dy,
         'crsWkt': crs_wkt, 'rasterTransform': list(transform)[:6],
+        'planetaryBody': 'Mars', 'sourceBodyRadiusMeters': radius,
         'nativeNodata': source_nodata, 'sourceWindow': list(args.window),
         'files': records,
         'imagery': {'path': 'imagery/study-area.webp', 'sha256': hashlib.sha256(image_bytes).hexdigest(), 'bytes': len(image_bytes)},
-        'scienceTargets': [], 'coordinateFrameVerified': False,
+        'scienceTargets': [], 'coordinateFrameVerified': False, 'challengeResourceQualified': False,
     }
     (dest / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print(f'Wrote {height}×{width} DEM-derived *unreviewed* fields to {dest}')

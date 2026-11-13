@@ -1,0 +1,23 @@
+[
+  {
+    "id": "jezero-delta-region-candidate",
+    "name": "Western delta — candidate science region",
+    "confidence": "APPROXIMATE_REGION",
+    "summary": "Assess ancient delta sedimentary deposits; exact observation point is NOT assigned.",
+    "coordinateSource": null,
+    "evidence": [
+      {
+        "title": "NASA Mars 2020 Perseverance mission overview",
+        "url": "https://science.nasa.gov/mission/mars-2020-perseverance/",
+        "sourceId": "NASA_M2020_OVERVIEW",
+        "claimSupported": "Jezero was selected for geological and past-habitability investigations"
+      }
+    ],
+    "activityMinutes": 20,
+    "tags": ["ancient-sediments", "candidate-region"],
+    "limitations": [
+      "An approximate region is not an exact destination",
+      "No precise geolocation, no route verdict until an independently documented point is available"
+    ]
+  }
+]

@@ -18,7 +18,9 @@ pnpm dev
 
 **Scientific honesty:** the UI does not ship fake terrain, fabricated science pins, or NASA-certified activity numbers. After downloading and reviewing actual Mars data, a bounded metric analysis grid can be compiled to local binary files. The data manifest remains `SOURCE_REVIEW_REQUIRED` until supported validation gates are recorded.
 
-**Current state:** H0 code scaffold, scientific compiler and unit tests. Not a production release or flight software.
+**Current state:** Implemented H0+ route engine, source-locked real-data downloader, PDS CSV reviewer, exact Mars ROI ingestion, source-linked target converter, optional DEM-aligned orbital imagery, evidence approval gates, and UI flow. This is **not** proof that NASA source bytes or deployed Next have passed acceptance in this authoring environment.
+
+**Released-data integration instructions:** [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md). For explicitly labeled synthetic app testing: `/?demo=1`. For a **standalone browser layout acceptance harness** (not a Next.js screenshot): `python tools/preview/build.py` and `python tools/preview/test_preview.py` after fixture generation.
 
 ## Offline code checks
 
@@ -29,4 +31,4 @@ node --test tests/unit/*.test.cjs
 python3 -m pytest -q pipeline/tests
 ```
 
-See [`docs/START_CODING.md`](docs/START_CODING.md) for source capture, browser checks, and deployment steps.
+See [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md) for real Mars source acquisition, source review, and target alignment. `screenshots/seshat-acceptance-*.png` are explicitly synthetic **visual-harness** renders rather than production Next screenshots.

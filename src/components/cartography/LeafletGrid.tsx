@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FieldBundle } from '@/data/loader';
 import { gridToViewer, viewerToGrid } from '@/cartography/coordinates';
+import { frontierMembership } from '@/engine/frontier';
+import type { RouteSummary } from '@/engine/types';
 
 interface Props {
   bundle: FieldBundle | null;
@@ -11,6 +13,9 @@ interface Props {
   elapsedMinutes: number;
   missionBudgetMinutes: number;
   reserveMinutes: number;
+  outboundRoute?: RouteSummary | null;
+  returnRoute?: RouteSummary | null;
+  showOptical?: boolean;
 }
 
 function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reserve: number): string {
@@ -20,10 +25,9 @@ function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reser
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas unavailable');
   const image = ctx.createImageData(m.width, m.height);
-  const remaining = Math.max(0, budget - elapsed);
+  const membership = frontierMembership(bundle.outboundMinutes, bundle.returnMinutes, bundle.mask, elapsed, budget, reserve);
   for (let i = 0; i < m.width * m.height; i++) {
-    const c = bundle.outboundMinutes[i] + bundle.returnMinutes[i] + reserve;
-    const included = bundle.mask[i] === 1 && Number.isFinite(c) && c <= remaining;
+    const included = membership[i] === 1;
     const off = i * 4;
     image.data[off] = 206; image.data[off + 1] = 211; image.data[off + 2] = 171;
     image.data[off + 3] = included ? 48 : 0;
@@ -33,13 +37,15 @@ function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reser
 }
 
 export function LeafletGrid({ bundle, selectedCell, onCellSelect,
-  elapsedMinutes, missionBudgetMinutes, reserveMinutes }: Props) {
+  elapsedMinutes, missionBudgetMinutes, reserveMinutes, outboundRoute, returnRoute, showOptical = false }: Props) {
   const element = useRef<HTMLDivElement>(null);
   const [mapRevision, setMapRevision] = useState(0);
   const mapRef = useRef<import('leaflet').Map | null>(null);
   const leafletRef = useRef<typeof import('leaflet') | null>(null);
+  const backgroundOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const selectionLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
   const frontierRef = useRef<import('leaflet').ImageOverlay | null>(null);
+  const routeLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
   const onSelectRef = useRef(onCellSelect);
   onSelectRef.current = onCellSelect;
 
@@ -62,8 +68,9 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
       map.setMaxBounds(bounds.pad(0.35));
       L.rectangle(bounds, { color: '#6f655e', weight: 1, fillColor: '#202127', fillOpacity: 0.02, dashArray: '4 6' }).addTo(map);
       if (bundle) {
-        const overlay = L.imageOverlay('/data/' + bundle.manifest.imagery.path, bounds, { opacity: 0.94 });
+        const overlay = L.imageOverlay(bundle.assetRoot + '/' + bundle.manifest.imagery.path, bounds, { opacity: 0.94 });
         overlay.addTo(map);
+        backgroundOverlayRef.current = overlay;
         overlay.getElement()?.setAttribute('alt', 'DEM-derived shaded relief; not orbital photography');
       } else {
         // The grid is a UI wiring scaffold ONLY, not a depiction of Martian terrain.
@@ -86,9 +93,19 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
       cancelled = true;
       mapRef.current?.remove(); mapRef.current = null;
       selectionLayerRef.current = null;
+      backgroundOverlayRef.current = null;
       frontierRef.current = null;
+      routeLayerRef.current = null;
     };
   }, [bundle]);
+
+  useEffect(() => {
+    if (!bundle || !backgroundOverlayRef.current) return;
+    const path = showOptical && bundle.manifest.optical ? bundle.manifest.optical.path : bundle.manifest.imagery.path;
+    backgroundOverlayRef.current.setUrl(`${bundle.assetRoot}/${path}`);
+    backgroundOverlayRef.current.getElement()?.setAttribute('alt',
+      showOptical && bundle.manifest.optical ? 'Orbital imagery aligned to terrain grid; source review required' : 'DEM-derived shaded relief; not photography');
+  }, [bundle, showOptical, mapRevision]);
 
   useEffect(() => {
     if (!bundle || !mapRef.current || !leafletRef.current) return;
@@ -98,6 +115,22 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
     const image = frontierPng(bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes);
     frontierRef.current = L.imageOverlay(image, [[0, 0], [h, w]], { interactive: false, opacity: 1 }).addTo(mapRef.current);
   }, [bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, mapRevision]);
+
+  useEffect(() => {
+    const map = mapRef.current, L = leafletRef.current;
+    if (!map || !L || !bundle) return;
+    routeLayerRef.current?.remove();
+    const layer = L.layerGroup().addTo(map);
+    routeLayerRef.current = layer;
+    const draw = (route: RouteSummary | null | undefined, color: string, dashArray?: string) => {
+      if (route?.status !== 'READY' || route.geometryGrid.length < 2) return;
+      L.polyline(route.geometryGrid.map(([r,c]) => gridToViewer(r,c,bundle.manifest.height)),
+        { color, weight: 3.5, opacity: 0.97, interactive: false, dashArray }).addTo(layer);
+    };
+    draw(outboundRoute, '#f4c3a2');
+    draw(returnRoute, '#c8d2ab', '6 7');
+    return () => { layer.remove(); if (routeLayerRef.current === layer) routeLayerRef.current = null; };
+  }, [bundle, outboundRoute, returnRoute, mapRevision]);
 
   useEffect(() => {
     const map = mapRef.current, L = leafletRef.current, layer = selectionLayerRef.current;
@@ -110,7 +143,7 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
     if (selectedCell) {
       L.circleMarker(gridToViewer(selectedCell[0], selectedCell[1], bundle.manifest.height), {
         radius: 7, color: '#f0b792', weight: 2, fillColor: '#eb9564', fillOpacity: 1,
-      }).addTo(layer).bindTooltip('User-selected cell · hypothetical activity');
+      }).addTo(layer).bindTooltip('Selected scenario destination');
     }
   }, [bundle, selectedCell, mapRevision]);
 

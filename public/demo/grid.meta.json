@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "shape": [
+    160,
+    190
+  ],
+  "baseIndex": 15295,
+  "edgeCount": 238028,
+  "model": {
+    "model_id": "terrain-scenario-v0",
+    "reference_speed_mps": 0.75,
+    "uphill_coefficient": 4.0,
+    "downhill_coefficient": 1.8,
+    "max_slope_degrees": 25.0,
+    "connectivity": 8,
+    "evidence_status": "SCENARIO_ASSUMPTION"
+  },
+  "files": {
+    "outbound-costs.bin": {
+      "bytes": 243200,
+      "sha256": "a3165ace0dff17da7892a326fadbb5939bad399d86f3c6dc89988c79fa02b2dc",
+      "dtype": "float64"
+    },
+    "return-costs.bin": {
+      "bytes": 243200,
+      "sha256": "04be77ebe8caaf5a13644da6a1974e4e6062850609dd814375dd237510fcedad",
+      "dtype": "float64"
+    },
+    "outbound-parents.bin": {
+      "bytes": 121600,
+      "sha256": "449b63319f0cc0e2b3266277f9bdb18bdd97c96bcdafcef77a5c23a74fab9e2b",
+      "dtype": "int32"
+    },
+    "return-next.bin": {
+      "bytes": 121600,
+      "sha256": "034dc1eb4aeb14cc96ef4540fde91f06490c19b8e206caf34e2994ecabfe992a",
+      "dtype": "int32"
+    },
+    "elevation.bin": {
+      "bytes": 121600,
+      "sha256": "6a4f5bc8dcc5ff7c1def27151d2d40f8749fd5baeefcfb7b3a3b7194a04cebe6",
+      "dtype": "float32"
+    },
+    "validity-mask.bin": {
+      "bytes": 30400,
+      "sha256": "adcbaf043557e419279d57256fe32bc1ce7144fb8a2a6073ab291f4fbb28c780",
+      "dtype": "uint8"
+    }
+  }
+}
