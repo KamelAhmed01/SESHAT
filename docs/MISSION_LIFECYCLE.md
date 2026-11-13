@@ -144,7 +144,7 @@ If the hosted app fails, use the local export for the live rehearsal and keep fi
 
 The public baseline demonstrates planning, event-driven revision, and return. The product changes below are planned on `codex/mission-story-audit`. Two operator views share one persistent Jezero map. **Plan** covers pre-departure. **Execute** contains movement, work at a stop, event review, revised-plan approval, and return. Repeating that sequence fulfills the continuous adaptation phase.
 
-**Decisions confirmed:** one persistent map, a separate arrival and science activity, simulated detection before astronaut recording, and preservation of partial science work when an event interrupts it. Environmental context uses sourced historical data and explicit unavailable states. Normal baseline and revision approval retain all three reserve checks at all three speeds. The public rehearsal keeps the inaccessible-stop event after the first completed visit.
+**Decisions confirmed:** one persistent map, a separate arrival and science activity, simulated detection before astronaut recording, and preservation of partial science work when an event interrupts it. Environmental context uses sourced historical data and explicit unavailable states. The release keeps the scenario budgets and mandatory reserves fixed. Astronauts can edit stops, priorities, activity durations and route preference. Normal baseline and revision approval retain all three reserve checks at all three speeds. The public rehearsal keeps the inaccessible-stop event after the first completed visit.
 
 | Story requirement | What was observed in the current build | What closes the gap |
 | --- | --- | --- |
