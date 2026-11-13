@@ -1,5 +1,5 @@
 /** Shared domain contract, section 8.3 of the execution book. */
-export type EvidenceStatus = 'VERIFIED_POINT' | 'APPROXIMATE_REGION' | 'USER_SELECTED';
+export type EvidenceStatus = 'VERIFIED_POINT' | 'SOURCE_REPORTED_POINT' | 'APPROXIMATE_REGION' | 'USER_SELECTED';
 export type FeasibilityState = 'ROBUST' | 'MARGINAL' | 'INFEASIBLE' | 'UNKNOWN';
 export type AnalysisStatus = 'READY' | 'MISSING_INPUT' | 'INVALID_GEOMETRY' | 'NO_SUPPORTED_PATH';
 export type SpeedFactor = 0.8 | 1 | 1.2;

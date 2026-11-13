@@ -21,6 +21,8 @@ export interface DatasetManifest {
   optical?: { path: string; bytes: number; sha256: string; sourceId: string; sourceUrl: string; reviewStatus: string };
   scienceTargets?: ScienceTarget[];
   notice?: string;
+  historicalLandingCell?: [number, number];
+  sourceFileSha256?: string;
 }
 export interface FieldBundle {
   manifest: DatasetManifest;
@@ -65,14 +67,14 @@ function validateTargets(targets: unknown, m: DatasetManifest): asserts targets 
     if (!t || typeof t !== 'object' || typeof t.id !== 'string' || !t.id || ids.has(t.id) ||
         typeof t.name !== 'string' || !t.name || !t.location || !t.science || !t.activity ||
         !Number.isFinite(t.activity.minutes) || t.activity.minutes < 0 ||
-        !['VERIFIED_POINT', 'APPROXIMATE_REGION', 'USER_SELECTED'].includes(t.location.confidence))
+        !['VERIFIED_POINT', 'SOURCE_REPORTED_POINT', 'APPROXIMATE_REGION', 'USER_SELECTED'].includes(t.location.confidence))
       throw new Error('Invalid or duplicate science target');
     ids.add(t.id);
     const { gridRow: r, gridCol: c } = t.location;
     if ((r === null) !== (c === null) || (r !== null && c !== null &&
        (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || c < 0 || r >= m.height || c >= m.width)))
       throw new Error('Target location outside accepted grid');
-    if (m.status === 'DEMO_SYNTHETIC' && t.location.confidence === 'VERIFIED_POINT')
+    if (m.status === 'DEMO_SYNTHETIC' && ['VERIFIED_POINT', 'SOURCE_REPORTED_POINT'].includes(t.location.confidence))
       throw new Error('Synthetic fixture cannot declare verified point');
   }
 }
@@ -92,6 +94,11 @@ export async function loadScientificBundle(root: '/data' | '/demo' = '/data'): P
         typeof m.crsWkt !== 'string' || !m.crsWkt || !m.files || !m.imagery ||
         !m.sourceId || !m.modelId)
       throw new Error('Manifest fails dimension or schema checks');
+    if (m.historicalLandingCell !== undefined && (!Array.isArray(m.historicalLandingCell) ||
+        m.historicalLandingCell.length !== 2 || !m.historicalLandingCell.every(Number.isInteger) ||
+        m.historicalLandingCell[0] < 0 || m.historicalLandingCell[0] >= m.height ||
+        m.historicalLandingCell[1] < 0 || m.historicalLandingCell[1] >= m.width))
+      throw new Error('Historical landing marker outside accepted grid');
     if (root === '/demo' && m.status !== 'DEMO_SYNTHETIC')
       throw new Error('Demonstration directory must contain a synthetic fixture');
     if (root === '/data' && m.status === 'DEMO_SYNTHETIC')

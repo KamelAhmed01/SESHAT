@@ -1,5 +1,7 @@
 # SESHAT — live execution run sheet
 
+Use the [current Jezero mission rehearsal](MISSION_LIFECYCLE.md) for the November 14 local submission. The remaining notes describe the H4 handoff.
+
 **Owner:** Kamel / Ali · **Science:** Amr / Malak · **Design:** Hams / Kamel · **Pitch:** Shams / Ali
 
 **North star:** An evidence-based Mars science map where a 15-minute delay visibly removes or weakens *returnable* scientific options. SESHAT is a research demonstrator, not EVA safety advice. Keep H0 evidence and NASA challenge Resource evidence in `docs/event-evidence/` without rewriting commit history.

@@ -5,12 +5,34 @@
   "reserveMinutes": 20,
   "defaultScienceMinutes": 20,
   "referenceSpeedMetersPerSecond": 0.75,
-  "speedMultipliers": [0.8, 1.0, 1.2],
+  "speedMultipliers": [
+    0.8,
+    1.0,
+    1.2
+  ],
   "gradeModelId": "terrain-scenario-v0",
   "uphillCoefficient": 4.0,
   "downhillCoefficient": 1.8,
   "maxSlopeDegrees": 25.0,
   "connectivity": 8,
   "evidenceStatus": "SCENARIO_ASSUMPTION",
-  "disclaimer": "Exploratory model only. Not NASA EVA guidance or a safety-certified speed or slope limit."
+  "disclaimer": "Exploratory model only. Not NASA EVA guidance or a safety-certified speed or slope limit.",
+  "consumables": {
+    "oxygenBudgetLiters": 540,
+    "oxygenReserveLiters": 90,
+    "oxygenScienceLitersPerMinute": 2.4,
+    "oxygenTravelLitersPerMinute": 3,
+    "oxygenUphillCoefficient": 1.5,
+    "oxygenDownhillCoefficient": 0.5,
+    "energyBudgetWh": 900,
+    "energyReserveWh": 150,
+    "energyScienceWhPerMinute": 3.8,
+    "energyTravelWhPerMinute": 4.6,
+    "energyUphillCoefficient": 1.2
+  },
+  "environmentalContext": {
+    "illumination": "Scenario context only. No local illumination window has been validated.",
+    "thermalAndDust": "Historical terrain and imagery. Local thermal and dust conditions are unknown.",
+    "radiation": "Local radiation exposure has not been modeled."
+  }
 }

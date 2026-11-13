@@ -24,7 +24,7 @@ def main():
     commands=[
         ('Python pipeline + security', [sys.executable,'-m','pytest','-q','pipeline/tests','tests/security']),
         ('TypeScript scientific compile', ['tsc','-p','tsconfig.engine.json']),
-        ('Node scientific oracles', ['node','--test','tests/unit/engine.test.cjs']),
+        ('Node scientific oracles', ['node','--test',*sorted(str(path.relative_to(ROOT)) for path in (ROOT/'tests/unit').glob('*.test.cjs'))]),
     ]
     if args.release:
         commands.extend([
@@ -46,7 +46,7 @@ def main():
             try:
                 done=subprocess.run(cmd,cwd=ROOT,text=True,capture_output=True,timeout=150)
                 success=done.returncode==0
-                detail='\n'.join((done.stdout+'\n'+done.stderr).splitlines()[-12:])
+                detail='\n'.join((done.stderr+'\n'+done.stdout).splitlines()[-12:])
             except (OSError,subprocess.TimeoutExpired) as exc:
                 success=False; detail=str(exc)
         all_good = all_good and success

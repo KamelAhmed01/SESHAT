@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { FieldBundle } from '@/data/loader';
 import { gridToViewer, viewerToGrid } from '@/cartography/coordinates';
 import { frontierMembership } from '@/engine/frontier';
+import { landingId } from '@/engine/multi-leg-planner';
+import type { MissionLeg } from '@/engine/multi-leg-planner';
+import type { TravelRecord } from '@/engine/lifecycle-store';
+import type { Cell, HazardZone } from '@/engine/traverse-graph';
 import type { RouteSummary } from '@/engine/types';
 import type { OpportunityEntry } from '@/engine/opportunity-ledger';
 import { targetMarkers } from '@/cartography/target-markers';
@@ -19,6 +23,14 @@ interface Props {
   returnRoute?: RouteSummary | null;
   showOptical?: boolean;
   opportunities?: readonly OpportunityEntry[];
+  mission?: {
+    planned: readonly MissionLeg[];
+    previous?: readonly MissionLeg[];
+    traveled?: readonly TravelRecord[];
+    hazards?: readonly HazardZone[];
+    position?: Cell;
+    selected?: Cell | null;
+  };
 }
 
 function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reserve: number): string {
@@ -41,7 +53,8 @@ function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reser
 
 export function LeafletGrid({ bundle, selectedCell, onCellSelect,
   elapsedMinutes, missionBudgetMinutes, reserveMinutes, outboundRoute, returnRoute,
-  showOptical = false, opportunities = [] }: Props) {
+  showOptical = false, opportunities = [], mission }: Props) {
+  const isMissionMap = mission !== undefined;
   const element = useRef<HTMLDivElement>(null);
   const [mapRevision, setMapRevision] = useState(0);
   const mapRef = useRef<import('leaflet').Map | null>(null);
@@ -51,7 +64,7 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
   const frontierRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const routeLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
   const onSelectRef = useRef(onCellSelect);
-  onSelectRef.current = onCellSelect;
+  useEffect(() => { onSelectRef.current = onCellSelect; }, [onCellSelect]);
 
   useEffect(() => {
     if (!element.current) return;
@@ -64,10 +77,11 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
       const bounds = L.latLngBounds([[0, 0], [h, w]]);
       const map = L.map(element.current, {
         crs: L.CRS.Simple,
-        zoomControl: true, attributionControl: false,
+        zoomControl: !isMissionMap, attributionControl: false,
         zoomSnap: 0.25, zoomDelta: 0.5, minZoom: -5,
         maxZoom: 4, maxBoundsViscosity: 0.7,
       });
+      if (isMissionMap) L.control.zoom({position: 'bottomleft'}).addTo(map);
       map.fitBounds(bounds, { padding: [24, 24], animate: false });
       map.setMaxBounds(bounds.pad(0.35));
       L.rectangle(bounds, { color: '#6f655e', weight: 1, fillColor: '#202127', fillOpacity: 0.02, dashArray: '4 6' }).addTo(map);
@@ -101,7 +115,7 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
       frontierRef.current = null;
       routeLayerRef.current = null;
     };
-  }, [bundle]);
+  }, [bundle, isMissionMap]);
 
   useEffect(() => {
     if (!bundle || !backgroundOverlayRef.current) return;
@@ -112,13 +126,13 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
   }, [bundle, showOptical, mapRevision]);
 
   useEffect(() => {
-    if (!bundle || !mapRef.current || !leafletRef.current) return;
+    if (!bundle || !mapRef.current || !leafletRef.current || isMissionMap) return;
     const L = leafletRef.current;
     frontierRef.current?.remove();
     const h = bundle.manifest.height, w = bundle.manifest.width;
     const image = frontierPng(bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes);
     frontierRef.current = L.imageOverlay(image, [[0, 0], [h, w]], { interactive: false, opacity: 1 }).addTo(mapRef.current);
-  }, [bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, mapRevision]);
+  }, [bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, mapRevision, isMissionMap]);
 
   useEffect(() => {
     const map = mapRef.current, L = leafletRef.current;
@@ -133,8 +147,39 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
     };
     draw(outboundRoute, '#f4c3a2');
     draw(returnRoute, '#c8d2ab', '6 7');
+    if (mission) {
+      const point = ([r, c]: Cell) => gridToViewer(r, c, bundle.manifest.height);
+      mission.traveled?.forEach(record => L.polyline(record.cells.map(point),
+        {color: '#849397', weight: 5, interactive: false}).addTo(layer));
+      mission.previous?.forEach(leg => draw(leg.route, '#f3deab', '3 8'));
+      for (const [index, leg] of mission.planned.entries()) {
+        draw(leg.route, leg.targetId === landingId ? '#d1e7ae' : '#ffba8b', leg.targetId === landingId ? '7 5' : undefined);
+        const end = leg.route.geometryGrid.at(-1);
+        if (end && leg.targetId !== landingId) {
+          const marker = L.circleMarker(point(end), {radius: 7, color: '#311e17', fillColor: '#ffba8b',
+            fillOpacity: 1, weight: 2, interactive: false}).addTo(layer);
+          const label = document.createElement('span');
+          label.textContent = `${index + 1}. ${leg.to}`;
+          const closeToPrevious = mission.planned.slice(0, index).some(previousLeg => {
+            const previousEnd = previousLeg.route.geometryGrid.at(-1);
+            return previousEnd && Math.hypot(previousEnd[0] - end[0], previousEnd[1] - end[1]) < 8;
+          });
+          marker.bindTooltip(label, {permanent: true, direction: closeToPrevious ? 'left' : 'right', offset: [closeToPrevious ? -7 : 7, 0], className: 'mission-map-label'});
+        }
+        for (const waypoint of leg.waypoints) {
+          L.circleMarker(point(waypoint.cell), {radius: 4, color: '#cbefd9', fillColor: '#284f43', fillOpacity: 1,
+            interactive: false}).addTo(layer);
+        }
+      }
+      mission.hazards?.forEach(zone => L.circle(point(zone.cell), {radius: zone.radius + 0.5, color: '#ff8077',
+        fillOpacity: .22, dashArray: '4 4', interactive: false}).addTo(layer));
+      if (mission.position) L.circleMarker(point(mission.position), {radius: 8, color: '#e1fffd', fillColor: '#66bdbe',
+        fillOpacity: 1, weight: 3, interactive: false}).addTo(layer);
+      if (mission.selected) L.circleMarker(point(mission.selected), {radius: 8, color: '#f7efb4', fillOpacity: 0,
+        interactive: false}).addTo(layer);
+    }
     return () => { layer.remove(); if (routeLayerRef.current === layer) routeLayerRef.current = null; };
-  }, [bundle, outboundRoute, returnRoute, mapRevision]);
+  }, [bundle, outboundRoute, returnRoute, mapRevision, mission]);
 
   useEffect(() => {
     const map = mapRef.current, L = leafletRef.current, layer = selectionLayerRef.current;
@@ -154,7 +199,12 @@ export function LeafletGrid({ bundle, selectedCell, onCellSelect,
     const [br, bc] = [Math.floor(bundle.manifest.baseIndex / bundle.manifest.width), bundle.manifest.baseIndex % bundle.manifest.width];
     L.circleMarker(gridToViewer(br, bc, bundle.manifest.height), {
       radius: 6, color: '#f5e8d7', weight: 2, fillColor: '#b27757', fillOpacity: 1,
-    }).addTo(layer).bindTooltip('Scenario base');
+    }).addTo(layer).bindTooltip('Scenario landing site');
+    const historic = bundle.manifest.historicalLandingCell;
+    if (historic) L.circleMarker(gridToViewer(...historic, bundle.manifest.height), {
+      radius: 5, color: '#b8c0d1', fillOpacity: .2, interactive: true,
+    }).addTo(layer).bindTooltip('Historical Perseverance landing · Octavia E. Butler');
+
     if (selectedCell) {
       L.circleMarker(gridToViewer(selectedCell[0], selectedCell[1], bundle.manifest.height), {
         radius: 7, color: '#f0b792', weight: 2, fillColor: '#eb9564', fillOpacity: 1,

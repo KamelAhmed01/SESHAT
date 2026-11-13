@@ -125,3 +125,88 @@
     .frontier-stats { right:14px; bottom:97px; min-width:140px; }
   }
 }
+
+@layer components {
+  .lifecycle-grid { grid-template-columns: minmax(235px, 270px) minmax(320px, 1fr) minmax(310px, 370px); }
+  .lifecycle .rail-section h2, .mission-review h2 { margin: 0 0 10px; font: 500 18px/1.25 Georgia, serif; }
+  .lifecycle .rail-intro { padding-block: 21px; }
+  .lifecycle .rail-intro h1 { margin-top: 0; }
+  .lifecycle .rail-section { padding-block: 17px; }
+  .lifecycle .map-stage { min-height: max(590px, calc(100svh - 117px)); }
+  .lifecycle .map-topline { text-shadow: 0 1px 8px #111; }
+  .lifecycle .right-rail, .lifecycle .left-rail { overflow: auto; max-height: calc(100svh - 117px); }
+  .mission-phases { display: flex; align-items: center; gap: clamp(8px, 2vw, 26px); color: var(--s-muted); font-size: 12px; }
+  .mission-phases [aria-current] { color: #f4c5aa; border-bottom: 1px solid #d39678; padding-block: 6px; }
+  .mission-source-strip { padding: 12px 22px; border-bottom: 1px solid var(--s-line); font-size: 12px; color: var(--s-muted); }
+  .mission-source-strip p { margin: 4px 0; }
+  .mission-source-strip a, .site-evidence a { color: #f0ba97; }
+  .mission-actions, .mission-buttons, .mission-alternatives { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .mission-actions button, .mission-stop-list button { padding: 6px 9px; border: 1px solid #52605a; background: #1a2326; color: var(--s-text); border-radius: 3px; font-size: 11px; }
+  .mission-actions button[aria-pressed="true"] { background: #dca282; border-color: #dca282; color: #201716; }
+  .mission-stop-list, .mission-history { margin: 11px 0 0; padding-left: 18px; font-size: 12px; }
+  .mission-stop-list li { padding: 7px 0; border-top: 1px solid var(--s-line); }
+  .mission-stop-list li>div { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+  .mission-stop-list input { width: 53px; margin-left: 7px; }
+  .mission-stop-list input, .mission-event input, .mission-event select, .mission-field select { background: #11191d; border: 1px solid #495653; padding: 5px; border-radius: 3px; color: var(--s-text); }
+  .mission-catalog>div { padding: 7px 0; }
+  .mission-catalog figure { margin: 7px 0; }
+  .mission-catalog img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 3px; }
+  .mission-catalog figcaption { font-size: 10px; color: var(--s-muted); }
+  .mission-error { margin: 10px 16px; color: #ffb8a9; font-size: 12px; }
+  .mission-sequence { font: 13px/1.6 ui-monospace, monospace; color: #efd4c0; margin: 10px 0; }
+  .mission-gauges { display: grid; gap: 9px; padding-block: 6px; }
+  .mission-gauges div>div { display: flex; justify-content: space-between; font-size: 12px; gap: 6px; }
+  .mission-gauges progress { width: 100%; height: 7px; display: block; margin: 5px 0; accent-color: #db9d80; }
+  .mission-gauges small { display: block; color: var(--s-muted); font-size: 10px; }
+  .mission-disclosure { padding: 6px 0; border-top: 1px solid var(--s-line); color: var(--s-muted); font-size: 11px; line-height: 1.45; }
+  .mission-disclosure summary { cursor: pointer; color: var(--s-text); font-size: 12px; }
+  .mission-disclosure summary span:last-child { float: right; }
+  .mission-disclosure p { margin: 6px 0; overflow-wrap: anywhere; }
+  .mission-schedule { list-style: none; padding: 0; margin: 6px 0; }
+  .mission-margins>div { display: flex; justify-content: space-between; gap: 6px; }
+  .mission-field, .mission-event label { display: grid; gap: 4px; margin: 7px 0; font-size: 11px; color: var(--s-muted); }
+  .mission-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; width: 100%; }
+  .mission-comparison>div { background: #171f23; border: 1px solid var(--s-line); padding: 8px; }
+  .mission-comparison small, .mission-history small { display: block; color: var(--s-muted); }
+  .mission-comparison p, .mission-review>p { font-size: 11px; margin: 5px 0; overflow-wrap: anywhere; }
+  .mission-review { margin: 10px 0; border: 1px solid #8d6352; padding: 10px; }
+  .mission-history li { margin: 5px 0; }
+  .lifecycle-map-key { position: absolute; bottom: 15px; left: 18px; right: 18px; z-index: 550; display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 9px 11px; background: #11191be8; color: #e7d9c9; font: 10px ui-monospace, monospace; }
+  @media(max-width: 970px) {
+    .lifecycle-grid { grid-template-columns: 230px minmax(275px, 1fr) 300px; }
+    .lifecycle .mission-header { gap: 13px; }
+    .lifecycle .header-right { gap: 9px; }
+  }
+  @media(max-width: 840px) {
+    .lifecycle-grid { display: flex; flex-direction: column; }
+    .lifecycle .map-stage { min-height: 480px; }
+    .lifecycle .left-rail, .lifecycle .right-rail { max-height: none; }
+    .lifecycle .map-stage { order: 0; }
+    .lifecycle .left-rail { order: 1; }
+    .lifecycle .right-rail { order: 2; }
+  }
+  @media(max-width: 540px) {
+    .lifecycle .mission-header { height: auto; padding: 10px 14px; flex-wrap: wrap; }
+    .mission-phases { order: 3; width: 100%; }
+    .lifecycle .header-right { flex-wrap: wrap; }
+    .lifecycle .header-right a { display: none; }
+    .lifecycle .map-stage { min-height: 390px; }
+  }
+}
+
+@media print {
+  .lifecycle { color-scheme: light; color: #121212; }
+  .lifecycle .content-grid { display: block; }
+  .lifecycle .left-rail, .lifecycle .map-stage, .lifecycle .header-right, .lifecycle .mission-buttons { display: none; }
+  .lifecycle .right-rail { display: block; overflow: visible; max-height: none; color: #121212; background: #fff; }
+  .lifecycle .right-rail p, .lifecycle .right-rail small, .lifecycle .right-rail summary,
+  .lifecycle .right-rail .section-heading { color: #121212; }
+}
+
+/* These rules override Leaflet’s unlayered stylesheet. */
+.lifecycle .map-root.leaflet-container { background: #151a1c; }
+.lifecycle .map-root .leaflet-bottom.leaflet-left { bottom: 49px; }
+.lifecycle .map-root .leaflet-control-zoom { margin-left: 20px; }
+.lifecycle .map-root .leaflet-control-zoom a { background: #1d282b; color: #e9e5dc; }
+.lifecycle .map-root .leaflet-tooltip.mission-map-label { background: #162024ed; border: 1px solid #805b4a; color: #f5d0b4; }
+.lifecycle .map-root .leaflet-tooltip.mission-map-label { box-shadow: none; font-size: 10px; }

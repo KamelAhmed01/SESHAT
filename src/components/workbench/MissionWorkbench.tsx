@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { MissionLifecycle } from './MissionLifecycle';
 import { Button } from '@astryxdesign/core/Button';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
 import { loadScientificBundle } from '@/data/loader';
@@ -38,16 +41,16 @@ export function MissionWorkbench() {
   const [elapsed, setElapsed] = useState(0);
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
+  const search = useSearchParams();
+  const demoMode = search.get('demo') === '1';
+  const opportunityMode = search.get('opportunities') === '1';
   const [showOptical, setShowOptical] = useState(false);
   const drawerRef = useRef<HTMLElement>(null);
   const closeDrawerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let alive = true;
-    const requestedDemo = new URLSearchParams(window.location.search).get('demo') === '1';
-    setDemoMode(requestedDemo);
-    loadScientificBundle(requestedDemo ? '/demo' : '/data').then(result => {
+    loadScientificBundle(demoMode ? '/demo' : '/data').then(result => {
       if (!alive) return;
       setData(result);
       if (result.state === 'DEMO' && result.bundle.manifest.scienceTargets?.length) {
@@ -56,7 +59,7 @@ export function MissionWorkbench() {
       }
     });
     return () => { alive = false; };
-  }, []);
+  }, [demoMode]);
 
   // Modal accessibility: focus enters the evidence panel, Tab stays inside,
   // Escape closes, and focus returns to the trigger on exit.
@@ -83,7 +86,8 @@ export function MissionWorkbench() {
     return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus(); };
   }, [drawerOpen]);
 
-  const bundle = data.state === 'DEMO' || data.state === 'VERIFIED' || data.state === 'SOURCE_REVIEW_REQUIRED' ? data.bundle : null;
+  const loadedBundle = data.state === 'DEMO' || data.state === 'VERIFIED' || data.state === 'SOURCE_REVIEW_REQUIRED' ? data.bundle : null;
+  const bundle = loadedBundle?.assetRoot === (demoMode ? '/demo' : '/data') ? loadedBundle : null;
   const isReady = bundle !== null;
   const remaining = Math.max(0, INITIAL_BUDGET - elapsed);
   const scenario: MissionScenario = useMemo(() => ({
@@ -129,6 +133,8 @@ export function MissionWorkbench() {
     // Delay cleanup one render turn to let the browser begin the download.
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+
+  if (bundle && !demoMode && !opportunityMode) return <MissionLifecycle bundle={bundle} />;
 
   return <main className="workbench">
     <header className="mission-header">
@@ -178,7 +184,7 @@ export function MissionWorkbench() {
         <section className="rail-section rail-bottom"><div className="section-heading"><span>Analysis rules</span><span className="section-index">v0</span></div>
           <p className="context-note">Directional terrain routing, an explicit return reserve and three travel speeds. All scenario values are assumptions, not EVA limits.</p>
           <button className="text-action" onClick={() => setDrawerOpen(true)}>Inspect methodology ↗</button>
-          {!demoMode && <p className="demo-link-note">For interface acceptance testing: <a href="/?demo=1">synthetic demonstration ↗</a></p>}
+          {!demoMode && <p className="demo-link-note"><Link href="/">Mission planner ↗</Link><br/>For interface acceptance testing: <Link href="/?demo=1" prefetch={false}>synthetic demonstration ↗</Link></p>}
         </section>
       </aside>
 
@@ -218,7 +224,7 @@ export function MissionWorkbench() {
           <div className="time-metrics"><div><span>Planning window</span><strong>{INITIAL_BUDGET} min</strong></div>
             <div><span>Elapsed</span><strong>+{elapsed} min</strong></div>
             <div><span>Held in reserve</span><strong>{RESERVE} min</strong></div></div>
-          <div className="clock-actions"><Button label="Advance +15 min" variant="primary" disabled={elapsed >= INITIAL_BUDGET}
+          <div className="clock-actions"><Button label="Advance +15 min" variant="primary" isDisabled={elapsed >= INITIAL_BUDGET}
             onClick={() => setElapsed(v => Math.min(INITIAL_BUDGET, v + 15))}/>
             <Button label="Reset" onClick={() => setElapsed(0)}/></div>
           <p className="assumption-note">Scenario budget and travel model are not astronaut safety parameters.</p></section>

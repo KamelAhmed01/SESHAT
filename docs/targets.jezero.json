@@ -1,0 +1,98 @@
+[
+  {
+    "id": "swift-run",
+    "name": "Swift Run · Skinner Ridge",
+    "confidence": "SOURCE_REPORTED_POINT",
+    "latitudePlanetocentric": 18.458931,
+    "longitudeEast": 77.40617078,
+    "coordinateSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+    "summary": "Compare sediment texture and bedding at the Skinner Ridge sandstone exposure.",
+    "activityMinutes": 20,
+    "tags": [
+      "Jezero western fan",
+      "sedimentary comparison"
+    ],
+    "evidence": [
+      {
+        "title": "NASA PDS Mars 2020 Initial Reports · Chapter 11",
+        "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+        "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+        "claimSupported": "Published sample-site latitude and longitude and geological context."
+      },
+      {
+        "title": "NASA Perseverance · site and sample context",
+        "url": "https://science.nasa.gov/resource/perseverance-workspace-at-skinner-ridge/",
+        "sourceId": "NASA_M2020_SWIFT-RUN",
+        "claimSupported": "Site-specific geological or visual context."
+      }
+    ],
+    "limitations": [
+      "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+      "The DEM cannot resolve the individual outcrop surface."
+    ]
+  },
+  {
+    "id": "hazeltop",
+    "name": "Hazeltop · Wildcat Ridge",
+    "confidence": "SOURCE_REPORTED_POINT",
+    "latitudePlanetocentric": 18.45863707,
+    "longitudeEast": 77.40588851,
+    "coordinateSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+    "summary": "Examine the fine-grained, sulfate-bearing sediments that Perseverance sampled at Wildcat Ridge.",
+    "activityMinutes": 20,
+    "tags": [
+      "Jezero western fan",
+      "sedimentary comparison"
+    ],
+    "evidence": [
+      {
+        "title": "NASA PDS Mars 2020 Initial Reports · Chapter 14",
+        "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+        "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+        "claimSupported": "Published sample-site latitude and longitude and geological context."
+      },
+      {
+        "title": "NASA Perseverance · site and sample context",
+        "url": "https://science.nasa.gov/resource/perseverance-rock-cores-from-wildcat-ridge/",
+        "sourceId": "NASA_M2020_HAZELTOP",
+        "claimSupported": "Site-specific geological or visual context."
+      }
+    ],
+    "limitations": [
+      "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+      "The DEM cannot resolve the individual outcrop surface."
+    ]
+  },
+  {
+    "id": "shuyak",
+    "name": "Shuyak · Cape Nukshak",
+    "confidence": "SOURCE_REPORTED_POINT",
+    "latitudePlanetocentric": 18.45068954,
+    "longitudeEast": 77.40143171,
+    "coordinateSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+    "summary": "Compare the fine-grained Amalik sedimentary outcrop with the exposures at Hawksbill Gap.",
+    "activityMinutes": 20,
+    "tags": [
+      "Jezero western fan",
+      "sedimentary comparison"
+    ],
+    "evidence": [
+      {
+        "title": "NASA PDS Mars 2020 Initial Reports · Chapter 16",
+        "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+        "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+        "claimSupported": "Published sample-site latitude and longitude and geological context."
+      },
+      {
+        "title": "NASA Perseverance · site and sample context",
+        "url": "https://science.nasa.gov/resource/meet-the-mars-samples-shuyak-and-mageik-samples-14-and-15/",
+        "sourceId": "NASA_M2020_SHUYAK",
+        "claimSupported": "Site-specific geological or visual context."
+      }
+    ],
+    "limitations": [
+      "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+      "The DEM cannot resolve the individual outcrop surface."
+    ]
+  }
+]

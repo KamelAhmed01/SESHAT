@@ -4,7 +4,7 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'SESHAT — Mars Science Opportunity Workbench',
+  title: 'SESHAT — Mars Science Mission Planner',
   description: 'Explore time-dependent, evidence-traceable scientific opportunities on Mars. Research prototype; not an operational EVA safety system.',
   robots: { index: false, follow: false },
 };

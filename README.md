@@ -1,5 +1,8 @@
 # SESHAT
 
+
+**Current build:** the Jezero mission planner opens at `/`. Start with the [mission rehearsal and resource audit](docs/MISSION_LIFECYCLE.md). The H4 opportunity frontier is at `/?opportunities=1`; `/?demo=1` uses the labeled synthetic fixture.
+
 > **Current operator entrypoint:** [`docs/QUICK_RUN_SHEET.md`](docs/QUICK_RUN_SHEET.md). The definitive local metric model/assumption source is [`src/config/mission-scenario.json`](src/config/mission-scenario.json).
 
 
@@ -21,7 +24,7 @@ pnpm dev
 
 **Scientific honesty:** the UI does not ship fake terrain, fabricated science pins, or NASA-certified activity numbers. After downloading and reviewing actual Mars data, a bounded metric analysis grid can be compiled to local binary files. The data manifest remains `SOURCE_REVIEW_REQUIRED` until supported validation gates are recorded.
 
-**Current state:** Implemented H0+ route engine, source-locked real-data downloader, PDS CSV reviewer, exact Mars ROI ingestion, source-linked target converter, optional DEM-aligned orbital imagery, evidence approval gates, and UI flow. This is **not** proof that NASA source bytes or deployed Next have passed acceptance in this authoring environment.
+**Current state:** The checked-in bundle uses real CTX terrain and orbital imagery, plus three published Perseverance sample-site anchors. The browser runs single- and multi-stop planning, nominal and conservative reserve checks, event-driven revisions, and mission archives. See [release verification](docs/VERIFICATION_RELEASE.md) for local checks and [delivery gates](docs/MISSION_LIFECYCLE.md#delivery-gates) for external evidence.
 
 **Released-data integration instructions:** [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md). For explicitly labeled synthetic app testing: `/?demo=1`. For a **standalone browser layout acceptance harness** (not a Next.js screenshot): `python tools/preview/build.py` and `python tools/preview/test_preview.py` after fixture generation.
 
@@ -36,7 +39,7 @@ python3 -m pytest -q pipeline/tests
 
 See [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md) for real Mars source acquisition, source review, and target alignment. `screenshots/seshat-acceptance-*.png` are explicitly synthetic **visual-harness** renders rather than production Next screenshots.
 
-## Live execution checklist (H4)
+## Verification and handoff
 
 [`docs/CHECKPOINT_REPORT.md`](docs/CHECKPOINT_REPORT.md) distinguishes **verified local tests**, **implemented but not production-integrated work**, and **missing external gates**. Refresh the report before each handoff or team merge:
 
@@ -44,9 +47,9 @@ See [`docs/REAL_DATA_H0.md`](docs/REAL_DATA_H0.md) for real Mars source acquisit
 python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md
 ```
 
-The H2 workbench source adds DEM-based outbound/return elevation profiles and a downloadable evidence-labeled mission brief (`.md`). The analysis now distinguishes a known modeled hard obstruction from insufficient data, conservatively returning `UNKNOWN` if missing cells might hide a route. Data acquisition can be safely re-run without erasing a previously recorded original URL/hash when the bytes match. Browser acceptance still uses **synthetic terrain** and is not the Next.js runtime.
+The H2 workbench source adds DEM-based outbound/return elevation profiles and a downloadable evidence-labeled mission brief (`.md`). The analysis now distinguishes a known modeled hard obstruction from insufficient data, conservatively returning `UNKNOWN` if missing cells might hide a route. Data acquisition can be safely re-run without erasing a previously recorded original URL/hash when the bytes match. The standalone harness uses synthetic terrain. The production browser suite also tests the real-data lifecycle.
 
-For the next team priority, open `docs/CHECKPOINT_REPORT.md`: **official Resources evidence, real CTX/PDS downloads, two precise source-backed targets, npm lockfile + Astryx theme, production Next build, deployment, and final submission** remain open.
+For the submission sequence, use the [mission rehearsal and delivery gates](docs/MISSION_LIFECYCLE.md).
 
 ## H3: Opportunity ledger and original Astryx theme
 
@@ -62,8 +65,8 @@ python3 tools/preview/test_preview.py
 python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md
 ```
 
-The acceptance preview is **not** the Next.js runtime: its synthetic terrain and labels exist solely to test visual states and user interactions. Real NASA terrain, scientific targets, full Next build, live deployment and official challenge Resources evidence are separate open gates.
+The acceptance preview is **not** the Next.js runtime: its synthetic terrain and labels exist solely to test visual states and user interactions. The production browser checks and the standalone fixture have separate evidence.
 
 ## H4 verification and source review
 
-`python3 -m tools.verify --offline` checks the local Python, security and Node scientific contracts; it does **not** build Next.js. `pnpm verify` runs the release sequence and correctly fails until a committed lockfile, installed dependencies, static build and Playwright are available. See `docs/VERIFICATION_LATEST.md`, `docs/SECURITY_AND_DEPLOYMENT.md` and `docs/QUICK_RUN_SHEET.md`. Source equirectangular metres are not treated as surface metres: `pipeline.compile` reprojects into a bounded local Mars AEQD raster before graph compilation. Model and UI derive assumptions from one JSON file.
+`python3 -m tools.verify --offline` checks the local Python, security and Node scientific contracts; it does **not** build Next.js. `pnpm verify` runs the release sequence, including the static build and Playwright. See `docs/VERIFICATION_LATEST.md`, `docs/SECURITY_AND_DEPLOYMENT.md` and `docs/QUICK_RUN_SHEET.md`. Source equirectangular metres are not treated as surface metres: `pipeline.compile` reprojects into a bounded local Mars AEQD raster before graph compilation. Model and UI derive assumptions from one JSON file.

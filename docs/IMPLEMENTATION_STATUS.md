@@ -1,4 +1,6 @@
-# SESHAT implementation status — H4 checkpoint
+# SESHAT implementation status — archived H4 checkpoint
+
+For the current Jezero build, see [the mission lifecycle and data audit](MISSION_LIFECYCLE.md) and [local release checks](VERIFICATION_RELEASE.md). The status below describes the original H4 archive.
 
 This is the executable-source status, not a NASA claim. Refer to [`CHECKPOINT_REPORT.md`](CHECKPOINT_REPORT.md) for the most recent automated snapshot and the strict [`VERIFICATION_RELEASE.md`](VERIFICATION_RELEASE.md) for blockers.
 

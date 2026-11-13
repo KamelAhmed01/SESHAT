@@ -1,0 +1,245 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "SOURCE_REVIEW_REQUIRED",
+  "sourceId": "USGS_MARS2020_CTX_DTM_20M_DOI_10_5066_P906QQT8",
+  "sourceUrl": "https://planetarymaps.usgs.gov/mosaic/mars2020_trn/CTX/JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif",
+  "eligibilityNote": "Official challenge Resources membership must be confirmed by team",
+  "viewLayerKind": "DEM_DERIVED_HILLSHADE_NOT_ORBITAL_PHOTO",
+  "modelId": "terrain-scenario-v0",
+  "modelEvidence": "SCENARIO_ASSUMPTION",
+  "height": 220,
+  "width": 220,
+  "baseIndex": 24310,
+  "cellWidthMeters": 20.0,
+  "cellHeightMeters": 20.0,
+  "crsWkt": "PROJCS[\"unknown\",GEOGCS[\"unknown\",DATUM[\"unknown\",SPHEROID[\"unknown\",3396190,0]],PRIMEM[\"Reference meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Azimuthal_Equidistant\"],PARAMETER[\"latitude_of_center\",18.452108334386],PARAMETER[\"longitude_of_center\",77.414030650241],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "rasterTransform": [
+    20.0,
+    0.0,
+    -2200.0,
+    0.0,
+    -20.0,
+    2200.0
+  ],
+  "planetaryBody": "Mars",
+  "sourceBodyRadiusMeters": 3396190.0,
+  "analysisProjection": "MARS_LOCAL_AZIMUTHAL_EQUIDISTANT",
+  "analysisCenterPlanetocentricLat": 18.452108334385862,
+  "analysisCenterPositiveEastLon": 77.41403065024113,
+  "analysisMetricGridValidatedBy": "MARS_SPHERICAL_AEQD_REPROJECT_V1",
+  "sourceCrsWkt": "PROJCS[\"Equirectangular Mars 2000 Sphere IAU\",GEOGCS[\"GCS_Mars_2000_Sphere\",DATUM[\"Mars_2000_(Sphere)\",SPHEROID[\"Mars_2000_Sphere_IAU\",3396190,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",0],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "sourceRasterTransform": [
+    20.0,
+    0.0,
+    4586483.250853,
+    0.0,
+    -20.0,
+    1095953.140188
+  ],
+  "nativeNodata": -3.4028226550889045e+38,
+  "sourceWindow": [
+    687,
+    641,
+    220,
+    220
+  ],
+  "files": {
+    "outbound-costs.bin": {
+      "bytes": 387200,
+      "sha256": "ec19a40ffea5ea2655eab52458913190507455cd040b935065dcbd0e4ff8cc2a",
+      "dtype": "float64"
+    },
+    "return-costs.bin": {
+      "bytes": 387200,
+      "sha256": "cbb705abdf6d2d87358c16a7ae2eab5ae3fca0d01d4c06d1d0d51968776c7dcf",
+      "dtype": "float64"
+    },
+    "outbound-parents.bin": {
+      "bytes": 193600,
+      "sha256": "e56daf17bc1954b14e62bee68d58d250eb1ef13dff707dd225a43f8f52eb2a4e",
+      "dtype": "int32"
+    },
+    "return-next.bin": {
+      "bytes": 193600,
+      "sha256": "79b9209b32a54598361b902fa95488cfa1b86e552cdc3796cca29864f767d828",
+      "dtype": "int32"
+    },
+    "elevation.bin": {
+      "bytes": 193600,
+      "sha256": "66f280c092020ee82aa84a67f76a87b0a102fe316351a649b8c6e142d68c1779",
+      "dtype": "float32"
+    },
+    "validity-mask.bin": {
+      "bytes": 48400,
+      "sha256": "bfa76f91ef4e0f429b2944a5122ba2aacdd5b135ba2b825f1b78e5b234fb78d7",
+      "dtype": "uint8"
+    }
+  },
+  "imagery": {
+    "path": "imagery/study-area.webp",
+    "sha256": "31a86939ddc94c9aa0ade02a74713968a408e124e7faef1c01d943f0658a9c50",
+    "bytes": 19490
+  },
+  "scienceTargets": [
+    {
+      "id": "swift-run",
+      "name": "Swift Run \u00b7 Skinner Ridge",
+      "location": {
+        "originalCoordinateText": "18.4589310\u00b0N planetocentric, 77.4061708\u00b0E (source)",
+        "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+        "gridRow": 89,
+        "gridCol": 87,
+        "confidence": "SOURCE_REPORTED_POINT",
+        "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+      },
+      "objectiveTags": [
+        "Jezero western fan",
+        "sedimentary comparison"
+      ],
+      "science": {
+        "summary": "Compare sediment texture and bedding at the Skinner Ridge sandstone exposure.",
+        "sourceIds": [
+          "PDS_MARS2020_SAMPLE_DOSSIER",
+          "NASA_M2020_SWIFT-RUN"
+        ],
+        "evidence": [
+          {
+            "title": "NASA PDS Mars 2020 Initial Reports \u00b7 Chapter 11",
+            "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+            "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+            "claimSupported": "Published sample-site latitude and longitude and geological context."
+          },
+          {
+            "title": "NASA Perseverance \u00b7 site and sample context",
+            "url": "https://science.nasa.gov/resource/perseverance-workspace-at-skinner-ridge/",
+            "sourceId": "NASA_M2020_SWIFT-RUN",
+            "claimSupported": "Site-specific geological or visual context."
+          }
+        ],
+        "limitations": [
+          "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+          "The DEM cannot resolve the individual outcrop surface."
+        ]
+      },
+      "activity": {
+        "minutes": 20.0,
+        "basis": "SCENARIO_ASSUMPTION"
+      }
+    },
+    {
+      "id": "hazeltop",
+      "name": "Hazeltop \u00b7 Wildcat Ridge",
+      "location": {
+        "originalCoordinateText": "18.4586371\u00b0N planetocentric, 77.4058885\u00b0E (source)",
+        "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+        "gridRow": 90,
+        "gridCol": 87,
+        "confidence": "SOURCE_REPORTED_POINT",
+        "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+      },
+      "objectiveTags": [
+        "Jezero western fan",
+        "sedimentary comparison"
+      ],
+      "science": {
+        "summary": "Examine the fine-grained, sulfate-bearing sediments that Perseverance sampled at Wildcat Ridge.",
+        "sourceIds": [
+          "PDS_MARS2020_SAMPLE_DOSSIER",
+          "NASA_M2020_HAZELTOP"
+        ],
+        "evidence": [
+          {
+            "title": "NASA PDS Mars 2020 Initial Reports \u00b7 Chapter 14",
+            "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+            "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+            "claimSupported": "Published sample-site latitude and longitude and geological context."
+          },
+          {
+            "title": "NASA Perseverance \u00b7 site and sample context",
+            "url": "https://science.nasa.gov/resource/perseverance-rock-cores-from-wildcat-ridge/",
+            "sourceId": "NASA_M2020_HAZELTOP",
+            "claimSupported": "Site-specific geological or visual context."
+          }
+        ],
+        "limitations": [
+          "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+          "The DEM cannot resolve the individual outcrop surface."
+        ]
+      },
+      "activity": {
+        "minutes": 20.0,
+        "basis": "SCENARIO_ASSUMPTION"
+      }
+    },
+    {
+      "id": "shuyak",
+      "name": "Shuyak \u00b7 Cape Nukshak",
+      "location": {
+        "originalCoordinateText": "18.4506895\u00b0N planetocentric, 77.4014317\u00b0E (source)",
+        "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+        "gridRow": 114,
+        "gridCol": 74,
+        "confidence": "SOURCE_REPORTED_POINT",
+        "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+      },
+      "objectiveTags": [
+        "Jezero western fan",
+        "sedimentary comparison"
+      ],
+      "science": {
+        "summary": "Compare the fine-grained Amalik sedimentary outcrop with the exposures at Hawksbill Gap.",
+        "sourceIds": [
+          "PDS_MARS2020_SAMPLE_DOSSIER",
+          "NASA_M2020_SHUYAK"
+        ],
+        "evidence": [
+          {
+            "title": "NASA PDS Mars 2020 Initial Reports \u00b7 Chapter 16",
+            "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+            "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+            "claimSupported": "Published sample-site latitude and longitude and geological context."
+          },
+          {
+            "title": "NASA Perseverance \u00b7 site and sample context",
+            "url": "https://science.nasa.gov/resource/meet-the-mars-samples-shuyak-and-mageik-samples-14-and-15/",
+            "sourceId": "NASA_M2020_SHUYAK",
+            "claimSupported": "Site-specific geological or visual context."
+          }
+        ],
+        "limitations": [
+          "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+          "The DEM cannot resolve the individual outcrop surface."
+        ]
+      },
+      "activity": {
+        "minutes": 20.0,
+        "basis": "SCENARIO_ASSUMPTION"
+      }
+    }
+  ],
+  "coordinateFrameVerified": false,
+  "challengeResourceQualified": false,
+  "sourceFileSha256": "16a1aa66c3f48c1bca252795827db7b417876217aff0f5e1aff18027fab2327b",
+  "sourceFileProvenance": "DOWNLOADED_FROM_LISTED_HOST_SHA_MATCHED",
+  "sourceAcquiredAtUTC": "2026-11-13T18:18:12.925550+00:00",
+  "optical": {
+    "path": "imagery/orbital-aligned.webp",
+    "bytes": 31242,
+    "sha256": "83a426783e47a4a5143ff28dc60db5eb26b5f79dc44861a3235c049fd914237d",
+    "sourceId": "Mars Trek MRO CTX, Jezero Mosaic, Controlled",
+    "sourceUrl": "https://trek.nasa.gov/mars/TrekWS/rest/cat/data/stream?label=JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0",
+    "sourceFileSha256": "842b457afee7c2672022b66e3f60be836c6d52e99474015bfd9ced60099b8615",
+    "alignment": "REPROJECTED_ONTO_DEM_ANALYSIS_GRID",
+    "reviewStatus": "SOURCE_REVIEW_REQUIRED",
+    "validPixelCount": 48400,
+    "pixelCount": 48400,
+    "sourcePixelsPerBand": 1
+  },
+  "targetCatalogInputHash": "b689ca3eb2b39129142b185cd2e88f9a5d26daac4b92cdb83a0d40a956c746fc",
+  "targetCatalogReview": "SOURCE_REVIEW_REQUIRED",
+  "historicalLandingCell": [
+    132,
+    213
+  ],
+  "notice": "Scenario landing site near the western Jezero fan. The historical Perseverance landing is shown for context."
+}

@@ -10,3 +10,10 @@ AI tools help draft implementation, tests and documentation. **All route-model a
 - Evidence: see `pipeline/tests/test_projection_metric.py`, `tests/security/test_headers.py`, `tests/unit/engine.test.cjs`, and `docs/VERIFICATION_LATEST.md`.
 - Limitations: NASA resource membership, actual DEM bytes, Vercel response behavior, npm-based production build and user study are not demonstrated here.
 - Commit convention: include `AI-Assisted: yes` and the verification report path in the commit message. Human reviewers must recheck the key math and claims.
+
+
+## Mission lifecycle — 2026-11-13
+
+- Codex inspected the official Resources tab and catalog products, compared the downloaded USGS and Mars Trek rasters, and implemented the planning, event review and return flow on the H4 history.
+- Published PDS positions and NASA images are credited in [the resource audit](MISSION_LIFECYCLE.md). Mobility, consumption and all event measurements are scenario assumptions or simulated input.
+- Test evidence is in [the release report](VERIFICATION_RELEASE.md). The project still requires independent team science review, organizer evidence, and hosted delivery verification.

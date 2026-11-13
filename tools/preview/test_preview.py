@@ -1,5 +1,6 @@
 """Browser QA of the standalone visual fixture, not the Next.js app runtime."""
 from pathlib import Path
+import os
 import base64
 import json
 from playwright.sync_api import sync_playwright
@@ -25,7 +26,8 @@ page_html=page_html.replace('src="/demo/imagery/study-area.webp"',
     'src="data:image/webp;base64,'+base64.b64encode(image_bytes).decode()+'"')
 page_html=page_html.replace('<script src="/preview/preview.js" defer></script>',bootstrap+'<script>'+js+'</script>')
 with sync_playwright() as p:
-    browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+    # Use a configured system browser when available, otherwise use Playwright's installed Chromium.
+    browser=p.chromium.launch(executable_path=os.getenv('SESHAT_CHROMIUM_PATH'),headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
     page=browser.new_page(viewport={'width':1440,'height':900},device_scale_factor=1)
     errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))

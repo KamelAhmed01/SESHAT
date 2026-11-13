@@ -3,7 +3,7 @@ import {test, expect} from '@playwright/test';
 test('production static export loads the evidence-gated workbench', async ({page}) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/?opportunities=1');
   await expect(page).toHaveTitle(/SESHAT/);
   await expect(page.getByRole('heading', {name: 'Time is terrain.'})).toBeVisible();
   await expect(page.getByRole('region', {name: 'Planetary terrain map'})).toBeVisible();

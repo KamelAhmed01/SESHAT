@@ -45,6 +45,7 @@ def snapshot(run_tests: bool = False) -> str:
         ('Scientific assumptions and AI engineering rules', ['AGENTS.md', 'docs/REAL_DATA_H0.md']),
         ('Mars local metric projection and geographic proof', ['pipeline/compile.py', 'pipeline/tests/test_projection_metric.py']),
         ('Shared model scenario and science reachability preflight', ['src/config/mission-scenario.json','pipeline/preflight.py']),
+        ('Single/multi-stop planning and approved mission revisions', ['src/engine/multi-leg-planner.ts', 'src/engine/lifecycle-store.ts', 'src/components/workbench/MissionLifecycle.tsx']),
         ('Release/security integration and AI governance', ['vercel.json', '.github/pull_request_template.md','tools/verify.py','docs/SECURITY_AND_DEPLOYMENT.md']),
     ):
         (implemented if all((ROOT / p).is_file() for p in paths) else pending).append(description)
@@ -53,7 +54,7 @@ def snapshot(run_tests: bool = False) -> str:
         for label, command in (
             ('Python science + security tests', [sys.executable, '-m', 'pytest', '-q', 'pipeline/tests', 'tests/security']),
             ('TypeScript engine compile', ['tsc', '-p', 'tsconfig.engine.json']),
-            ('Node scientific/unit oracles', ['node', '--test', 'tests/unit/engine.test.cjs']),
+            ('Node scientific/unit oracles', ['node', '--test', *sorted(str(path.relative_to(ROOT)) for path in (ROOT/'tests/unit').glob('*.test.cjs'))]),
             ('Synthetic Chromium acceptance harness', [sys.executable, 'tools/preview/test_preview.py']),
         ):
             okay, info = run(command)
@@ -70,7 +71,7 @@ def snapshot(run_tests: bool = False) -> str:
 
     official = ROOT / 'docs/event-evidence/official-challenge-resources.png'
     if not official.is_file():
-        pending.append('Screenshot of NASA 2026 challenge Resources listing and a visibly used qualifying NASA source (C1)')
+        pending.append('Archive a screenshot of the live challenge Resources listing for team signoff')
     else:
         implemented.append('Official Resources screenshot file present; verify its contents and the actual used data source manually')
 
@@ -93,13 +94,20 @@ def snapshot(run_tests: bool = False) -> str:
                 implemented.append('Real/provisional bundle manifest present, still awaiting human review')
             else:
                 pending.append(f'Nonproduction manifest status {status}; do not pass as real Mars evidence')
+            published = sum(t.get('location', {}).get('confidence') == 'SOURCE_REPORTED_POINT' for t in manifest.get('scienceTargets', []))
+            if published:
+                implemented.append(f'{published} published PDS sample-site coordinates in the routed bundle')
             precise = sum(t.get('location', {}).get('confidence') == 'VERIFIED_POINT' for t in manifest.get('scienceTargets', []))
-            if precise < 2: pending.append(f'At least two independently cited, exact overlapping science targets (now {precise})')
+            if precise < 2: pending.append(f'Independent team signoff for at least two source-reported points (reviewed: {precise})')
             else: implemented.append(f'{precise} precise targets declared; check coordinate and observation evidence')
         except (ValueError, OSError):
             pending.append('Real-source manifest JSON parses and passes integrity loader')
 
-    pending.append('H4 strict release PASS (full Next.js build and production Playwright E2E) — blocked until dependencies and pnpm-lock.yaml are available')
+    release_report = ROOT / 'docs/VERIFICATION_RELEASE.md'
+    if release_report.exists() and '\nOverall result: PASS;' in release_report.read_text():
+        implemented.append('Latest recorded strict release check passed; see docs/VERIFICATION_RELEASE.md')
+    else:
+        pending.append('Run strict release verification and inspect each result')
 
     if (ROOT / 'pnpm-lock.yaml').is_file():
         implemented.append('Version-pinned pnpm lockfile committed or available locally')
@@ -109,7 +117,7 @@ def snapshot(run_tests: bool = False) -> str:
     if not (ROOT / 'node_modules/@astryxdesign/core').exists():
         pending.append('Install real Next.js + Astryx dependencies; run Next typecheck and build')
     else:
-        implemented.append('Astryx local dependencies present; still run full Next build and E2E')
+        implemented.append('Astryx local dependencies present')
 
     if not (ROOT / 'src/themes/seshat/seshatTheme.ts').is_file():
         pending.append('Compiled bespoke SESHAT Astryx theme, beyond custom CSS color variables')
@@ -119,7 +127,7 @@ def snapshot(run_tests: bool = False) -> str:
     if not (ROOT / 'out/index.html').is_file():
         pending.append('Next production static export and genuine Next browser screenshot')
     else:
-        implemented.append('Next static export output exists; conduct E2E, offline asset and accessibility review')
+        implemented.append('Next static export output exists')
 
     remote_ok, remote = run(['git', 'remote', '-v'])
     if not remote_ok or not remote:
@@ -130,7 +138,7 @@ def snapshot(run_tests: bool = False) -> str:
     pending.extend([
         'Judge-ready live URL, TLS, Vercel deployment and fully local fallback verified on two laptops',
         'Cross-device production app E2E, basic keyboard/accessibility QA and source-bearing screenshots',
-        'Five-slide pitch, demo video, real target-science explanations and independent human user test',
+        'Official English demo link and independent human usability check',
         'Source/AI disclosure, event eligibility evidence, and official project submission receipt',
     ])
 
@@ -162,11 +170,11 @@ Generated **{now}** using `python -m tools.checkpoint{" --run-tests" if run_test
 
 ## Immediate handoff order
 
-1. **Shams/Malak — C1:** save official challenge Resources capture and identify the NASA data SESHAT actually uses. Do not substitute an unrelated NASA source.
-2. **Amr + Malak — G1/G2:** download the exact original CTX/PDS bytes, inspect CRS/longitude, select a source-backed science ROI and two geological target points.
-3. **Kamel/Ali — frontend:** create `pnpm-lock.yaml`, verify Astryx components + custom theme, run full production Next build, push the repo and deploy.
-4. **Hams/Kamel — design:** inspect real Next desktop/mobile, typography, visual hierarchy, keyboard states and evidence labels; keep visual coherence distinct from default library styling.
-5. **Shams/Ali — judge experience:** rehearse route-before/after delay, show actual source citations and limitations, capture offline demo and submission evidence.
+1. **Shams/Malak:** archive the live Resources capture and the organizer's Friday start evidence.
+2. **Amr/Malak:** independently review the PDS sample coordinates, CTX frame, coverage and provenance.
+3. **Kamel/Ali:** rehearse the exported build, verify the public URL and preserve the offline copy.
+4. **Hams/Kamel:** check the actual desktop and mobile layouts, including keyboard navigation.
+5. **Shams/Ali:** rehearse the inaccessible-stop revision and complete both submissions. See [the run sheet](MISSION_LIFECYCLE.md).
 
 Do not commit raw gigabyte archives, downloaded source secrets, npm `node_modules`, or unreviewed claimed source approval. Committing generated scientific bundles is allowed only after validation and a license/size review.
 '''

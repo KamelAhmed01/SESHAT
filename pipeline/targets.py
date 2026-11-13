@@ -38,7 +38,7 @@ def import_targets(path: Path, bundle_path: Path) -> dict:
             raise ValueError('Target ID missing or repeated')
         seen.add(t['id'])
         confidence=t.get('confidence','APPROXIMATE_REGION')
-        if confidence not in ('VERIFIED_POINT','APPROXIMATE_REGION'):
+        if confidence not in ('VERIFIED_POINT','SOURCE_REPORTED_POINT','APPROXIMATE_REGION'):
             raise ValueError('Only curator-backed points or regions may be imported')
         evidence=t.get('evidence',[])
         if not isinstance(evidence,list): raise ValueError('Invalid evidence list')
@@ -48,7 +48,9 @@ def import_targets(path: Path, bundle_path: Path) -> dict:
         source=t.get('coordinateSource')
         if confidence=='VERIFIED_POINT' and (not source or not str(source).startswith('https://') or not evidence or not t.get('coordinateReviewer')):
             raise ValueError('Exact target needs independent coordinate URL, scientific evidence and named human reviewer')
-        if confidence=='VERIFIED_POINT':
+        if confidence in ('VERIFIED_POINT','SOURCE_REPORTED_POINT'):
+            if not source or not str(source).startswith('https://') or not evidence:
+                raise ValueError('A published coordinate requires source and scientific evidence')
             lat,lon=t.get('latitudePlanetocentric'),t.get('longitudeEast')
             if not isinstance(lat,(int,float)) or not isinstance(lon,(int,float)) or not math.isfinite(lat) or not math.isfinite(lon) or not -90<=lat<=90 or not 0<=lon<360:
                 raise ValueError('Provide verified planetocentric latitude [-90,90], east longitude [0,360)')
