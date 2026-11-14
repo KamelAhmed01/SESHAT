@@ -1,8 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {readFileSync} = require('node:fs');
-const {previewMission, replanMission, canApprove, landingCell} = require('../../.build/src/engine/multi-leg-planner.js');
+const {previewMission, replanMission, triageReplanBranches, canApprove, landingCell} = require('../../.build/src/engine/multi-leg-planner.js');
 const {advanceMission, decideReplan, proposeReturn, recordEvent, remainingActivePlan, startMission} = require('../../.build/src/engine/lifecycle-store.js');
+const {liveFrontierMembership, summarizeFrontier} = require('../../.build/src/engine/frontier.js');
+const {createArchive, archiveMarkdown} = require('../../.build/src/engine/mission-archive.js');
 const {createTraverseGraph} = require('../../.build/src/engine/traverse-graph.js');
 const {zeroResources} = require('../../.build/src/engine/consumables.js');
 
@@ -121,4 +123,71 @@ test('discovery insertion, accessibility, and repeated pace changes alter only p
     spent: {minutes: 0, oxygen: 449, energy: 0}});
   assert.equal(costly.stops.length, 0);
   assert.equal(canApprove(costly), true);
+});
+
+test('live two-tier frontier contracts monotonically under spent resources and hazards', () => {
+  const bundle = flatBundle(), origin = landingCell(bundle);
+  const startGrid = liveFrontierMembership(bundle, {origin, spent: zeroResources});
+  const startSummary = summarizeFrontier(startGrid, 20, 20);
+  assert.equal(startSummary.fullScienceCells, 81);
+  assert.equal(startSummary.totalReachableCells, 81);
+
+  const lateGrid = liveFrontierMembership(bundle, {origin, spent: {minutes: 145, oxygen: 0, energy: 0}});
+  const lateSummary = summarizeFrontier(lateGrid, 20, 20);
+  assert.equal(lateSummary.fullScienceCells, 0);
+  assert.ok(lateSummary.transitOnlyCells > 0);
+  assert.ok(lateSummary.totalReachableCells <= startSummary.totalReachableCells);
+
+  const hazardGrid = liveFrontierMembership(bundle, {
+    origin,
+    spent: zeroResources,
+    hazards: [{cell: [4, 6], radius: 1}],
+  });
+  const hazardSummary = summarizeFrontier(hazardGrid, 20, 20);
+  assert.ok(hazardSummary.totalReachableCells < startSummary.totalReachableCells);
+});
+
+test('thermal-inertia firmGround preference avoids loose dust cells and degrades cleanly without TI', () => {
+  const ti = new Float32Array(81).fill(280);
+  ti[4 * 9 + 5] = 140;
+  ti[4 * 9 + 6] = 140;
+  const bundleWithTi = {...flatBundle(), contextData: {thermalInertia: ti, optionalFailures: []}};
+  const fastPlan = previewMission({bundle: bundleWithTi, origin: [4, 4], stops: [stop('east', 4, 8)], spent: zeroResources, routePreference: 'fastest'}).optimized;
+  const firmPlan = previewMission({bundle: bundleWithTi, origin: [4, 4], stops: [stop('east', 4, 8)], spent: zeroResources, routePreference: 'firmGround'}).optimized;
+  assert.ok(fastPlan.legs[0].terrain.lowThermalFraction > 0);
+  assert.equal(firmPlan.legs[0].terrain.lowThermalFraction, 0);
+  assert.equal(firmPlan.legs[0].terrain.footingLabel, 'Consolidated bedrock / duricrust');
+
+  const noTiPlan = previewMission({bundle: flatBundle(), origin: [4, 4], stops: [stop('east', 4, 8)], spent: zeroResources, routePreference: 'firmGround'}).optimized;
+  assert.equal(noTiPlan.legs[0].terrain.meanThermalInertia, null);
+  assert.equal(noTiPlan.legs[0].route.status, 'READY');
+});
+
+test('triageReplanBranches surfaces rapid-pass salvage and createArchive embeds earthSyncPacket', () => {
+  const bundle = flatBundle(), stops = [stop('east', 4, 8, 40), stop('west', 4, 0, 40)];
+  const branches = triageReplanBranches({
+    bundle,
+    origin: landingCell(bundle),
+    stops,
+    spent: {minutes: 100, oxygen: 0, energy: 0},
+  });
+  assert.equal(branches[0].id, 'optimal');
+  assert.equal(branches[0].plan.stops.length, 1);
+  const salvage = branches.find(b => b.id === 'rapid-salvage');
+  assert.ok(salvage, 'Expected rapid-pass salvage branch to rescue second stop');
+  assert.equal(salvage.approvable, true);
+  assert.equal(salvage.plan.stops.length, 2);
+
+  const fullStop = {
+    ...stop('east', 4, 8),
+    location: {gridRow: 4, gridCol: 8, confidence: 'USER_SELECTED', originalCoordinateText: '(4, 8)'},
+    science: {summary: 'Test exposure', sourceIds: [], evidence: [], limitations: []},
+  };
+  const mission = approved(bundle, [fullStop]);
+  const review = event(mission, bundle, {category: 'MISSION_DELAY', minutes: 10});
+  const archive = createArchive(review.baseline, bundle.manifest, review, null, 4);
+  assert.equal(archive.earthSyncPacket.schema, 'seshat-earth-sync-v1');
+  assert.ok(archive.earthSyncPacket.stationaryWaitBurnAvoided.oxygen > 60);
+  const md = archiveMarkdown(archive);
+  assert.match(md, /## Earth–Mars asynchronous sync packet/);
 });

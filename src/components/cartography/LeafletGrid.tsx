@@ -36,6 +36,7 @@ export interface MapPointInspection {
   elevationMeters?: number | null;
   geologicUnit?: string | null;
   thermalInertia?: number | null;
+  frontierStatus?: string | null;
 }
 
 interface Props {
@@ -52,6 +53,8 @@ interface Props {
   showElevation?: boolean;
   showGeology?: boolean;
   showThermal?: boolean;
+  showFrontier?: boolean;
+  liveFrontier?: Uint8Array | null;
   opportunities?: readonly OpportunityEntry[];
   fitRequestKey?: number;
   resetViewRequestKey?: number;
@@ -389,6 +392,85 @@ function frontierPng(
   return canvas.toDataURL('image/png');
 }
 
+function frontierTierStatusLabel(tier: number | undefined): string | null {
+  if (tier === undefined) return null;
+  if (tier === 2) return 'Full 20-min science feasible at 0.8×';
+  if (tier === 1) return 'Pass-through only · insufficient 0.8× margin for 20-min stop';
+  return 'Beyond 0.8× safe-return horizon';
+}
+
+function liveFrontierPng(
+  bundle: FieldBundle,
+  membership: Uint8Array,
+  geoBounds?: { south: number; west: number; north: number; east: number },
+): string {
+  const m = bundle.manifest;
+  const w = m.width;
+  const h = m.height;
+  const isEdge = (r: number, c: number, tier: number) => {
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0 || nr >= h || nc < 0 || nc >= w) return true;
+      const nt = membership[nr * w + nc];
+      if (tier === 2 ? nt !== 2 : nt === 0) return true;
+    }
+    return false;
+  };
+  const writeTierPixel = (data: Uint8ClampedArray, off: number, r: number, c: number) => {
+    const tier = membership[r * w + c];
+    if (tier === 2) {
+      const edge = isEdge(r, c, 2);
+      data[off] = 16;
+      data[off + 1] = 185;
+      data[off + 2] = 129;
+      data[off + 3] = edge ? 195 : 54;
+    } else if (tier === 1) {
+      const edge = isEdge(r, c, 1);
+      data[off] = 245;
+      data[off + 1] = 158;
+      data[off + 2] = 11;
+      data[off + 3] = edge ? 190 : 52;
+    }
+  };
+  const canvas = document.createElement('canvas');
+  if (geoBounds && isMarsGeographic(m)) {
+    const gw = 260;
+    const gh = 260;
+    canvas.width = gw;
+    canvas.height = gh;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    const image = ctx.createImageData(gw, gh);
+    for (let py = 0; py < gh; py++) {
+      const lat = geoBounds.north - ((py + 0.5) / gh) * (geoBounds.north - geoBounds.south);
+      for (let px = 0; px < gw; px++) {
+        const lon = geoBounds.west + ((px + 0.5) / gw) * (geoBounds.east - geoBounds.west);
+        const pt = marsLatLngToGridFloat(lat, lon, m);
+        if (!pt) continue;
+        const r = Math.floor(pt[0]);
+        const c = Math.floor(pt[1]);
+        if (r < 0 || r >= h || c < 0 || c >= w) continue;
+        writeTierPixel(image.data, (py * gw + px) * 4, r, c);
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    return canvas.toDataURL('image/png');
+  }
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  const image = ctx.createImageData(w, h);
+  for (let r = 0; r < h; r++) {
+    for (let c = 0; c < w; c++) {
+      writeTierPixel(image.data, (r * w + c) * 4, r, c);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
 function marsGeodesicCircleLatLngs(
   centerCell: Cell,
   radiusCells: number,
@@ -432,6 +514,8 @@ export function LeafletGrid({
   showElevation = false,
   showGeology = false,
   showThermal = false,
+  showFrontier = false,
+  liveFrontier = null,
   opportunities = [],
   fitRequestKey = 0,
   resetViewRequestKey = 0,
@@ -455,10 +539,12 @@ export function LeafletGrid({
   const onSelectRef = useRef(onCellSelect);
   const lastFitRequest = useRef(0);
   const onInspectRef = useRef(onInspectPoint);
+  const liveFrontierRef = useRef(liveFrontier);
   const initialFitDoneRef = useRef(false);
 
   useEffect(() => { onSelectRef.current = onCellSelect; }, [onCellSelect]);
   useEffect(() => { onInspectRef.current = onInspectPoint; }, [onInspectPoint]);
+  useEffect(() => { liveFrontierRef.current = liveFrontier; }, [liveFrontier]);
 
   const useMarsGeo = Boolean(bundle && isMarsGeographic(bundle.manifest));
 
@@ -685,6 +771,7 @@ export function LeafletGrid({
             elevationMeters: elev,
             geologicUnit: unitLabel,
             thermalInertia: tiVal,
+            frontierStatus: frontierTierStatusLabel(liveFrontierRef.current?.[idx]),
           });
           if (!isMissionMap) onSelectRef.current(...cell);
         });
@@ -747,6 +834,7 @@ export function LeafletGrid({
               cell,
               status: bundle.mask[idx] === 1 ? 'COVERED' : 'NODATA',
               label: bundle.mask[idx] === 1 ? `Synthetic cell (${cell[0]}, ${cell[1]})` : 'Terrain data unavailable',
+              frontierStatus: bundle.mask[idx] === 1 ? frontierTierStatusLabel(liveFrontierRef.current?.[idx]) : null,
             });
             onSelectRef.current(...cell);
           } else {
@@ -865,12 +953,35 @@ export function LeafletGrid({
     }
   }, [bundle, showElevation, mapRevision]);
 
-  // Frontier overlay for Opportunity Navigator mode (`!isMissionMap`)
+  // Frontier overlay for both Opportunity Navigator mode and live Mission Workbench mode
   useEffect(() => {
-    if (!bundle || !mapRef.current || !leafletRef.current || isMissionMap) return;
+    if (!bundle || !mapRef.current || !leafletRef.current) return;
     const L = leafletRef.current;
     frontierRef.current?.remove();
+    frontierRef.current = null;
     const h = bundle.manifest.height, w = bundle.manifest.width;
+
+    if (isMissionMap) {
+      if (!showFrontier || !liveFrontier) return;
+      if (isMarsGeographic(bundle.manifest)) {
+        const geoBounds = gridGeographicBounds(bundle.manifest);
+        const image = liveFrontierPng(bundle, liveFrontier, geoBounds);
+        if (image) {
+          frontierRef.current = L.imageOverlay(image, [[geoBounds.south, geoBounds.west], [geoBounds.north, geoBounds.east]], {
+            interactive: false,
+            opacity: 0.92,
+            zIndex: 51,
+          }).addTo(mapRef.current);
+        }
+        return;
+      }
+      const image = liveFrontierPng(bundle, liveFrontier);
+      if (image) {
+        frontierRef.current = L.imageOverlay(image, [[0, 0], [h, w]], { interactive: false, opacity: 0.92 }).addTo(mapRef.current);
+      }
+      return;
+    }
+
     if (isMarsGeographic(bundle.manifest)) {
       const geoBounds = gridGeographicBounds(bundle.manifest);
       const image = frontierPng(bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, geoBounds);
@@ -883,7 +994,7 @@ export function LeafletGrid({
     }
     const image = frontierPng(bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes);
     frontierRef.current = L.imageOverlay(image, [[0, 0], [h, w]], { interactive: false, opacity: 1 }).addTo(mapRef.current);
-  }, [bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, mapRevision, isMissionMap]);
+  }, [bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, mapRevision, isMissionMap, showFrontier, liveFrontier]);
 
   // Explicit "Back to Jezero" viewport action
   useEffect(() => {
@@ -1044,12 +1155,22 @@ export function LeafletGrid({
         offset: [0, nearPrev ? 8 : -8],
       });
       const inspectTarget = () => {
+        const pinIdx = pt.row * bundle.manifest.width + pt.col;
+        const unitIdx = bundle.contextData?.geologicUnitGrid?.[pinIdx] ?? 0;
+        const unitObj = unitIdx > 0 ? bundle.contextData?.geologicUnits?.units.find(u => u.index === unitIdx) : undefined;
         onInspectRef.current?.({
           lat: geo ? latLng[0] : null,
           lon: geo ? latLng[1] : null,
           cell: [pt.row, pt.col],
           status: 'COVERED',
           label: pt.title,
+          elevationMeters: Number.isFinite(bundle.elevationMeters[pinIdx]) ? bundle.elevationMeters[pinIdx] : null,
+          geologicUnit: unitObj ? `${unitObj.symbol} · ${unitObj.name}` : null,
+          thermalInertia:
+            bundle.contextData?.thermalInertia && Number.isFinite(bundle.contextData.thermalInertia[pinIdx])
+              ? bundle.contextData.thermalInertia[pinIdx]
+              : null,
+          frontierStatus: frontierTierStatusLabel(liveFrontierRef.current?.[pinIdx]),
         });
         if (!isMissionMap) onSelectRef.current(pt.row, pt.col);
       };
@@ -1114,6 +1235,7 @@ export function LeafletGrid({
         showElevation={showElevation}
         showGeology={showGeology}
         showThermal={showThermal}
+        showFrontier={showFrontier}
         isMissionMap={isMissionMap}
         hasPlannedRoute={(mission?.planned?.length ?? 0) > 0 || outboundRoute?.status === 'READY'}
         hasPreviousRoute={(mission?.previous?.length ?? 0) > 0 || returnRoute?.status === 'READY'}

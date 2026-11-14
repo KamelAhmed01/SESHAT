@@ -11,6 +11,7 @@ export interface MapLegendProps {
   showElevation?: boolean;
   showGeology?: boolean;
   showThermal?: boolean;
+  showFrontier?: boolean;
   isMissionMap?: boolean;
   hasPlannedRoute?: boolean;
   hasPreviousRoute?: boolean;
@@ -31,27 +32,31 @@ export function MapLegend({
   showElevation = false,
   showGeology = false,
   showThermal = false,
+  showFrontier = false,
   hasPlannedRoute = false,
   hasPreviousRoute = false,
   hasHazards = false,
 }: MapLegendProps) {
-  const [isOpen, setIsOpen] = useState(showElevation || showGeology || showThermal);
+  const [isOpen, setIsOpen] = useState(showElevation || showGeology || showThermal || showFrontier);
   const prevElevation = useRef(showElevation);
   const prevGeology = useRef(showGeology);
   const prevThermal = useRef(showThermal);
+  const prevFrontier = useRef(showFrontier);
 
   useEffect(() => {
     if (
       (!prevElevation.current && showElevation) ||
       (!prevGeology.current && showGeology) ||
-      (!prevThermal.current && showThermal)
+      (!prevThermal.current && showThermal) ||
+      (!prevFrontier.current && showFrontier)
     ) {
       setIsOpen(true);
     }
     prevElevation.current = showElevation;
     prevGeology.current = showGeology;
     prevThermal.current = showThermal;
-  }, [showElevation, showGeology, showThermal]);
+    prevFrontier.current = showFrontier;
+  }, [showElevation, showGeology, showThermal, showFrontier]);
 
   const { minElev, maxElev } = useMemo(() => {
     if (!bundle) return { minElev: -2586, maxElev: -2419 };
@@ -107,6 +112,7 @@ export function MapLegend({
             </svg>
           </span>
           <span className="cc-legend-toggle-text">Legend</span>
+          {showFrontier && <span className="cc-legend-chip cc-chip-frontier">Frontier</span>}
           {showElevation && <span className="cc-legend-chip cc-chip-elev">Elevation</span>}
           {showGeology && <span className="cc-legend-chip cc-chip-geo">Geology</span>}
           {showThermal && <span className="cc-legend-chip cc-chip-ti">Thermal</span>}
@@ -159,6 +165,25 @@ export function MapLegend({
             <strong>Elevation heatmap</strong> is active (Blue = low crater floor; Red = high delta rim). The thematic Geology/Thermal overlays indicate bedrock lithology and surface heat retention.
           </p>
         </div>
+      )}
+
+      {showFrontier && (
+        <section className="cc-legend-section" aria-label="Live safe-return frontier">
+          <div className="cc-section-header">
+            <span className="cc-section-name">Point-of-No-Return Frontier (0.8×)</span>
+            <span className="cc-section-source">Live time + O₂ + Wh reserves from astronaut cell</span>
+          </div>
+          <div className="cc-features-list">
+            <div className="cc-feature-item">
+              <span className="cc-feat-marker cc-marker-frontier-full" aria-hidden="true" />
+              <span>Full 20-min science stop + safe return</span>
+            </div>
+            <div className="cc-feature-item">
+              <span className="cc-feat-marker cc-marker-frontier-transit" aria-hidden="true" />
+              <span>Transit-only safe return (no 20-min stop margin)</span>
+            </div>
+          </div>
+        </section>
       )}
 
       {showElevation && (
