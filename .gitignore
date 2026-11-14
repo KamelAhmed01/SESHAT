@@ -20,3 +20,4 @@ playwright-report/
 .venv/
 data/review-jezero/
 .vercel
+/screenshots
