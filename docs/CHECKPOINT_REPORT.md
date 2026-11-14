@@ -1,6 +1,6 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-14 02:52 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-14 03:30 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
@@ -55,7 +55,7 @@ Generated **2026-11-14 02:52 UTC** using `python -m tools.checkpoint --run-tests
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1158.405955`
+ℹ duration_ms 1219.643084`
 - Synthetic Chromium acceptance harness: FAIL; last output: `Traceback (most recent call last):
   File "/home/ali13yassin/Documents/GitHub/SESHAT/tools/preview/test_preview.py", line 6, in <module>
     from playwright.sync_api import sync_playwright

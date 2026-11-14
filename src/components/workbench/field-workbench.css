@@ -78,7 +78,104 @@
 .field-travel, .field-export { margin: 12px 0 18px; }
 .field-route-preference { display: grid; gap: 4px; margin: 8px 0; }
 .field-panel .field-complete { margin: 12px 0; }
+.field-sources {
+  background: var(--field-paper);
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 .field-sources a { color: var(--field-accent); text-decoration: underline; }
+.field-sources-header { display: flex; flex-direction: column; gap: 5px; }
+.field-sources-header h2 { font-size: 16px; margin: 0; color: var(--field-ink); font-weight: 700; }
+.field-sources-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(243, 168, 51, 0.16);
+  border: 1px solid rgba(243, 168, 51, 0.35);
+  color: var(--field-accent);
+  font: 700 10px ui-monospace, monospace;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+.field-sources-sub { font-size: 12px; line-height: 1.45; color: var(--field-ink); margin: 0; }
+.field-sources-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.field-stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--field-line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.field-stat-card strong {
+  font: 700 14px ui-monospace, monospace;
+  color: var(--field-accent);
+}
+.field-stat-card span {
+  font-size: 11px;
+  color: var(--field-ink);
+  line-height: 1.3;
+}
+.field-sources-breakdown h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--field-ink);
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.field-dataset-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field-dataset-item {
+  border-left: 2px solid var(--field-accent);
+  padding-left: 10px;
+}
+.field-dataset-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.field-dataset-meta strong {
+  font-size: 12px;
+  color: var(--field-ink);
+}
+.field-dataset-role {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.35;
+}
+.field-dataset-meta a {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.field-sources-footer {
+  border-top: 1px solid var(--field-line);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+.field-sources-footer p { margin: 0; }
 .field-map-tools, .field-map-legend, .field-map-credit { position: absolute; z-index: 600; }
 .field-map .cc-map-legend-docked, .field-map .cc-map-legend-panel { position: absolute; z-index: 600; }
 .field-map-tools { top: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: start; max-width: calc(100% - 32px); }

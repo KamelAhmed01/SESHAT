@@ -381,6 +381,15 @@ export function MissionWorkbench() {
            ['Source-frame checked',bundle?.manifest.coordinateFrameVerified ? 'Declared reviewed' : 'Pending'],
            ['Challenge resource',bundle?.manifest.challengeResourceQualified ? 'Declared reviewed' : 'Pending']] as const)
           .map(([label,value]) => <div className="drawer-fact" key={label}><span>{label}</span><strong>{value}</strong></div>)}
+        <p className="source-url">
+          <a
+            href="https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/?tab=resources"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            NASA Space Apps Challenge 2026: Martian Map Resources Tab ↗
+          </a>
+        </p>
         {target?.science.evidence.map(source => <p key={source.sourceId} className="source-url"><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a></p>)}
         <p className="drawer-disclaimer">All numerical models are experimental. No astronaut-grade safety claim, NASA endorsement, or synthetic-as-real substitution.</p>
       </aside></div>}
