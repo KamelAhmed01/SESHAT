@@ -341,6 +341,7 @@ export function LeafletGrid({
   const frontierRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const routeLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
   const onSelectRef = useRef(onCellSelect);
+  const lastFitRequest = useRef(0);
   const onInspectRef = useRef(onInspectPoint);
   const initialFitDoneRef = useRef(false);
 
@@ -573,7 +574,7 @@ export function LeafletGrid({
             geologicUnit: unitLabel,
             thermalInertia: tiVal,
           });
-          onSelectRef.current(...cell);
+          if (!isMissionMap) onSelectRef.current(...cell);
         });
 
         mapRef.current = map;
@@ -676,6 +677,10 @@ export function LeafletGrid({
         ? (md?.orbitalGeoPath ?? bundle.manifest.optical.path)
         : (md?.terrainGeoPath ?? bundle.manifest.imagery.path);
       backgroundOverlayRef.current.setUrl(`${bundle.assetRoot}/${path}`);
+      if (isMissionMap) {
+        backgroundOverlayRef.current.setOpacity(showOptical ? 0 : 0.9);
+        contourOverlayRef.current?.setOpacity(showOptical ? 0 : 0.85);
+      }
       backgroundOverlayRef.current.getElement()?.setAttribute('alt',
         showOptical && bundle.manifest.optical ? 'Orbital imagery aligned to Mars AEQD; source review required' : 'DEM-derived shaded relief aligned to Mars AEQD; not photography');
       return;
@@ -684,7 +689,7 @@ export function LeafletGrid({
     backgroundOverlayRef.current.setUrl(`${bundle.assetRoot}/${path}`);
     backgroundOverlayRef.current.getElement()?.setAttribute('alt',
       showOptical && bundle.manifest.optical ? 'Orbital imagery aligned to terrain grid; source review required' : 'DEM-derived shaded relief; not photography');
-  }, [bundle, showOptical, mapRevision]);
+  }, [bundle, showOptical, mapRevision, isMissionMap]);
 
   // Toggle optional Geologic Units and Thermal Inertia overlays (Geographic Mars mode)
   useEffect(() => {
@@ -748,7 +753,8 @@ export function LeafletGrid({
 
   // Explicit "Fit mission" viewport action
   useEffect(() => {
-    if (!fitRequestKey || !mapRef.current || !leafletRef.current || !bundle) return;
+    if (!fitRequestKey || fitRequestKey === lastFitRequest.current || !mapRef.current || !leafletRef.current || !bundle) return;
+    lastFitRequest.current = fitRequestKey;
     const map = mapRef.current, L = leafletRef.current;
     const toPt = (c: Cell): [number, number] =>
       isMarsGeographic(bundle.manifest)
@@ -796,19 +802,19 @@ export function LeafletGrid({
       mission.traveled?.forEach(record => L.polyline(record.cells.map(point), {
         color: '#94a3b8', weight: 4.5, interactive: false,
       }).addTo(layer));
-      mission.previous?.forEach(leg => draw(leg.route, '#fde047', '3 8'));
+      mission.previous?.forEach(leg => draw(leg.route, '#e1ddd3', '3 8'));
 
       for (const [index, leg] of mission.planned.entries()) {
         const isReturn = leg.targetId === landingId;
-        draw(leg.route, isReturn ? '#34d399' : '#f3a833', isReturn ? '7 5' : undefined, !isReturn);
+        draw(leg.route, '#27c5ae', isReturn ? '7 5' : undefined, true);
         const end = leg.route.geometryGrid.at(-1);
         if (end && !isReturn) {
           const marker = L.circleMarker(point(end), {
-            radius: 6.5, color: '#f3a833', fillColor: '#181512',
+            radius: 6.5, color: '#ecf5eb', fillColor: '#10584e',
             fillOpacity: 1, weight: 3, interactive: false,
           }).addTo(layer);
           const label = document.createElement('span');
-          label.textContent = `${index + 1}. ${leg.to} (${end[0]}, ${end[1]})`;
+          label.textContent = `${index + 1}. ${leg.to.split(' · ')[0].replace(/ \(\d+, \d+\)$/, '')}`;
           const closeToPrevious = mission.planned.slice(0, index).some(previousLeg => {
             const previousEnd = previousLeg.route.geometryGrid.at(-1);
             return previousEnd && Math.hypot(previousEnd[0] - end[0], previousEnd[1] - end[1]) < 8;
@@ -879,6 +885,7 @@ export function LeafletGrid({
       const latLng: [number, number] = geo ? gridToMarsLatLng(pt.row, pt.col, bundle.manifest) : [pt.viewerLatitude, pt.viewerLongitude];
       const marker = L.circleMarker(latLng, {
         radius: 5.5, color: '#14110f', weight: 1.5, fillColor: markerColors[pt.state], fillOpacity: 0.98,
+        bubblingMouseEvents: false,
       }).addTo(layer);
       const tooltip = document.createElement('span');
       tooltip.textContent = opportunities.length > 0
@@ -890,7 +897,7 @@ export function LeafletGrid({
         direction: nearPrev ? 'bottom' : 'top',
         offset: [0, nearPrev ? 8 : -8],
       });
-      marker.on('click', () => {
+      const inspectTarget = () => {
         onInspectRef.current?.({
           lat: geo ? latLng[0] : null,
           lon: geo ? latLng[1] : null,
@@ -898,8 +905,22 @@ export function LeafletGrid({
           status: 'COVERED',
           label: pt.title,
         });
-        onSelectRef.current(pt.row, pt.col);
-      });
+        if (!isMissionMap) onSelectRef.current(pt.row, pt.col);
+      };
+      marker.on('click', inspectTarget);
+      if (isMissionMap) {
+        const pin = marker.getElement();
+        pin?.setAttribute('role', 'button');
+        pin?.setAttribute('tabindex', '0');
+        pin?.setAttribute('aria-label', `Inspect ${pt.title}`);
+        pin?.addEventListener('keydown', (event: Event) => {
+          const key = (event as KeyboardEvent).key;
+          if (key !== 'Enter' && key !== ' ') return;
+          event.preventDefault();
+          event.stopPropagation();
+          inspectTarget();
+        });
+      }
     }
 
     const [br, bc] = [Math.floor(bundle.manifest.baseIndex / bundle.manifest.width), bundle.manifest.baseIndex % bundle.manifest.width];
@@ -919,7 +940,7 @@ export function LeafletGrid({
         radius: 7.5, color: '#fde047', weight: 2.5, fillColor: '#e58e26', fillOpacity: 1,
       }).addTo(layer).bindTooltip('Selected scenario destination');
     }
-  }, [bundle, selectedCell, opportunities, mapRevision]);
+  }, [bundle, selectedCell, opportunities, mapRevision, isMissionMap]);
 
   return (
     <div className="map-root-wrap">

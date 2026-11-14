@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 test('interrupted science preserves observations, survives reload, compares finish vs leave stop, and records keyboard hazard coordinates', async ({page}) => {
   const errors: string[] = [];
@@ -16,6 +17,8 @@ test('interrupted science preserves observations, survives reload, compares fini
   await expect(page.locator('.cc-baseline-gate')).toContainText('0.8× margin:');
 
   await page.getByRole('button', {name: 'Approve & lock baseline plan'}).click();
+  await expect(page.getByRole('button', {name: 'Download JSON'})).toBeVisible();
+  await page.getByRole('button', {name: 'Start traverse'}).click();
   await page.getByRole('button', {name: 'Arrive at stop'}).click();
 
   const stopOps = page.getByLabel('Active stop exploration');
@@ -26,7 +29,7 @@ test('interrupted science preserves observations, survives reload, compares fini
   await stopOps.getByRole('button', {name: 'Record observation'}).click();
 
   await stopOps.getByRole('button', {name: 'Explore +10 min'}).click();
-  await expect(stopOps).toContainText('10 / 20 min');
+  await expect(stopOps).toHaveCount(0);
 
   const readingAlert = page.getByLabel('Incoming simulated reading');
   await expect(readingAlert).toBeVisible();
@@ -35,7 +38,7 @@ test('interrupted science preserves observations, survives reload, compares fini
   await page.getByRole('button', {name: 'Resume saved mission'}).click();
 
   await expect(page.getByLabel('Incoming simulated reading')).toBeVisible();
-  await expect(page.getByLabel('Active stop exploration')).toContainText('10 / 20 min');
+  await expect(page.getByRole('button', {name: 'Complete stop'})).toHaveCount(0);
 
   await page.getByLabel('Incoming simulated reading')
     .getByRole('button', {name: 'Record reading & evaluate impact'})
@@ -49,19 +52,34 @@ test('interrupted science preserves observations, survives reload, compares fini
 
   await page.getByRole('button', {name: 'Approve: leave stop & continue'}).click();
 
+  await page.getByText('Mission history', {exact:true}).click();
   await expect(page.getByText('departed-early · 10/20 min · 1 note(s)')).toBeVisible();
   await expect(page.getByText('Layered sulfate lens observed (exploration)')).toBeVisible();
 
+  await page.getByText('Record an event', {exact:true}).click();
   await page.getByLabel('Event category').selectOption('NEW_TERRAIN_HAZARD');
   await page.getByLabel('Event row Y').fill('118');
   await page.getByLabel('Event column X').fill('122');
   await expect(page.getByText(/Target cell \(118, 122\)/)).toBeVisible();
   await page.getByLabel('Event category').selectOption('MISSION_DELAY');
 
-  await page.getByRole('button', {name: 'Complete next stop'}).click();
-  await page.getByRole('button', {name: 'Complete next stop'}).click();
+  for (let i = 0; i < 2; i++) {
+    await page.getByRole('button', {name: 'Arrive at stop'}).click();
+    const explore = page.getByRole('button', {name: /^Explore /});
+    while (await explore.isEnabled()) await explore.click();
+    await page.getByRole('button', {name: 'Complete stop'}).click();
+  }
   await page.getByRole('button', {name: 'Return to Landing Site'}).click();
   await expect(page.getByRole('heading', {name: 'Mission complete'})).toBeVisible();
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', {name: 'Download JSON'}).click();
+  const archive = JSON.parse(await readFile(await (await download).path(), 'utf8'));
+  expect(archive.execution.status).toBe('COMPLETED');
+  expect(archive.execution.position).toEqual(archive.baseline.origin);
+  expect(archive.execution.stopProgress.shuyak.exploredMinutes).toBe(10);
+  expect(archive.execution.fieldObservations[0].note).toBe('Layered sulfate lens observed');
+  expect(archive.execution.events).toHaveLength(1);
 
   expect(errors).toEqual([]);
 });

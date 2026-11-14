@@ -2,30 +2,36 @@
   "instrument": "NASA PDS Mars 2020 MEDA Pressure Sensor (PS)",
   "sourceUrl": "https://pds-atmospheres.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/",
   "units": "Pa",
-  "note": "Historical Jezero pressure records for selected sols; not real-time weather.",
+  "note": "Historical Jezero observations. Rows match the file sol in local true solar time and pass the project plausibility screen of 0 < pressure \u2264 2,000 Pa.",
   "sols": [
     {
       "sol": 490,
       "file": "WE__0490___________DER_PS__________________P01.CSV",
-      "validRecords": 34551,
+      "sourceFileSha256": "ffed43301b15c786c3f61e55af6b8914c5feb77c6dbc91f7324bb3ab23a54309",
+      "labelSha256": "c949fa98231118b2cc3f10c7b0037c16b52cd7b887fa13df66b495a284c39d15",
+      "validRecords": 34385,
       "minPa": 776.81,
-      "medianPa": 798.67,
+      "medianPa": 798.57,
       "maxPa": 817.19
     },
     {
       "sol": 509,
       "file": "WE__0509___________DER_PS__________________P01.CSV",
-      "validRecords": 32196,
+      "sourceFileSha256": "ec1a2f81f590a40425bee1e0916039e53bae63f383e990c7ec9c9b797e330a35",
+      "labelSha256": "f0084285a4fba2a052ddca86babefa6f76d7fee41ee13d30274cd3a47d8f5345",
+      "validRecords": 31203,
       "minPa": 767.25,
-      "medianPa": 791.76,
+      "medianPa": 791.52,
       "maxPa": 803.65
     },
     {
       "sol": 575,
       "file": "WE__0575___________DER_PS__________________P01.CSV",
-      "validRecords": 25719,
+      "sourceFileSha256": "39c4924fe310d2b2c44d2f8e180f034a91b3bdeae996a3cb0f028ef7fa01c67d",
+      "labelSha256": "91c34619739005944e3621ec73ef1abce0fc20c29e00eeaee075ee95335317f3",
+      "validRecords": 24788,
       "minPa": 707.53,
-      "medianPa": 746.52,
+      "medianPa": 746.19,
       "maxPa": 768.44
     }
   ],

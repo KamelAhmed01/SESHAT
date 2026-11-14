@@ -5,7 +5,6 @@ import { useMemo, useEffect, useRef, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
 import type { MapPointInspection } from '@/components/cartography/LeafletGrid';
-import { ElevationProfile } from '@/components/visualizations/ElevationProfile';
 import type { FieldBundle } from '@/data/loader';
 import { addResources, subtractResources, zeroResources } from '@/engine/consumables';
 import {
@@ -30,20 +29,11 @@ import scenario from '@/config/mission-scenario.json';
 import { channelLabels, eventLabel, eventMeasurement, MissionEventRecorder, scenarioPoint } from './MissionEventRecorder';
 import type { EventSubmission } from './MissionEventRecorder';
 import {
-  AnalysisDonutRings,
   conservativeSummary,
   marginText,
   MissionPlanPreview,
-  nominalMargin,
   PlanComparison,
-  TwinStatusCards,
 } from './MissionPlanPreview';
-
-const surfaceGallery = [
-  {id: 'shuyak', shortName: 'Enchanted Lake', file: 'enchanted-lake.webp', label: 'Enchanted Lake · Cape Nukshak', caption: 'Enchanted Lake area · Perseverance Hazcam · NASA/JPL-Caltech'},
-  {id: 'swift-run', shortName: 'Skinner Ridge', file: 'skinner-ridge.webp', label: 'Thornton Gap · Skinner Ridge', caption: 'Thornton Gap abrasion, Skinner Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS'},
-  {id: 'hazeltop', shortName: 'Wildcat Ridge', file: 'wildcat-ridge.webp', label: 'Berry Hollow · Wildcat Ridge', caption: 'Berry Hollow abrasion, Wildcat Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS'},
-] as const;
 
 const photos: Record<string, {file: string; caption: string}> = {
   'swift-run': {file: 'skinner-ridge.webp', caption: 'Thornton Gap abrasion, Skinner Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS'},
@@ -81,13 +71,14 @@ function SiteEvidence({stop, unitLabel, thermalValue}: {stop: ScienceTarget; uni
 }
 
 function SelectionPanel({
-  catalog, selected, limit, origin, width, height, customCol, customRow, bundle, headingRef,
+  catalog, selected, limit, width, height, customCol, customRow, bundle, headingRef, decision,
   onCustomCol, onCustomRow, onAddCustomPoint, onMode, onAdd, onChange, onReorder, onResume,
 }: {
   catalog: ScienceTarget[]; selected: ScienceTarget[]; limit: number;
-  origin: Cell; width: number; height: number;
+  width: number; height: number;
   customCol: string; customRow: string;
   bundle: FieldBundle;
+  decision: React.ReactNode;
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
   onCustomCol: (v: string) => void; onCustomRow: (v: string) => void;
   onAddCustomPoint: () => void;
@@ -95,64 +86,25 @@ function SelectionPanel({
   onChange: (stops: ScienceTarget[]) => void; onReorder: (index: number) => void;
   onResume: () => void;
 }) {
-  const lastTarget = selected.at(-1);
   return <>
-    <section className="cc-panel-block cc-panel-compact">
-      <div className="cc-panel-header">
-        <div>
-          <h1 ref={headingRef} tabIndex={-1}>Plan a science traverse</h1>
+    <section className="field-section">
+      <h1 ref={headingRef} tabIndex={-1}>Plan a science traverse</h1>
+      <p>Choose science stops for a round trip from the landing site.</p>
+      <div className="field-mode">
+        <div className="mission-actions" role="group" aria-label="Destination mode">
+          <button type="button" aria-pressed={limit === 1} onClick={() => onMode(1)}>Single</button>
+          <button type="button" aria-pressed={limit > 1} onClick={() => onMode(stopLimit)}>Multiple</button>
         </div>
-        <div className="cc-header-controls">
-          <div className="mission-actions" role="group" aria-label="Destination mode">
-            <button type="button" aria-pressed={limit === 1} onClick={() => onMode(1)}>Single</button>
-            <button type="button" aria-pressed={limit > 1} onClick={() => onMode(stopLimit)}>Multiple</button>
-          </div>
-          <Button label="Resume saved mission" onClick={onResume}/>
-        </div>
-      </div>
-
-      <div className="cc-coords-grid">
-        <div className="cc-coord-group">
-          <span className="cc-coord-label">Enter first point:</span>
-          <div className="cc-coord-pair">
-            <div className="cc-coord-box"><span>X:</span><strong>{origin[1]}</strong><small>col</small></div>
-            <div className="cc-coord-box"><span>Y:</span><strong>{origin[0]}</strong><small>row</small></div>
-          </div>
-          <span className="cc-choose-hint">Landing origin</span>
-        </div>
-
-        <div className="cc-coord-group">
-          <span className="cc-coord-label">
-            {lastTarget ? `Enter second point (${lastTarget.name}):` : 'Enter second point:'}
-          </span>
-          <div className="cc-coord-pair cc-coord-input-row">
-            <label className="cc-coord-input">
-              <span>X:</span>
-              <input type="number" min={0} max={width - 1} value={customCol}
-                onChange={e => onCustomCol(e.target.value)} aria-label="Target column X" />
-            </label>
-            <label className="cc-coord-input">
-              <span>Y:</span>
-              <input type="number" min={0} max={height - 1} value={customRow}
-                onChange={e => onCustomRow(e.target.value)} aria-label="Target row Y" />
-            </label>
-            <button type="button" className="cc-plus-btn" onClick={onAddCustomPoint}
-              aria-label="Add custom coordinate point" title="Add cell to traverse">+</button>
-          </div>
-          <span className="cc-choose-hint">Choose on map</span>
-        </div>
+        <Button label="Resume saved mission" onClick={onResume}/>
       </div>
     </section>
 
-    <section className="cc-panel-block cc-panel-compact">
+    {selected.length > 0 && <section className="cc-panel-block cc-panel-compact">
       <div className="section-heading">
         <h2>Stop priorities</h2>
         <span className="section-index">{selected.length} / {limit}</span>
       </div>
-      {selected.length === 0 ? (
-        <p className="context-note">Top priority stays first if a stop is deferred. Select a site below or click the map.</p>
-      ) : (
-        <ol className="mission-stop-list">
+      <ol className="mission-stop-list">
           {selected.map((stop, index) => <li key={stop.id}>
             <div><strong>{stop.name}</strong><button type="button" aria-label={`Remove ${stop.name}`}
               onClick={() => onChange(selected.filter(item => item.id !== stop.id))}>×</button></div>
@@ -161,9 +113,10 @@ function SelectionPanel({
                 activity: {...stop.activity, minutes: Math.max(0, Math.min(120, Number(event.target.value)))}} : item))} /></label>
               {index > 0 && <button type="button" aria-label={`Raise priority of ${stop.name}`} onClick={() => onReorder(index)}>↑ Priority</button>}</div>
           </li>)}
-        </ol>
-      )}
-    </section>
+      </ol>
+    </section>}
+
+    {decision}
 
     <section className="cc-panel-block cc-panel-compact mission-catalog">
       <h2>Science sites</h2>
@@ -184,6 +137,16 @@ function SelectionPanel({
         })}
       </div>
     </section>
+    <details className="mission-disclosure field-coordinates">
+      <summary>Use grid coordinates</summary>
+      <form onSubmit={event => {event.preventDefault(); onAddCustomPoint();}}>
+        <label>Column <input type="number" min={0} max={width - 1} value={customCol}
+          onChange={event => onCustomCol(event.target.value)} aria-label="Target column X" required /></label>
+        <label>Row <input type="number" min={0} max={height - 1} value={customRow}
+          onChange={event => onCustomRow(event.target.value)} aria-label="Target row Y" required /></label>
+        <Button label="Add custom coordinate point" type="submit" />
+      </form>
+    </details>
   </>;
 }
 
@@ -231,14 +194,11 @@ function ExecutionPanel({
 
   return <>
     <section className="cc-panel-block cc-panel-compact">
-      <h1 ref={headingRef} tabIndex={-1}>{complete ? 'Returned to landing site' : 'Execute the approved plan'}</h1>
-      <div className="cc-coord-pair cc-exec-coords">
-        <div className="cc-coord-box"><span>X:</span><strong>{mission.position[1]}</strong><small>col</small></div>
-        <div className="cc-coord-box"><span>Y:</span><strong>{mission.position[0]}</strong><small>row</small></div>
-      </div>
-      <p className="context-note">Simulated position ({mission.position.join(', ')}) · {missionClock(mission.spent.minutes)} · {mission.spent.oxygen.toFixed(1)} L O₂ · {mission.spent.energy.toFixed(1)} Wh</p>
+      <h1 ref={headingRef} tabIndex={-1}>
+        {complete ? 'Returned to landing site' : activeProg ? activeProg.stopName : leg ? `Travel to ${leg.to}` : 'Mission in progress'}
+      </h1>
+      <p className="context-note">{missionClock(mission.spent.minutes)} elapsed · {mission.spent.oxygen.toFixed(1)} L O₂ used · {mission.spent.energy.toFixed(1)} Wh used</p>
       {baselineClock !== undefined && baselineResources && <p className="context-note">Baseline at {complete ? 'return' : 'latest completed stop'} · {missionClock(baselineClock)} · {baselineResources.oxygen.toFixed(1)} L O₂ · {baselineResources.energy.toFixed(1)} Wh</p>}
-      {leg && !mission.activeStopId && <p className="cc-next-leg">Next waypoint: <strong>{leg.to}</strong></p>}
     </section>
 
     {!complete && mission.pendingReading && (
@@ -248,7 +208,7 @@ function ExecutionPanel({
           <span className="cc-reading-channel">{channelLabels[mission.pendingReading.channel]}</span>
         </div>
         <p><strong>{mission.pendingReading.title}</strong></p>
-        <p className="context-note">{mission.pendingReading.measurement} · near ({mission.pendingReading.cell.join(', ')})</p>
+        <p className="context-note">{missionClock(mission.pendingReading.triggeredAtMinutes)} · {mission.pendingReading.measurement}</p>
         <p className="context-note">{mission.pendingReading.description}</p>
         <div className="mission-buttons">
           <Button label="Record reading & evaluate impact" variant="primary" onClick={onRecordReading} />
@@ -257,10 +217,10 @@ function ExecutionPanel({
       </section>
     )}
 
-    {mission.status === 'EXECUTING' && activeProg && (
+    {mission.status === 'EXECUTING' && activeProg && !mission.pendingReading && (
       <section className="cc-panel-block cc-panel-compact cc-stop-ops" aria-label="Active stop exploration">
         <div className="section-heading">
-          <span>At station · {activeProg.stopName}</span>
+          <span>Fieldwork</span>
           <span className="section-index">{activeProg.exploredMinutes.toFixed(0)} / {activeProg.plannedMinutes.toFixed(0)} min</span>
         </div>
         <p className="context-note">
@@ -289,7 +249,7 @@ function ExecutionPanel({
         </form>
         <div className="mission-buttons">
           <Button
-            label="Explore +10 min"
+            label={activeProg.plannedMinutes - activeProg.exploredMinutes < 10 ? 'Explore remaining time' : 'Explore +10 min'}
             variant="primary"
             isDisabled={activeProg.exploredMinutes >= activeProg.plannedMinutes}
             onClick={onExploreStep}
@@ -297,13 +257,13 @@ function ExecutionPanel({
           {!mission.pendingReading && (
             <Button label="Simulate incoming reading" onClick={onTriggerReading} />
           )}
-          <Button label="Complete stop" onClick={onFinishStop} />
+          <Button label="Complete stop" isDisabled={activeProg.exploredMinutes < activeProg.plannedMinutes} onClick={onFinishStop} />
         </div>
       </section>
     )}
 
-    <section className="cc-panel-block cc-panel-compact">
-      <h2>Mission history</h2>
+    <details className="mission-disclosure field-history">
+      <summary>Mission history</summary>
       <p className="context-note" role="status">{complete ? 'Returned · archive ready'
         : mission.status === 'REVIEW' ? 'Event analyzed · revised plan awaiting approval'
         : mission.status === 'HOLD' ? 'Holding · record a new event or review direct return'
@@ -330,12 +290,9 @@ function ExecutionPanel({
           <li key={i}>{missionClock(decision.minute)} · Revision {decision.kind}{decision.stopAction ? ` (${decision.stopAction})` : ''}</li>
         ))}
       </ol>
-      {!mission.completed.length && !mission.events.length && !observations.length && (
-        <p className="context-note">Baseline locked. Use Move, Arrive at stop, or Complete next stop on the map HUD.</p>
-      )}
-    </section>
+    </details>
 
-    {!complete && <details className="mission-disclosure cc-event-disclosure" open={mission.status !== 'REVIEW'}>
+    {!complete && <details className="mission-disclosure cc-event-disclosure">
       <summary>Record an event</summary>
       <MissionEventRecorder position={mission.position} selected={selected} remaining={remaining}
         nextEvent={mission.events.length + 1} onRecord={onEvent} />
@@ -343,10 +300,11 @@ function ExecutionPanel({
   </>;
 }
 
-function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, headingRef}: {
+function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, headingRef, onReopen}: {
   execution: MissionExecution; baselineRemaining: MissionPlan; returnPlan: MissionPlan | null;
   onDecision: (plan: MissionPlan, decision: 'approved' | 'held' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') => void;
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
+  onReopen: () => void;
 }) {
   const proposed = execution.proposal;
   if (!proposed) return null;
@@ -356,14 +314,17 @@ function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, hea
   const activeProg = execution.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
 
   const omitted = baselineRemaining.stops.filter(stop => !proposed.stops.some(candidate => candidate.id === stop.id));
-  const previousMargin = nominalMargin(baselineRemaining), proposedMargin = nominalMargin(proposed);
+  const previousMargin = conservativeSummary(baselineRemaining)?.margin, proposedMargin = conservativeSummary(proposed)?.margin;
   const delta = previousMargin && proposedMargin && subtractResources(proposedMargin, previousMargin);
   const added = proposed.stops.filter(stop => !baselineRemaining.stops.some(prior => prior.id === stop.id));
   const shortened = proposed.stops.filter(stop => baselineRemaining.stops.some(prior =>
     prior.id === stop.id && prior.activity.minutes > stop.activity.minutes));
 
   return <section className="mission-review" aria-label="Replan review">
-    <h2 ref={headingRef} tabIndex={-1}>{execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}</h2>
+    <h1 ref={headingRef} tabIndex={-1}>{execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}</h1>
+    {execution.events.at(-1) && <p className="field-event-title">{eventLabel(execution.events.at(-1)!.category)}</p>}
+    {execution.status === 'HOLD' && <Button label="Resume review" variant="primary" onClick={onReopen} />}
+    {!hasDualStopBranches && execution.proposalReason && <p>{execution.proposalReason}</p>}
 
     {hasDualStopBranches && finishBranch && leaveBranch ? (
       <>
@@ -374,16 +335,16 @@ function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, hea
           </p>
         )}
         <div className="mission-comparison">
-          <div>
+          <div data-recommended={execution.recommendedProposal === 'finish-stop'}>
             <small>Option A · Finish stop &amp; continue {execution.recommendedProposal === 'finish-stop' ? '(Recommended)' : ''}</small>
             <p>{missionSequence(finishBranch)}</p>
-            <p>{marginText(nominalMargin(finishBranch))}</p>
+            <p>{marginText(conservativeSummary(finishBranch)?.margin ?? null)} at 0.8×</p>
             {!canApprove(finishBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
           </div>
-          <div>
+          <div data-recommended={execution.recommendedProposal === 'leave-stop'}>
             <small>Option B · Leave stop now (keep partial science) {execution.recommendedProposal === 'leave-stop' ? '(Recommended)' : ''}</small>
             <p>{missionSequence(leaveBranch)}</p>
-            <p>{marginText(nominalMargin(leaveBranch))}</p>
+            <p>{marginText(conservativeSummary(leaveBranch)?.margin ?? null)} at 0.8×</p>
             {!canApprove(leaveBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
           </div>
         </div>
@@ -409,10 +370,10 @@ function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, hea
       </>
     ) : (
       <>
-        <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" />
+        <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" speed={0.8} />
         {omitted.length > 0 && <p>Deferred: {omitted.map(stop => stop.name).join(', ')}.</p>}
         {added.length > 0 && <p>Added: {added.map(stop => stop.name).join(', ')}.</p>}
-        {delta && <p>Reserve margin change: {marginText(delta)}.</p>}
+        {delta && <p>Reserve change at 0.8× · {marginText(delta)}.</p>}
         {shortened.length > 0 && <p>Shortened activity: {shortened.map(stop => stop.name).join(', ')}.</p>}
         {!canApprove(proposed) && <p role="status">Approval requires all three reserves at every modeled speed.</p>}
         <div className="mission-buttons">
@@ -436,14 +397,10 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   const [useAlternative, setUseAlternative] = useState<'primary' | 'subset' | 'priority' | 'lowerSlope'>('primary');
   const [execution, setExecution] = useState<MissionExecution | null>(null);
   const [mapSelection, setMapSelection] = useState<Cell | null>(null);
-  const [optical, setOptical] = useState(false);
+  const [optical, setOptical] = useState(Boolean(bundle.manifest.optical));
+  const [locked, setLocked] = useState(false);
   const [notice, setNotice] = useState('');
   const [showSources, setShowSources] = useState(false);
-  const [siteQuery, setSiteQuery] = useState('');
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const [cameraMode, setCameraMode] = useState<'surface' | 'profile'>('surface');
-  const [cameraZoom, setCameraZoom] = useState(1);
-  const [mapExpanded, setMapExpanded] = useState(false);
   const [showGeology, setShowGeology] = useState(false);
   const [showThermal, setShowThermal] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
@@ -475,28 +432,12 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   [displayed, execution, previous, mapSelection]);
   const storageKey = `seshat-execution-v1:${manifest.sourceFileSha256 ?? manifest.sourceId}:${manifest.baseIndex}`;
 
-  const totalDistanceMeters = useMemo(() => {
-    if (!currentPlan) return 0;
-    return currentPlan.legs.reduce((sum, leg) => sum + (Number.isFinite(leg.terrain.distance) ? leg.terrain.distance : 0), 0);
-  }, [currentPlan]);
-
-  const filteredCatalog = useMemo(() => {
-    const q = siteQuery.trim().toLowerCase();
-    const list = manifest.scienceTargets ?? [];
-    if (!q) return list;
-    return list.filter(item =>
-      item.name.toLowerCase().includes(q) ||
-      item.science.summary.toLowerCase().includes(q) ||
-      item.id.toLowerCase().includes(q));
-  }, [manifest.scienceTargets, siteQuery]);
-
-  const activePhoto = surfaceGallery[photoIndex % surfaceGallery.length];
-  const activeExecutionLeg = execution ? execution.active.legs[execution.legIndex] : undefined;
-  const profileLeg = currentPlan?.legs[0];
+  const catalog = manifest.scienceTargets ?? [];
+  const activeExecutionLeg = execution?.active.legs[execution.legIndex];
   const baselineGate = useMemo(() => conservativeSummary(plan), [plan]);
   const activeStopProgress = execution?.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
   const phaseKey = !execution
-    ? 'PLAN'
+    ? locked ? 'LOCKED' : 'PLAN'
     : execution.status === 'REVIEW'
       ? 'REVIEW'
       : execution.status === 'HOLD'
@@ -506,23 +447,8 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
           : execution.activeStopId
             ? activeStopProgress?.status === 'exploring' ? 'EXPLORE' : 'ARRIVED'
             : 'MOVING';
-  const phaseLabel = phaseKey === 'PLAN'
-    ? 'Plan baseline'
-    : phaseKey === 'MOVING'
-      ? 'Execute · Moving'
-      : phaseKey === 'ARRIVED'
-        ? 'Execute · At stop'
-        : phaseKey === 'EXPLORE'
-          ? 'Execute · Exploring'
-          : phaseKey === 'REVIEW'
-            ? 'Pause & Review'
-            : phaseKey === 'HOLD'
-              ? 'Holding'
-              : 'Returned';
-  const medaFirstSol = bundle.contextData?.meda?.sols?.[0];
-  const medaBadge = medaFirstSol
-    ? `MEDA Sol ${medaFirstSol.sol} · ${Math.round(medaFirstSol.medianPa)} Pa · live weather N/A`
-    : 'MEDA archive · live weather N/A';
+  const reviewing = Boolean(execution?.proposal && previous);
+  const meda = bundle.contextData?.meda;
 
   const phaseHeadingRef = useRef<HTMLHeadingElement>(null);
   const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -532,11 +458,8 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
     if (prevPhaseRef.current === phaseKey) return;
     prevPhaseRef.current = phaseKey;
     requestAnimationFrame(() => {
-      if (phaseKey === 'REVIEW') {
-        reviewHeadingRef.current?.focus();
-      } else {
-        phaseHeadingRef.current?.focus();
-      }
+      const heading = phaseKey === 'REVIEW' || phaseKey === 'HOLD' ? reviewHeadingRef : phaseHeadingRef;
+      heading.current?.focus();
     });
   }, [phaseKey]);
 
@@ -561,14 +484,13 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
 
   function changeStops(stops: ScienceTarget[]) {
     setSelected(stops);
+    setLocked(false);
     setUseAlternative('primary');
     setNotice('');
     const last = stops.at(-1);
     if (last && last.location.gridCol !== null && last.location.gridRow !== null) {
       setCustomCol(String(last.location.gridCol));
       setCustomRow(String(last.location.gridRow));
-      const matchedIdx = surfaceGallery.findIndex(item => item.id === last.id);
-      if (matchedIdx >= 0) setPhotoIndex(matchedIdx);
     }
   }
 
@@ -584,6 +506,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
     setCustomCol(String(col));
     setCustomRow(String(row));
     if (execution) return setMapSelection(point);
+    if (locked) return;
     const index = cellIndex(point, bundle);
     if (bundle.mask[index] !== 1 || index === manifest.baseIndex) return setNotice('Choose a covered terrain cell away from the landing site.');
     const documented = manifest.scienceTargets?.find(stop => stop.location.gridRow === row && stop.location.gridCol === col);
@@ -591,6 +514,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   }
 
   function addManualCell() {
+    if (!customRow.trim() || !customCol.trim()) return setNotice('Enter both grid coordinates.');
     const row = Number(customRow);
     const col = Number(customCol);
     if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row >= manifest.height || col < 0 || col >= manifest.width) {
@@ -601,518 +525,229 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
 
   function exportPlan(format: 'json' | 'md') {
     if (!plan) return;
-    const archive = createArchive(execution?.baseline ?? plan, manifest, execution ?? undefined, bundle.contextData);
+    const archive = createArchive(execution?.baseline ?? plan, manifest, execution ?? undefined, bundle.contextData, execution ? undefined : limit);
     download(`seshat-${execution?.status === 'COMPLETED' ? 'mission-archive' : 'baseline'}.${format}`,
       format === 'json' ? JSON.stringify(archive, null, 2) : archiveMarkdown(archive),
       format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8');
   }
 
+  function advance(progress: 'part' | 'arrive' | 'explore' | 'finish') {
+    setExecution(current => current && advanceMission(current, bundle, progress));
+    setMapSelection(null);
+  }
+
+  function inspectPoint(info: MapPointInspection) {
+    setInspectedPoint(info);
+    setMapSelection(info.status === 'COVERED' ? info.cell : null);
+    setNotice('');
+  }
+
+  function clearInspection() {
+    setInspectedPoint(null);
+    setMapSelection(null);
+  }
+
+  function decide(updated: MissionPlan, decision: 'approved' | 'held' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') {
+    setExecution(current => current && decideReplan(current, updated, decision, stopAction ? {stopAction} : undefined));
+  }
+
+  const travelControls = execution?.status === 'EXECUTING' && !execution.activeStopId && !execution.pendingReading && activeExecutionLeg;
+  const baselineDecision = plan && <section className="field-section field-decision" aria-label="Baseline decision">
+    <h2>Return reserves <small>at 0.8× pace</small></h2>
+    <p className="cc-baseline-gate">
+      {baselineGate?.margin ? `0.8× margin: ${marginText(baselineGate.margin)}` : 'Return margin unavailable'}
+    </p>
+    {baselineGate?.margin && <small>Limiting resource · {baselineGate.limitingLabel}</small>}
+    <p>{missionSequence(plan)}</p>
+    {plan.deferred.length > 0 && <p>Deferred: {plan.deferred.map(stop => stop.name).join(', ')}.</p>}
+    <Button label="Approve & lock baseline plan" variant="primary" isDisabled={!canApprove(plan)} onClick={() => setLocked(true)} />
+    {!canApprove(plan) && <p>Approval requires all reserves at 0.8×, 1× and 1.2×.</p>}
+  </section>;
+
   return (
-    <div className="cc-backdrop">
-      <main className="workbench lifecycle cc-shell">
-        <aside className="cc-sidebar" aria-label="Command navigation">
-          <div className="cc-brand">
-            <div className="cc-logo-ring" aria-hidden="true">S</div>
-            <div className="brand-text">
-              <strong>SESHAT</strong>
-              <span>MARS SURFACE SCIENCE</span>
-            </div>
-          </div>
-
-          <nav className="cc-nav" aria-label="Workspace sections">
-            <button type="button" className="cc-nav-item" onClick={() => { setSiteQuery(''); setMapExpanded(false); }}>
-              <span className="cc-nav-icon" aria-hidden="true">⌂</span>
-              <span>Overview</span>
-            </button>
-            <Link href="/?opportunities=1" className="cc-nav-item" prefetch={false}>
-              <span className="cc-nav-icon" aria-hidden="true">◫</span>
-              <span>Opportunity frontier</span>
-            </Link>
-            <button type="button" className="cc-nav-item cc-nav-active" aria-current="page">
-              <span className="cc-nav-icon" aria-hidden="true">⌖</span>
-              <span>Command center</span>
-            </button>
-          </nav>
-
-          <div className="cc-sidebar-bottom">
-            <button type="button" className="cc-nav-item" onClick={() => setShowSources(value => !value)} aria-expanded={showSources}>
-              <span className="cc-nav-icon" aria-hidden="true">⚙</span>
-              <span>Data &amp; assumptions</span>
-            </button>
-            <Link href="/?demo=1" className="cc-nav-item" prefetch={false}>
-              <span className="cc-nav-icon" aria-hidden="true">◈</span>
-              <span>Synthetic test scene</span>
-            </Link>
-
-            <div className="cc-help-card">
-              <div className="cc-help-title">
-                <span className="cc-help-badge" aria-hidden="true">?</span>
-                <strong>Need help?</strong>
+    <main className="field-workbench">
+      <header className="field-header">
+        <div><strong>SESHAT</strong><span>Jezero western fan</span></div>
+        <Button label="Sources" onClick={() => setShowSources(value => !value)} aria-expanded={showSources} />
+      </header>
+      <div className="field-layout">
+        <section className="field-map" aria-label="Planetary terrain map">
+          <LeafletGrid
+            bundle={bundle}
+            selectedCell={null}
+            onCellSelect={selectCell}
+            onInspectPoint={inspectPoint}
+            elapsedMinutes={0}
+            missionBudgetMinutes={scenario.timeBudgetMinutes}
+            reserveMinutes={scenario.reserveMinutes}
+            showOptical={optical}
+            showGeology={showGeology}
+            showThermal={showThermal}
+            fitRequestKey={fitRequestKey}
+            resetViewRequestKey={resetViewRequestKey}
+            mission={overlay}
+          />
+          <div className="field-map-tools">
+            <details className="field-layers" open={!manifest.mapDisplay}>
+              <summary>Layers</summary>
+              <div>
+                <div className="field-layer-options" role="group" aria-label="Surface layer">
+                  <button type="button" aria-pressed={!optical} onClick={() => setOptical(false)}>Terrain</button>
+                  {manifest.optical && <button type="button" aria-pressed={optical} onClick={() => setOptical(true)}>Orbital</button>}
+                  {bundle.contextData?.geologicUnits && <button type="button" aria-pressed={showGeology} onClick={() => setShowGeology(value => !value)}>Geology</button>}
+                  {bundle.contextData?.thermalInertia && <button type="button" aria-pressed={showThermal} onClick={() => setShowThermal(value => !value)}>Thermal</button>}
+                </div>
               </div>
-              <p>Inspect NASA CTX sources &amp; scenario assumptions</p>
-              <button type="button" className="cc-help-btn" onClick={() => setShowSources(true)}>
-                Documentation
-              </button>
-              <div className="cc-mars-orb" aria-hidden="true" />
-            </div>
+            </details>
+            <button type="button" onClick={() => setResetViewRequestKey(key => key + 1)}>Back to Jezero</button>
+            <button type="button" onClick={() => setFitRequestKey(key => key + 1)}>Fit mission</button>
           </div>
-        </aside>
-
-        <div className="cc-workspace">
-          <header className="mission-header cc-topbar">
-            <div className="cc-title-block">
-              <span className="cc-main-title">Command Center</span>
-              <span className="cc-subtitle">
-                Jezero Western Fan · {manifest.status === 'VERIFIED' ? 'Team-reviewed Mars terrain' : 'Real Mars terrain · review pending'}
-              </span>
+          {inspectedPoint && <div className="cc-point-inspector field-point" aria-label="Map point inspection">
+            <div className="field-point-title">
+              <strong>{inspectedPoint.label}</strong>
+              <button type="button" onClick={clearInspection} aria-label="Close map point inspection">×</button>
             </div>
-
-            <div className="header-right cc-topbar-right">
-              <label className="cc-search-wrap">
-                <span className="cc-search-icon" aria-hidden="true">⌕</span>
-                <input
-                  type="search"
-                  value={siteQuery}
-                  onChange={e => setSiteQuery(e.target.value)}
-                  placeholder="Search Jezero sites…"
-                  aria-label="Search Jezero sites"
-                />
-              </label>
-              <span className="cc-meda-pill" title="Historical NASA PDS Mars 2020 MEDA archive; live weather unavailable">
-                {medaBadge}
-              </span>
-              <button
-                type="button"
-                className="cc-map-action-btn"
-                onClick={() => setShowSources(value => !value)}
-                aria-expanded={showSources}
-              >
-                Sources
-              </button>
-              <span className="cc-phase-pill" data-phase={phaseKey} role="status">
-                {phaseLabel}
-              </span>
-            </div>
-          </header>
-
-          {showSources && <section className="mission-source-strip" aria-label="Data and assumptions">
-            <p><strong>Research prototype.</strong> Orbital terrain, imagery and published rover observations are historical. All mobility and consumable parameters are scenario assumptions.</p>
-            <p><a href={manifest.sourceUrl}>CTX terrain</a> · {manifest.optical && <><a href={manifest.optical.sourceUrl}>CTX orbital mosaic</a> · </>}
-              <a href="https://mars.nasa.gov/mars2020/multimedia/raw-images/">Perseverance raw imagery</a> · <a href="https://trek.nasa.gov/mars/">NASA Mars Trek</a></p>
+            {inspectedPoint.lat != null && inspectedPoint.lon != null && <p>
+              {Math.abs(inspectedPoint.lat).toFixed(4)}°{inspectedPoint.lat < 0 ? 'S' : 'N'}, {Math.abs(inspectedPoint.lon).toFixed(4)}°{inspectedPoint.lon < 0 ? 'W' : 'E'}
+            </p>}
+            {inspectedPoint.status === 'COVERED' && inspectedPoint.elevationMeters != null && <p>{inspectedPoint.elevationMeters.toFixed(0)} m elevation</p>}
+            {inspectedPoint.status === 'COVERED' && inspectedPoint.cell && !locked && !execution && (
+              <Button label="Add this stop" variant="primary" onClick={() => {selectCell(...inspectedPoint.cell!); clearInspection();}} />
+            )}
+            {inspectedPoint.status === 'COVERED' && execution && <p>Selected location for your next event.</p>}
+          </div>}
+          <div className="field-map-legend" aria-label="Map legend">
+            <span><i className="field-key-boundary" />Modeled area</span>
+            {displayed?.length ? <span><i className="field-key-route" />{reviewing ? execution?.recommendedProposal ? 'Recommended route' : 'Proposed route' : 'Mission route'}</span> : null}
+            {reviewing && <span><i className="field-key-previous" />Previous route</span>}
+          </div>
+          {manifest.mapDisplay && <div className="field-map-credit">NASA / JPL · USGS</div>}
+        </section>
+        <aside className="field-panel" aria-label={execution ? 'Mission execution' : 'Mission planning'}>
+          {showSources && <section className="field-section field-sources" aria-label="Data and assumptions">
+            <h2>Sources</h2>
+            <p>Research prototype · {manifest.status === 'VERIFIED' ? 'Team-reviewed terrain' : 'Terrain review pending'}</p>
+            <ul>
+              <li><a href={manifest.sourceUrl}>CTX terrain</a></li>
+              {manifest.optical && <li><a href={manifest.optical.sourceUrl}>CTX orbital imagery</a></li>}
+              <li><a href="https://trek.nasa.gov/mars/">NASA Mars Trek</a></li>
+              {bundle.contextData?.geologicUnits && <li><a href={bundle.contextData.geologicUnits.sourceUrl}>Jezero bedrock · Stack et al.</a></li>}
+              {manifest.contextLayers?.thermalInertia && <li><a href={manifest.contextLayers.thermalInertia.sourceUrl}>Thermal inertia · Edwards and Buz</a></li>}
+              {meda && <li><a href={meda.sourceUrl}>Historical MEDA pressure</a></li>}
+            </ul>
+            {meda?.sols?.[0] && <p>Historical MEDA pressure · sol {meda.sols[0].sol} · {Math.round(meda.sols[0].medianPa)} Pa median</p>}
             <p>{Object.values(scenario.environmentalContext).join(' ')}</p>
+            <p><Link href="/?opportunities=1" prefetch={false}>Opportunity frontier</Link> · <Link href="/?demo=1" prefetch={false}>Synthetic test scene</Link></p>
           </section>}
-
-          <div className={`content-grid lifecycle-grid cc-bento${mapExpanded ? ' cc-bento-map-expanded' : ''}`}>
-            <div className="cc-col-left">
-              <section className="cc-card cc-map-card map-stage" aria-label="Planetary terrain map">
-                <div className="map-topline cc-map-header">
-                  <div className="cc-map-title-group">
-                    <span className="map-title">Topographic map</span>
-                    <span className="cc-map-sub">
-                      {manifest.mapDisplay?.projection === 'MARS_PLANETOCENTRIC_PLATE_CARREE'
-                        ? `${manifest.width}×${manifest.height} modeled 20 m AEQD · Global Mars Viking + 6 m CTX`
-                        : `${manifest.width}×${manifest.height} · 20 m local Mars AEQD`}
-                    </span>
-                  </div>
-                  <div className="cc-map-controls-top">
-                    <button
-                      type="button"
-                      className="cc-map-action-btn"
-                      onClick={() => setResetViewRequestKey(k => k + 1)}
-                    >
-                      Back to Jezero
-                    </button>
-                    <button
-                      type="button"
-                      className="cc-map-action-btn"
-                      onClick={() => setFitRequestKey(k => k + 1)}
-                    >
-                      Fit mission
-                    </button>
-                    {manifest.optical && <div className="map-layer-switch" role="group" aria-label="Surface layer">
-                      <button type="button" aria-pressed={!optical} onClick={() => setOptical(false)}>Terrain</button>
-                      <button type="button" aria-pressed={optical} onClick={() => setOptical(true)}>Orbital</button>
-                    </div>}
-                    {manifest.contextLayers?.geologicUnits?.geoImagePath && (
-                      <button
-                        type="button"
-                        className="cc-map-action-btn"
-                        aria-pressed={showGeology}
-                        onClick={() => setShowGeology(v => !v)}
-                      >
-                        Geology
-                      </button>
-                    )}
-                    {manifest.contextLayers?.thermalInertia?.geoImagePath && (
-                      <button
-                        type="button"
-                        className="cc-map-action-btn"
-                        aria-pressed={showThermal}
-                        onClick={() => setShowThermal(v => !v)}
-                      >
-                        Thermal
-                      </button>
-                    )}
-                    <span className="map-north" aria-hidden="true">↑ N</span>
-                    <button
-                      type="button"
-                      className="cc-expand-btn"
-                      onClick={() => setMapExpanded(v => !v)}
-                      aria-label={mapExpanded ? 'Restore map size' : 'Expand map'}
-                    >
-                      {mapExpanded ? '↙' : '⤢'}
-                    </button>
-                  </div>
-                </div>
-
-                <LeafletGrid
-                  bundle={bundle}
-                  selectedCell={null}
-                  onCellSelect={selectCell}
-                  onInspectPoint={info => {
-                    setInspectedPoint(info);
-                    if (info.status === 'OUTSIDE_GRID') {
-                      setNotice('Browse only · outside modeled terrain. Select a target inside the 20 m Jezero grid.');
-                    } else if (info.status === 'NODATA') {
-                      setNotice('Terrain data unavailable at that cell.');
-                    }
-                  }}
-                  elapsedMinutes={0}
-                  missionBudgetMinutes={scenario.timeBudgetMinutes}
-                  reserveMinutes={scenario.reserveMinutes}
-                  showOptical={optical}
-                  showGeology={showGeology}
-                  showThermal={showThermal}
-                  fitRequestKey={fitRequestKey}
-                  resetViewRequestKey={resetViewRequestKey}
-                  mission={overlay}
-                />
-
-                {inspectedPoint && (
-                  <div className="cc-point-inspector" role="status" aria-label="Map point inspection">
-                    <div className="cc-point-inspector-head">
-                      <span className="cc-point-inspector-badge" data-status={inspectedPoint.status}>
-                        {inspectedPoint.status === 'OUTSIDE_GRID'
-                          ? 'Browse only · outside modeled terrain'
-                          : inspectedPoint.status === 'NODATA'
-                            ? 'Terrain data unavailable'
-                            : inspectedPoint.label}
-                      </span>
-                      <button
-                        type="button"
-                        className="cc-map-action-btn"
-                        onClick={() => setInspectedPoint(null)}
-                        aria-label="Close map point inspection"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="cc-point-inspector-meta">
-                      {inspectedPoint.lat !== null && inspectedPoint.lon !== null && (
-                        <span>
-                          {`${Math.abs(inspectedPoint.lat).toFixed(4)}°${inspectedPoint.lat >= 0 ? 'N' : 'S'}, ${(((inspectedPoint.lon % 360) + 360) % 360).toFixed(4)}°E`}
-                        </span>
-                      )}
-                      {inspectedPoint.cell && (
-                        <span>Cell ({inspectedPoint.cell[0]}, {inspectedPoint.cell[1]})</span>
-                      )}
-                      {inspectedPoint.elevationMeters !== undefined && inspectedPoint.elevationMeters !== null && (
-                        <span>Elev {inspectedPoint.elevationMeters.toFixed(1)} m</span>
-                      )}
-                      {inspectedPoint.geologicUnit && (
-                        <span>Unit: {inspectedPoint.geologicUnit}</span>
-                      )}
-                      {inspectedPoint.thermalInertia !== undefined && inspectedPoint.thermalInertia !== null && (
-                        <span>TI {inspectedPoint.thermalInertia.toFixed(0)} J m⁻² K⁻¹ s⁻¹/²</span>
-                      )}
-                    </div>
-                    {inspectedPoint.status === 'OUTSIDE_GRID' && (
-                      <span>Outside the 20 m Mars AEQD routing terrain; pan or click &quot;Back to Jezero&quot; to select stops inside modeled terrain.</span>
-                    )}
-                  </div>
-                )}
-
-                <div className="cc-map-hud">
-                  <div className="cc-hud-cta">
-                    {!execution && (
-                      <>
-                        <Button
-                          label="Approve & lock baseline plan"
-                          variant="primary"
-                          isDisabled={!plan || !canApprove(plan)}
-                          onClick={() => plan && setExecution(startMission(plan, selected, limit))}
-                        />
-                        {baselineGate && (
-                          <span className="cc-baseline-gate">
-                            {baselineGate.margin
-                              ? `0.8× margin: ${baselineGate.limitingLabel} ${baselineGate.limitingText}`
-                              : '0.8× margin unknown'}
-                          </span>
-                        )}
-                      </>
-                    )}
-                    {execution && execution.status !== 'COMPLETED' && !execution.activeStopId && (
-                      <>
-                        <Button
-                          label="Move along active leg"
-                          onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'part')); setMapSelection(null);}}
-                          isDisabled={execution.status !== 'EXECUTING' || execution.cursor >= (activeExecutionLeg?.route.geometryGrid.length ?? 1) - 1}
-                        />
-                        {activeExecutionLeg?.targetId !== landingId && (
-                          <Button
-                            label="Arrive at stop"
-                            onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'arrive')); setMapSelection(null);}}
-                            isDisabled={execution.status !== 'EXECUTING'}
-                          />
-                        )}
-                        <Button
-                          label={activeExecutionLeg?.targetId === landingId ? 'Return to Landing Site' : 'Complete next stop'}
-                          variant="primary"
-                          onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'finish')); setMapSelection(null);}}
-                          isDisabled={execution.status !== 'EXECUTING'}
-                        />
-                      </>
-                    )}
-                    {execution && execution.status !== 'COMPLETED' && execution.activeStopId && (
-                      <>
-                        <Button
-                          label="Explore +10 min"
-                          variant="primary"
-                          onClick={() => setExecution(current => current && advanceMission(current, bundle, 'explore', 10))}
-                          isDisabled={
-                            execution.status !== 'EXECUTING' ||
-                            (activeStopProgress ? activeStopProgress.exploredMinutes >= activeStopProgress.plannedMinutes : false)
-                          }
-                        />
-                        <Button
-                          label="Complete stop"
-                          onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'finish')); setMapSelection(null);}}
-                          isDisabled={execution.status !== 'EXECUTING'}
-                        />
-                      </>
-                    )}
-                  </div>
-                  <div className="cc-hud-metrics">
-                    <div className="cc-hud-pill">
-                      <small>Distance:</small>
-                      <strong>{totalDistanceMeters >= 1000 ? `${(totalDistanceMeters / 1000).toFixed(2)} km` : `${Math.round(totalDistanceMeters)} m`}</strong>
-                    </div>
-                    <div className="cc-hud-pill">
-                      <small>Time:</small>
-                      <strong>{currentPlan?.used?.minutes != null ? `${Math.round(currentPlan.used.minutes)} min` : '0 min'}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="lifecycle-map-key">
-                  <span>● Scenario landing site</span>
-                  <span>● Contingency stop</span>
-                  {execution?.proposal && <span>┄ Previous route</span>}
-                  <span>20 m analysis cells</span>
-                </div>
-              </section>
-
-              <section className="cc-card cc-camera-card" aria-label="Surface camera and elevation view">
-                <div className="cc-camera-header">
-                  <div>
-                    <span className="cc-camera-title">Camera view</span>
-                    <span className="cc-camera-sub">{activePhoto.label}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="cc-expand-btn"
-                    onClick={() => setCameraZoom(z => (z > 1.05 ? 1 : 1.35))}
-                    aria-label={cameraZoom > 1.05 ? 'Reset camera zoom' : 'Zoom camera view'}
-                  >
-                    ⤢
-                  </button>
-                </div>
-
-                {cameraMode === 'surface' ? (
-                  <div className="cc-camera-stage">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- local Perseverance surface imagery ships with the offline export */}
-                    <img
-                      src={`/data/imagery/${activePhoto.file}`}
-                      alt={activePhoto.caption}
-                      className="cc-camera-img"
-                      style={{transform: `scale(${cameraZoom})`}}
-                    />
-                    <div className="cc-camera-scrim" aria-hidden="true" />
-                    <span className="cc-camera-caption">{activePhoto.caption}</span>
-                  </div>
-                ) : (
-                  <div className="cc-camera-profile-stage">
-                    {profileLeg?.route.status === 'READY' ? (
-                      <ElevationProfile
-                        route={profileLeg.route}
-                        cellWidthMeters={manifest.cellWidthMeters}
-                        cellHeightMeters={manifest.cellHeightMeters}
-                        label={`Leg 1 · ${profileLeg.to}`}
-                      />
-                    ) : (
-                      <p className="context-note">Select a science destination to inspect its modeled CTX elevation profile.</p>
-                    )}
-                  </div>
-                )}
-
-                <div className="cc-camera-controls">
-                  <div className="cc-cam-pill">
-                    <button type="button" onClick={() => setPhotoIndex(i => (i - 1 + surfaceGallery.length) % surfaceGallery.length)} aria-label="Previous surface site">←</button>
-                    <span>{activePhoto.shortName}</span>
-                    <button type="button" onClick={() => setPhotoIndex(i => (i + 1) % surfaceGallery.length)} aria-label="Next surface site">→</button>
-                  </div>
-                  <div className="cc-cam-pill">
-                    <button type="button" aria-pressed={cameraMode === 'surface'} onClick={() => setCameraMode('surface')}>↓ Surface</button>
-                    <button type="button" aria-pressed={cameraMode === 'profile'} onClick={() => setCameraMode('profile')}>Profile ↑</button>
-                  </div>
-                  <div className="cc-cam-pill">
-                    <button type="button" onClick={() => setCameraZoom(z => Math.max(1, +(z - 0.35).toFixed(2)))} aria-label="Zoom out camera">−</button>
-                    <span>Zoom</span>
-                    <button type="button" onClick={() => setCameraZoom(z => Math.min(2.05, +(z + 0.35).toFixed(2)))} aria-label="Zoom in camera">+</button>
-                  </div>
-                </div>
-              </section>
+          {reviewing && execution && previous ? (
+            <ChangeReview
+              execution={execution}
+              baselineRemaining={previous}
+              returnPlan={returnPlan}
+              headingRef={reviewHeadingRef}
+              onDecision={decide}
+              onReopen={() => setExecution(current => current?.status === 'HOLD' ? {...current, status: 'REVIEW'} : current)}
+            />
+          ) : execution ? (
+            <>
+              <ExecutionPanel
+                mission={execution}
+                selected={mapSelection}
+                headingRef={phaseHeadingRef}
+                onEvent={entry => {setExecution(recordEvent(execution, bundle, entry)); setMapSelection(null);}}
+                onExploreStep={() => advance('explore')}
+                onFinishStop={() => advance('finish')}
+                onLogObservation={note => setExecution(current => current && logStopObservation(current, note))}
+                onTriggerReading={() => setExecution(current => current && triggerSimulatedReading(current, bundle))}
+                onRecordReading={() => setExecution(current => current && recordPendingReading(current, bundle))}
+                onDismissReading={() => setExecution(current => current && {...current, pendingReading: null})}
+              />
+              {travelControls && <div className="field-actions field-travel">
+                <Button label={activeExecutionLeg.targetId === landingId ? 'Return to Landing Site' : 'Arrive at stop'} variant="primary" onClick={() => advance('arrive')} />
+                <Button label="Move along active leg" onClick={() => advance('part')} isDisabled={execution.cursor >= activeExecutionLeg.route.geometryGrid.length - 1} />
+              </div>}
+            </>
+          ) : locked && plan ? (
+            <section className="field-section">
+              <h1 ref={phaseHeadingRef} tabIndex={-1}>Baseline approved</h1>
+              <p>{missionSequence(plan)}</p>
+              {baselineGate?.margin && <p>Return margin at 0.8× · {marginText(baselineGate.margin)}</p>}
+              <div className="field-actions">
+                <Button label="Start traverse" variant="primary" onClick={() => setExecution(startMission(plan, selected, limit))} />
+                <Button label="Edit plan" onClick={() => setLocked(false)} />
+              </div>
+            </section>
+          ) : (
+            <SelectionPanel
+              catalog={catalog}
+              selected={selected}
+              limit={limit}
+              width={manifest.width}
+              height={manifest.height}
+              customCol={customCol}
+              customRow={customRow}
+              bundle={bundle}
+              headingRef={phaseHeadingRef}
+              decision={baselineDecision}
+              onCustomCol={setCustomCol}
+              onCustomRow={setCustomRow}
+              onAddCustomPoint={addManualCell}
+              onMode={newLimit => {
+                if (newLimit === 1 && selected.length > 1) return setNotice('Remove stops until one remains, then choose Single.');
+                setLimit(newLimit);
+                setNotice('');
+              }}
+              onAdd={addStop}
+              onChange={changeStops}
+              onReorder={index => {
+                const ordered = [...selected];
+                [ordered[index - 1], ordered[index]] = [ordered[index], ordered[index - 1]];
+                changeStops(ordered);
+              }}
+              onResume={resumeMission}
+            />
+          )}
+          {notice && <p role="status" className="field-notice">{notice}</p>}
+          {execution?.status === 'COMPLETED' && <h2 className="field-complete">Mission complete</h2>}
+          {returnPlan && !reviewing && <section className="field-section">
+            <h2>Direct return</h2>
+            <p>{marginText(conservativeSummary(returnPlan)?.margin ?? null)} at 0.8×</p>
+            {activeExecutionLeg?.targetId !== landingId && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
+              isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => decide(returnPlan, 'abort')} />}
+            {returnPlan.legs.at(-1)?.route.status !== 'READY' && <p>No modeled route to the landing site is available.</p>}
+          </section>}
+          {!execution && !locked && primary && <details className="mission-disclosure field-details">
+            <summary>Route options</summary>
+            {selected.length > 1 && <label className="mission-field field-route-preference">
+              Route preference
+              <select value={preference} onChange={event => {setPreference(event.target.value as RoutePreference); setUseAlternative('primary');}}>
+                <option value="fastest">Minimum travel time</option>
+                <option value="lowerSlope">Prefer gentler terrain</option>
+              </select>
+            </label>}
+            <div className="field-actions">
+              <Button label="Show optimized order" onClick={() => setUseAlternative('primary')} />
+              {planning?.primary.subset && <Button label="Show feasible subset" onClick={() => setUseAlternative('subset')} />}
+              {planning?.lowerSlope && <Button label="Show lower-slope option" onClick={() => setUseAlternative('lowerSlope')} />}
             </div>
-
-            <div className="cc-col-right">
-              <aside className="cc-card cc-command-card left-rail" aria-label={execution ? 'Mission execution' : 'Mission planning'}>
-                {execution ? (
-                  <ExecutionPanel
-                    mission={execution}
-                    selected={mapSelection}
-                    headingRef={phaseHeadingRef}
-                    onEvent={entry => {setExecution(recordEvent(execution, bundle, entry)); setMapSelection(null);}}
-                    onExploreStep={() => setExecution(current => current && advanceMission(current, bundle, 'explore', 10))}
-                    onFinishStop={() => {setExecution(current => current && advanceMission(current, bundle, 'finish')); setMapSelection(null);}}
-                    onLogObservation={note => setExecution(current => current && logStopObservation(current, note))}
-                    onTriggerReading={() => setExecution(current => current && triggerSimulatedReading(current, bundle))}
-                    onRecordReading={() => setExecution(current => current && recordPendingReading(current, bundle))}
-                    onDismissReading={() => setExecution(current => current && { ...current, pendingReading: null })}
-                  />
-                ) : (
-                  <SelectionPanel
-                    catalog={filteredCatalog}
-                    selected={selected}
-                    limit={limit}
-                    origin={origin}
-                    width={manifest.width}
-                    height={manifest.height}
-                    customCol={customCol}
-                    customRow={customRow}
-                    bundle={bundle}
-                    headingRef={phaseHeadingRef}
-                    onCustomCol={setCustomCol}
-                    onCustomRow={setCustomRow}
-                    onAddCustomPoint={addManualCell}
-                    onMode={newLimit => {setLimit(newLimit); changeStops(selected.slice(0, newLimit));}}
-                    onAdd={addStop}
-                    onChange={changeStops}
-                    onReorder={index => {
-                      const ordered = [...selected];
-                      [ordered[index - 1], ordered[index]] = [ordered[index], ordered[index - 1]];
-                      changeStops(ordered);
-                    }}
-                    onResume={resumeMission}
-                  />
-                )}
-                {notice && <p role="status" className="mission-error">{notice}</p>}
-              </aside>
-
-              <TwinStatusCards plan={currentPlan} spent={execution?.spent ?? zeroResources} />
-
-              <aside className="cc-card cc-analysis-card right-rail" aria-label="Mission preview">
-                {execution?.proposal && previous && (
-                  <ChangeReview
-                    execution={execution}
-                    baselineRemaining={previous}
-                    returnPlan={returnPlan}
-                    headingRef={reviewHeadingRef}
-                    onDecision={(updated, decision, stopAction) =>
-                      setExecution(decideReplan(execution, updated, decision, stopAction ? { stopAction } : undefined))
-                    }
-                  />
-                )}
-
-                <div className="cc-panel-header">
-                  <h2>{execution?.status === 'COMPLETED' ? 'Mission complete' : execution ? 'Mission status' : 'Mission preview'}</h2>
-                  {!execution && selected.length > 1 && (
-                    <label className="mission-field cc-inline-select">
-                      <span>Route preference</span>
-                      <select value={preference} onChange={event => {setPreference(event.target.value as RoutePreference); setUseAlternative('primary');}}>
-                        <option value="fastest">Minimum travel time</option>
-                        <option value="lowerSlope">Prefer gentler terrain</option>
-                      </select>
-                    </label>
-                  )}
-                </div>
-
-                {returnPlan && <p className="context-note cc-sub-note">Direct return margin at 1× · {marginText(nominalMargin(returnPlan))}</p>}
-
-                <AnalysisDonutRings bundle={bundle} plan={currentPlan} spent={execution?.spent ?? zeroResources} />
-
-                {currentPlan ? (
-                  <MissionPlanPreview
-                    plan={currentPlan}
-                    spent={execution?.spent ?? zeroResources}
-                    manifest={manifest}
-                    label={execution?.proposal ? 'Proposed remaining route' : execution ? 'Approved route' : 'Selected plan'}
-                  />
-                ) : (
-                  <p className="context-note">Select a destination to preview the round trip, return reserves, and leg telemetry.</p>
-                )}
-
-                {!execution && plan && plan.deferred.length > 0 && (
-                  <p className="context-note">
-                    Deferred from this option: {plan.deferred.map(stop => stop.name).join(', ')}.
-                  </p>
-                )}
-
-                {!execution && primary && (
-                  <div className="mission-alternatives">
-                    <Button label="Show optimized order" onClick={() => setUseAlternative('primary')} />
-                    {planning?.primary.subset && <Button label="Show feasible subset" onClick={() => setUseAlternative('subset')} />}
-                    {planning?.lowerSlope && <Button label="Show lower-slope option" onClick={() => setUseAlternative('lowerSlope')} />}
-                    {selected.length > 1 && planning && (
-                      <PlanComparison
-                        previous={planning.primary.priority}
-                        proposed={primary}
-                        label="Astronaut priority order"
-                        action="Use priority order"
-                        onChoose={() => setUseAlternative('priority')}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {plan && (
-                  <div className="mission-buttons mission-export">
-                    {!execution && !canApprove(plan) && (
-                      <p className="context-note">Approval requires all three reserves at every modeled speed.</p>
-                    )}
-                    {execution && (
-                      <>
-                        <Button label="Download JSON" onClick={() => exportPlan('json')} />
-                        <Button label="Download Markdown" onClick={() => exportPlan('md')} />
-                        <Button label="Print plan" onClick={() => window.print()} />
-                      </>
-                    )}
-                    {execution?.status === 'COMPLETED' && (
-                      <Button label="Plan another mission" onClick={() => {
-                        setExecution(null); changeStops([]); setMapSelection(null);
-                      }} />
-                    )}
-                  </div>
-                )}
-              </aside>
-            </div>
-          </div>
-
-          <footer className="site-footer">
-            <span>SESHAT / SPACE APPS 2026</span>
-            <span>Research prototype · not safety-certified</span>
-          </footer>
-        </div>
-      </main>
-    </div>
+            {selected.length > 1 && planning && <PlanComparison previous={planning.primary.priority} proposed={primary}
+              label="Astronaut priority order" action="Use priority order" onChoose={() => setUseAlternative('priority')} />}
+          </details>}
+          {currentPlan && execution?.status !== 'COMPLETED' && <details className="mission-disclosure field-details">
+            <summary>{reviewing ? 'Revised itinerary and resources' : execution || locked ? 'Approved route' : 'Itinerary and resources'}</summary>
+            <MissionPlanPreview plan={currentPlan} spent={execution?.spent ?? zeroResources} manifest={manifest}
+              label={reviewing ? 'Proposed remaining route' : execution || locked ? 'Baseline and schedule' : 'Selected plan'} />
+          </details>}
+          {plan && (execution || locked) && <div className="field-actions field-export">
+            <Button label="Download JSON" onClick={() => exportPlan('json')} />
+            <Button label="Download Markdown" onClick={() => exportPlan('md')} />
+            <Button label="Print plan" onClick={() => window.print()} />
+            {execution?.status === 'COMPLETED' && <Button label="Plan another mission" onClick={() => {
+              setExecution(null); changeStops([]); setMapSelection(null); setInspectedPoint(null);
+            }} />}
+          </div>}
+        </aside>
+      </div>
+    </main>
   );
 }

@@ -19,6 +19,7 @@ export type EventDetails =
   | {category: 'NEW_SCIENTIFIC_DISCOVERY'; target: ScienceTarget};
 export type MissionEvent = EventDetails & {
   id: number; minute: number; cell: Cell; channel: EventChannel; description: string;
+  astronautCell?: Cell;
 };
 export interface FieldObservation {
   id: string;
@@ -131,6 +132,7 @@ function findSuggestedReadingCell(bundle: FieldBundle, origin: Cell, stops: read
 }
 
 export function triggerSimulatedReading(mission: MissionExecution, bundle: FieldBundle): MissionExecution {
+  if (mission.status !== 'EXECUTING' || mission.pendingReading) return mission;
   const stop = mission.active.stops.find(item => item.id === mission.activeStopId)
     ?? mission.active.stops.find(item => !(mission.completed ?? []).includes(item.id));
   const stopName = stop?.name ?? 'Current site';
@@ -173,13 +175,10 @@ export function triggerSimulatedReading(mission: MissionExecution, bundle: Field
 
 export function logStopObservation(mission: MissionExecution, note: string, measurement?: string): MissionExecution {
   const trimmed = note.trim();
-  if (!trimmed) return mission;
+  if (!trimmed || !mission.activeStopId || !['EXECUTING', 'REVIEW', 'HOLD'].includes(mission.status)) return mission;
   const progressMap = { ...(mission.stopProgress ?? {}) };
   const leg = mission.active.legs[mission.legIndex];
-  const stopId = mission.activeStopId
-    ?? Object.values(progressMap).find(item => item.status === 'interrupted' || item.status === 'exploring' || item.status === 'arrived')?.stopId
-    ?? leg?.targetId
-    ?? landingId;
+  const stopId = mission.activeStopId;
   const existing = progressMap[stopId];
   const stopName = existing?.stopName ?? leg?.to ?? 'Field station';
   const obs: FieldObservation = {
@@ -207,7 +206,7 @@ export function advanceMission(
   progress: 'part' | 'arrive' | 'explore' | 'finish',
   exploreStepMinutes = 10,
 ): MissionExecution {
-  if (mission.status !== 'EXECUTING') return mission;
+  if (mission.status !== 'EXECUTING' || mission.pendingReading) return mission;
   const leg = mission.active.legs[mission.legIndex];
   if (!leg || leg.route.status !== 'READY') return mission;
   const progressMap = { ...(mission.stopProgress ?? initialStopProgress(mission.active)) };
@@ -227,8 +226,9 @@ export function advanceMission(
       observations: [],
     };
     if (progress === 'explore') {
+      if (!Number.isFinite(exploreStepMinutes) || exploreStepMinutes <= 0) return mission;
       const remaining = Math.max(0, currentProg.plannedMinutes - currentProg.exploredMinutes);
-      const step = Math.min(Math.max(1, exploreStepMinutes), remaining);
+      const step = Math.min(exploreStepMinutes, remaining);
       if (step <= 0) return mission;
       const used = scienceResources(step);
       const nextExplored = currentProg.exploredMinutes + step;
@@ -246,6 +246,7 @@ export function advanceMission(
         !nextMission.pendingReading &&
         nextMission.events.length === 0 &&
         nextMission.completed.length === 0 &&
+        currentProg.exploredMinutes < Math.min(10, currentProg.plannedMinutes) &&
         nextExplored >= Math.min(10, currentProg.plannedMinutes)
       ) {
         nextMission = triggerSimulatedReading(nextMission, bundle);
@@ -296,7 +297,7 @@ export function advanceMission(
     }
     const existingProg = progressMap[leg.targetId];
     const stopProg: StopProgress = existingProg
-      ? { ...existingProg, status: 'arrived', cell: path[last] }
+      ? { ...existingProg, status: 'arrived', cell: path[last], plannedMinutes: Math.max(0, leg.leave - leg.arrival) }
       : {
           stopId: leg.targetId,
           stopName: leg.to,
@@ -357,8 +358,8 @@ function eventError(details: EventDetails, bundle: FieldBundle): string | null {
     case 'ENVIRONMENTAL_OR_TERRAIN_CHANGE':
       return details.speedFactor > 0 && details.speedFactor < 1 ? null : 'Enter a pace above 0% and below 100%.';
     case 'NEW_TERRAIN_HAZARD':
-      return cellIndex(details.zone.cell, bundle) >= 0 && Number.isInteger(details.zone.radius) && details.zone.radius >= 0 && details.zone.radius <= 20
-        ? null : 'Choose a map cell and a radius from 0 to 20 cells.';
+      return bundle.mask[cellIndex(details.zone.cell, bundle)] === 1 && Number.isInteger(details.zone.radius) && details.zone.radius >= 0 && details.zone.radius <= 20
+        ? null : 'Choose a covered map cell and a radius from 0 to 20 cells.';
     case 'NEW_SCIENTIFIC_DISCOVERY': {
       const cell = targetCell(details.target);
       return cell && bundle.mask[cellIndex(cell, bundle)] === 1 && nonnegative(details.target.activity.minutes) && details.target.name.trim()
@@ -402,7 +403,7 @@ export function recordEvent(mission: MissionExecution, bundle: FieldBundle,
   const location = details.category === 'NEW_TERRAIN_HAZARD' ? details.zone.cell
     : details.category === 'NEW_SCIENTIFIC_DISCOVERY' ? targetCell(details.target)! : mission.position;
   const event: MissionEvent = {...details, id: mission.events.length + 1,
-    minute: mission.spent.minutes, cell: location, channel, description};
+    minute: mission.spent.minutes, cell: location, astronautCell: mission.position, channel, description};
   const nextProgress = { ...(mission.stopProgress ?? initialStopProgress(mission.active)) };
   if (details.category === 'NEW_SCIENTIFIC_DISCOVERY' && !nextProgress[details.target.id]) {
     nextProgress[details.target.id] = {
@@ -426,9 +427,9 @@ export function recordEvent(mission: MissionExecution, bundle: FieldBundle,
   if (activeId) {
     const activeProg = nextProgress[activeId];
     const remainingStopMin = activeProg ? Math.max(0, activeProg.plannedMinutes - activeProg.exploredMinutes) : 0;
-    if (activeProg) {
-      nextProgress[activeId] = { ...activeProg, status: 'interrupted' };
-    }
+    const canStay = !revised.hazards.some(({cell, radius}) =>
+      Math.hypot(cell[0] - revised.position[0], cell[1] - revised.position[1]) <= radius);
+    if (activeProg) nextProgress[activeId] = {...activeProg, status: 'interrupted'};
     const downstreamStops = remainingStops(revised).filter(stop => stop.id !== activeId);
     const maxFinishStops = Math.max(0, (revised.stopCapacity ?? stopLimit) - revised.completed.length - 1);
     const maxLeaveStops = Math.max(0, (revised.stopCapacity ?? stopLimit) - revised.completed.length);
@@ -442,7 +443,7 @@ export function recordEvent(mission: MissionExecution, bundle: FieldBundle,
       routePreference: revised.active.routePreference,
       maxStops: maxLeaveStops,
     });
-    if (remainingStopMin > 0) {
+    if (remainingStopMin > 0 && canStay) {
       const finishProposal = replanMission({
         bundle,
         origin: revised.position,
@@ -480,7 +481,7 @@ export function recordEvent(mission: MissionExecution, bundle: FieldBundle,
       finishProposal: null,
       leaveStopProposal: null,
       recommendedProposal: null,
-      proposalReason: null,
+        proposalReason: canStay ? null : 'The current stop is inside the recorded exclusion area. The revision leaves the stop and preserves recorded science.',
     };
   }
 
@@ -516,6 +517,8 @@ export function decideReplan(
     (mission.finishProposal !== undefined && plan === mission.finishProposal) ||
     (mission.leaveStopProposal !== undefined && plan === mission.leaveStopProposal);
   if (decision !== 'abort' && (mission.status !== 'REVIEW' || !validReviewPlan)) return mission;
+  if (decision === 'approved' && options?.stopAction &&
+    plan !== (options.stopAction === 'finish-stop' ? mission.finishProposal : mission.leaveStopProposal)) return mission;
   if (decision === 'abort' && (plan.stops.length || plan.legs.at(-1)?.route.status !== 'READY')) return mission;
   if (decision === 'approved' && !canApprove(plan)) return mission;
 
@@ -529,8 +532,7 @@ export function decideReplan(
     const prog = progressMap[activeId];
     const remainingStopMin = prog ? Math.max(0, prog.plannedMinutes - prog.exploredMinutes) : 0;
     if (decision === 'approved') {
-      stopAction = options?.stopAction
-        ?? (plan === mission.leaveStopProposal ? 'leave-stop' : plan === mission.finishProposal ? 'finish-stop' : mission.recommendedProposal ?? 'leave-stop');
+      stopAction = plan === mission.finishProposal || (prog && remainingStopMin === 0) ? 'finish-stop' : 'leave-stop';
       if (stopAction === 'finish-stop') {
         if (remainingStopMin > 0) nextSpent = addResources(nextSpent, scienceResources(remainingStopMin));
         if (prog) progressMap[activeId] = { ...prog, exploredMinutes: prog.plannedMinutes, status: 'completed' };
@@ -557,6 +559,7 @@ export function decideReplan(
     recommendedProposal: null,
     proposalReason: null,
     activeStopId: null,
+    pendingReading: null,
     spent: nextSpent,
     completed: nextCompleted,
     stopProgress: progressMap,

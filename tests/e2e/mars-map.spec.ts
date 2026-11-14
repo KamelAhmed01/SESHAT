@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('Seamless Mars tiled map & offline resilience', () => {
+  test('inspects a science pin with the keyboard before editing the itinerary', async ({page}) => {
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Inspect Shuyak · Cape Nukshak'}).press('Enter');
+    const inspection = page.getByLabel('Map point inspection', {exact: true});
+    await expect(inspection).toContainText('Shuyak · Cape Nukshak');
+    await expect(page.getByRole('button', {name: 'Remove Shuyak · Cape Nukshak'})).toHaveCount(0);
+    await inspection.getByRole('button', {name: 'Add this stop'}).click();
+    await expect(page.getByRole('button', {name: 'Remove Shuyak · Cape Nukshak'})).toBeVisible();
+  });
+
   test('renders Mars scale bar, switches geology/thermal layers, zooms out to Mars, marks outside clicks browse-only, and returns to Jezero', async ({ page }) => {
     const failedLocalAssets: string[] = [];
     page.on('response', res => {
@@ -15,6 +25,8 @@ test.describe('Seamless Mars tiled map & offline resilience', () => {
     await expect(page.getByRole('button', { name: 'Back to Jezero' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Fit mission' })).toBeVisible();
 
+    await page.getByText('Layers', {exact:true}).click();
+
     // Toggle geology & thermal layers
     const geologyBtn = page.getByRole('button', { name: 'Geology' });
     const thermalBtn = page.getByRole('button', { name: 'Thermal' });
@@ -26,6 +38,7 @@ test.describe('Seamless Mars tiled map & offline resilience', () => {
     await thermalBtn.click();
     await expect(thermalBtn).toHaveAttribute('aria-pressed', 'true');
     await thermalBtn.click();
+    await page.getByText('Layers', {exact:true}).click();
 
     // Zoom out repeatedly to reach global/regional Mars Viking view (away from the 4.4 km box)
     const zoomOut = page.locator('.leaflet-control-zoom-out');
@@ -72,8 +85,9 @@ test.describe('Seamless Mars tiled map & offline resilience', () => {
     const approveBtn = page.getByRole('button', { name: 'Approve & lock baseline plan' }).first();
     await expect(approveBtn).toBeEnabled();
     await approveBtn.click();
+    await page.getByRole('button', { name: 'Start traverse' }).click();
     await expect(page.getByText('Approved route')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Complete next stop' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Arrive at stop' }).first()).toBeVisible();
     expect(errors).toEqual([]);
   });
 

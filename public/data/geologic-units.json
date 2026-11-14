@@ -1,69 +1,53 @@
 {
-  "sourceTitle": "Stack et al. (2020) Jezero Crater Photogeologic Map / USGS SIM 3464",
+  "sourceTitle": "Stack et al. (2020), Photogeologic Map of the Perseverance Rover Field Site",
   "sourceUrl": "https://doi.org/10.1007/s11214-020-00739-x",
-  "licenseNote": "Retain attribution and documented grid reprojection per publisher correction (2025).",
+  "sourceFileSha256": "970e4c78ae6dc689c99e46eddb4be184704a56952008d0558f643e816e29b118",
+  "licenseNote": "CC BY 4.0 per 2025 publisher correction. Bedrock polygons clipped and rasterized to Mars AEQD; conflicting units omitted.",
+  "conflictingCells": 32,
   "width": 220,
   "height": 220,
-  "unknownCells": 0,
+  "unknownCells": 34,
   "units": [
     {
       "index": 1,
-      "symbol": "Aeb",
-      "name": "Eolian bedform unit",
-      "description": "Light-toned, linear, commonly parallel low-relief ridges prevalent in local topographic lows such as impact craters, including along the interior margin of Jezero crater, and at the base of steep scarps throughout Nili Planum. Superposes other map units. Type area: lat 18.41\u00b0N, long 77.36\u00b0E",
-      "characteristics": "Low-relief ridges are up to several hundred meters in length and spacing is on the order of 10s of meters. Bifurcations and overlapping ridges are common. Crestlines trend approximately N-S, but can vary locally. Low-relief ridges occur in fields up to several km2 in area.",
-      "interpretation": "Amazonian-aged bedforms and transverse aeolian ridges (TARs) composed of unconsolidated sediment oriented orthogonal to the dominant east-west wind direction (Day and Dorn, 2019).",
+      "symbol": "Crater floor fractured 1",
+      "name": "Crater floor fractured 1",
       "color": "#10b981"
     },
     {
       "index": 2,
-      "symbol": "Nle",
-      "name": "Lower etched unit",
-      "description": "Rugged, lightly cratered, light- to intermediate-toned unit concentrically exposed on the floor of Jezero adjacent to unit Njf. Topographically lower than adjacent unit Nue. Contains NE-SW trending ridges that extend several hundred meters in length. When present, impact craters are typically >200 m in diameter. Type area: lat 18.28\u00b0N, long 77.49\u00b0E",
-      "characteristics": "Unit is exposed in erosional windows through the overlying unit Njf (for example, 18.44\u00b0N, 77.44\u00b0E and 18.33\u00b0N, 77.73\u00b0E). Associated with olivine and variable carbonate (Goudge and others, 2015). Previously mapped as the 'light-toned floor unit' and 'dusty light-toned floor unit' by Goudge and others (2015).",
-      "interpretation": "Volcanic ash deposit, similar to the origin of unit Nue. Could also be other clastic deposit of volcanic or eolian origin. Either deposited into an existing lake within Jezero or subsequently altered by later lacustrine processes during emplacement of units NHjf1 and NHjf2. Underlies unit Nue based on its consistently lower elevation. Ridges are yardangs (Day and Dorn, 2019).",
+      "symbol": "Crater floor fractured 2",
+      "name": "Crater floor fractured 2",
       "color": "#f3a833"
     },
     {
       "index": 3,
-      "symbol": "Njf",
-      "name": "Jezero floor unit",
-      "description": "Rugged, moderately-to-heavily cratered, light- to dark-toned, planar unit with margins defined by low-relief, sharp, lobate scarps, forms the central portion of the Jezero crater floor and overlies and embays units Nue and Nle, respectively. Most impact craters on this surface are <200 m. Can have dark, smooth surface texture, especially near contact with unit NHjf2. Type area: lat 18.43\u00b0N, long 77.65\u00b0E.",
-      "characteristics": "Associated with mafic composition (Goudge and others, 2015). Previously mapped as the 'volcanic floor unit' by Goudge and others (2015).",
-      "interpretation": "Volcanic ash or eolian airfall deposit that drapes underlying topography. Correlates with unit Nnp2 based on common stratigraphic position and shared textural and morphologic characteristics. Emplaced during the Late Noachian before deposition of unit NHjf1. May have been modified by subsequent lacustrine activity during deposition of units NHjf1 and NHjf2. Dark, smooth surface texture near unit NHjf2 is due to a dark mantle deposit or erosional lag derived from erosion of unit NHjf2. Previously interpreted by Schon and others (2012) and Goudge and others (2015) as an extrusive volcanic flow.",
+      "symbol": "Crater floor fractured rough",
+      "name": "Crater floor fractured rough",
       "color": "#38bdf8"
     },
     {
       "index": 4,
-      "symbol": "Nue",
-      "name": "Upper etched unit",
-      "description": "Indurated, rugged, moderately-to-heavily cratered, light-to-intermediate toned unit located along and on the northern Jezero crater rim and wall, along the interior margin of Jezero crater, and throughout Nili Planum. Overlies units Nnp1 and cr in Nili Planum and conformably overlies unit Nle in Jezero crater. Contains three different surface expressions with varying morphologic and erosional textures that grade into one another without clear or systematic stratigraphic contacts: a ridged expression in northern Jezero and northeastern Nili Planum, a heavily cratered expression in northern Nili Planum, and a light-toned rugged expression in southern Nili Planum (Figure 3). Type area: lat 18.67\u00b0N, long 77.57\u00b0E and lat 18.68\u00b0N, long 76.86\u00b0E and lat 17.77\u00b0N, long 76.86\u00b0E respectively.",
-      "characteristics": "Occurs at elevations ranging from -2707 m within Jezero to -1787 m in Nili Planum. Ridged expression has ridges trending northeast to southwest, and overlies the Jezero crater rim (18.56\u00b0N, 77.28\u00b0E). Heavily cratered expression has a rougher, heavily cratered surface with no preferential direction indicated by erosional textures. Light-toned rugged expression has a moderately rough, cratered surface with variegated tones and very sharply defined ridged margins that often forms linear outcrops extending up to 5 kilometers in length (17.78\u00b0N, 77.31\u00b0E) and can be associated with raised linear ridges in unit Nnp1 (for example, 18.19\u00b0N, 77.06\u00b0E; 17.86\u00b0N, 77.03\u00b0E). Associated with olivine and variable carbonate (Goudge and others, 2015; Bramble and others, 2017). Previously mapped as the 'fractured unit' by Bramble and others (2017), and inside Jezero crater as the 'mottled terrain' by Goudge and others (2015).",
-      "interpretation": "Volcanic ash deposit that drapes underlying units Nnp1, cr, and Nle. Could also be other clastic deposit of volcanic or eolian origin. The three distinct surface expressions could result from differential erosion or cementation, as no clear or systematic stratigraphic contacts are discernable between the three surface expressions. Ridges in the ridged Nue unit are yardangs (Day and Dorn, 2019). Long linear occurrences of the light-toned rugged Nue unit could have formed through infilling of preexisting fractures created by the Isidis impact.",
+      "symbol": "Delta blocky",
+      "name": "Delta blocky",
       "color": "#f472b6"
     },
     {
       "index": 5,
-      "symbol": "cr",
-      "name": "Crater rim unit",
-      "description": "Rugged, light- to intermediate-toned, relatively high-relief scarps surrounding circular or quasicircular depressions >500 m in diameter. Type area: lat 18.04\u00b0N, long 77.51\u00b0E",
-      "characteristics": "Meter to decimeter-scale stratification is observed in the interior rim wall of Sedona and Angelica craters. Stratification is present in the Jezero crater rim and shows evidence for warping and faulting at HiRISE-scale (18.46\u00b0N, 77.26\u00b0E). Megabreccia identified in Jezero's cr at HiRISE-scale (Figure 2).",
-      "interpretation": "Undifferentiated target rock exposed and uplifted during impact. Target rock was unit Nnp1 for Jezero (cross sections). High standing outcrops of unit cr by the western and southern Jezero crater walls contain megabreccia and represent collapsed portions of the transient crater rim (cross section B-B\u2019).",
+      "symbol": "Delta thinly layered",
+      "name": "Delta thinly layered",
       "color": "#a855f7"
     },
     {
       "index": 6,
-      "symbol": "NHjf2",
-      "name": "Jezero fan 2 unit",
-      "description": "Lightly cratered, intermediate-toned, stratified unit with margins defined by sharp scarps, located at the mouth of Neretva Vallis on the western portion of Jezero crater's floor. Occurs at higher elevation than unit NHjf1 (18.58\u00b0N, 77.48\u00b0E). Contain rugged arcuate ridges and troughs that branch out from nodes and define several overlapping lobes (Figure 7). Meter-scale sequences of alternating light and dark strata as well as some curvilinear strata (18.48\u00b0N, 77.39\u00b0E; 18.47\u00b0N, 77.37\u00b0E). Forms isolated outcrops that are <50 m in height on the Jezero crater floor east of the main unit. Some outcrops exhibit parallel stratification on their slopes (18.43\u00b0N, 77.36\u00b0E), while others do not exhibit obvious visible stratification at map scale (for example, 18.47\u00b0N, 77.50\u00b0E). Type areas: lat 18.49\u00b0N, long 77.36\u00b0E and lat 18.47\u00b0N, long 77.50\u00b0E.",
-      "characteristics": "Associated with Fe/Mg clay and carbonate (Ehlmann and others, 2008; Goudge and others, 2015; Horgan and others, 2019). Previously mapped as the 'western fan deposit' by Goudge and others (2015).",
-      "interpretation": "Deltaic fan deposits emplaced during the Late Noachian to Early Hesperian, postdating and overlying portions of unit NHjf1. Presence of inlet channels (Neretva, Sava Valles) and an outlet channel (Pliva Vallis) suggests deposition into a lacustrine environment. Rugged arcuate ridges are inverted channels based on their association with the fan deposit and radiation out from various  nodes. Overlapping lobes represent branching channel deposits and distinct episodes of sediment deposition (Figure 7). Isolated outcrops could be remnants of the main delta deposit, much of which has been eroded since initial deposition.",
+      "symbol": "Delta truncated curvilinear layered",
+      "name": "Delta truncated curvilinear layered",
       "color": "#facc15"
     }
   ],
   "targetUnits": {
-    "swift-run": "NHjf2",
-    "hazeltop": "NHjf2",
-    "shuyak": "NHjf2"
+    "swift-run": "Delta truncated curvilinear layered",
+    "hazeltop": "Delta thinly layered",
+    "shuyak": "Delta thinly layered"
   }
 }

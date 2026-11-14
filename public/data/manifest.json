@@ -1198,7 +1198,7 @@
       "Mars Global Color Mosaic: NASA/JPL Mars Trek \u00b7 USGS Viking MDIM 2.1 (232 m)",
       "Wider Jezero Orbital Mosaic: NASA/JPL Mars Trek MRO CTX Controlled 6 m Mosaic",
       "Modeled Routing Grid: USGS MRO CTX 20 m DTM (local spherical Mars AEQD)",
-      "Geologic Context: Stack et al. (2020) / USGS SIM 3464",
+      "Geologic Context: Stack et al. (2020) photogeologic map, CC BY 4.0",
       "Thermal Inertia: Edwards & Buz (2021) Jezero v1 (100 m resampled for display)",
       "Surface Pressure: NASA PDS Mars 2020 MEDA (sols 490, 509, 575)"
     ]
@@ -1222,19 +1222,19 @@
     "geologicUnits": {
       "binaryPath": "geologic-units.bin",
       "binaryBytes": 48400,
-      "binarySha256": "6358dc8b1fe9798e6bb234a9b781062ef687a8968171e531c924a975e96efb40",
+      "binarySha256": "c65f7afbe7f15a42b538a3c01ca7989ac75cf635214bb715ba0c0df3e8bc3443",
       "jsonPath": "geologic-units.json",
-      "jsonSha256": "9a6dfb007383f5d7638d761237829d3b836d9e019559d4169f779c2708ba6880",
+      "jsonSha256": "a32671ffeb46f2501374bc3dcaa3e4f59b509953c68b316e129c053fccccbf23",
       "geoImagePath": "imagery/geologic-units-geo.webp",
-      "geoImageSha256": "146e363db02443d4297a34ca7b5fad71d833f526ae60b01894a4512a6f0fe6e0",
+      "geoImageSha256": "11a6a04645f51c6f214191b6be961512f16536b0c80ce927eca4e459e1994f7f",
       "unitCount": 6,
-      "unknownCells": 0,
-      "credit": "Stack et al. (2020) Jezero Crater Photogeologic Map / USGS SIM 3464",
+      "unknownCells": 34,
+      "credit": "Stack et al. (2020), Photogeologic Map of the Perseverance Rover Field Site",
       "sourceUrl": "https://doi.org/10.1007/s11214-020-00739-x"
     },
     "medaPressure": {
       "jsonPath": "meda-context.json",
-      "jsonSha256": "5980ce9cc26b4b095c8c959fda5d5fc1930ccd2de72c7e47b6b64a01956b76e7",
+      "jsonSha256": "4c18857e7f31d30ef439f0314538056896731180ebffb80e6bacc58ed095af06",
       "sols": [
         490,
         509,

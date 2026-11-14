@@ -19,8 +19,9 @@ export function createArchive(
   source: DatasetManifest,
   execution?: MissionExecution,
   contextData?: ContextData | null,
+  plannedCapacity?: number,
 ) {
-  const {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files, contextLayers} = source;
+  const {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files, contextLayers, mapDisplay} = source;
   const environmentalContext = {
     scenarioAssumptions: scenario.environmentalContext,
     geologicUnits: contextData?.geologicUnits?.units.map(u => ({ symbol: u.symbol, name: u.name })) ?? [],
@@ -45,7 +46,9 @@ export function createArchive(
     scenario,
     budget,
     reserve,
-    source: {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files},
+    mode: (execution?.stopCapacity ?? plannedCapacity ?? plan.stops.length) === 1 ? 'single' : 'multiple',
+    source: {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files, contextLayers,
+      mapDisplay: mapDisplay && {projection: mapDisplay.projection, credits: mapDisplay.credits, jezeroSourceSha256: mapDisplay.jezeroSourceSha256}},
     environmentalContext,
     baseline: plan,
     execution,
@@ -60,7 +63,7 @@ export function archiveMarkdown(archive: ReturnType<typeof createArchive>) {
   const {baseline, execution, source} = archive;
   const lines = ['# SESHAT mission plan', '', 'Research prototype. All traversal and resource values are scenario estimates.', '',
     `Terrain: ${source.sourceId} (${source.status})`, source.sourceUrl, source.optical?.sourceUrl ?? '',
-    `Mission: ${baseline.stops.length === 1 ? 'Single destination' : 'Multiple destinations'}`,
+    `Mission: ${archive.mode === 'single' ? 'Single destination' : 'Multiple destinations'}`,
     `Plan: ${missionSequence(baseline)}`, `Modeled feasibility: ${baseline.state}`, '',
     `Time / oxygen / energy budgets: ${budget.minutes} min / ${budget.oxygen} L / ${budget.energy} Wh`,
     `Required reserves: ${reserve.minutes} min / ${reserve.oxygen} L / ${reserve.energy} Wh`,

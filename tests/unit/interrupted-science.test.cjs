@@ -8,6 +8,7 @@ const {
   advanceMission,
   decideReplan,
   logStopObservation,
+  recordEvent,
   recordPendingReading,
   startMission,
 } = require('../../.build/src/engine/lifecycle-store.js');
@@ -80,6 +81,7 @@ describe('Separated arrival, exploration, simulated reading interrupt, and parti
     assert.equal(mission.stopProgress.shuyak.status, 'exploring');
     assert.equal(mission.stopProgress.shuyak.exploredMinutes, 10);
     assert.ok(mission.pendingReading, 'exploring >= 10 min on first stop triggers incoming simulated reading');
+    assert.equal(advanceMission(mission, bundle, 'finish'), mission, 'a pending reading pauses simulated progress');
     const contactCell = mission.pendingReading.cell;
     assert.equal(bundle.mask[contactCell[0] * bundle.manifest.width + contactCell[1]], 1);
 
@@ -93,6 +95,7 @@ describe('Separated arrival, exploration, simulated reading interrupt, and parti
     assert.ok(interrupted.finishProposal, 'must propose finishing current stop');
     assert.ok(interrupted.leaveStopProposal, 'must propose leaving current stop with partial science');
     assert.ok(interrupted.recommendedProposal === 'finish-stop' || interrupted.recommendedProposal === 'leave-stop');
+    assert.equal(decideReplan(interrupted, interrupted.leaveStopProposal, 'approved', {stopAction: 'finish-stop'}), interrupted);
     assert.ok(typeof interrupted.proposalReason === 'string' && interrupted.proposalReason.length > 10);
 
     // Option A: Approve finishing Shuyak (+10 min remaining science) before continuing
@@ -133,6 +136,26 @@ describe('Separated arrival, exploration, simulated reading interrupt, and parti
     const md = archiveMarkdown(archive);
     assert.match(md, /departed-early/);
     assert.match(md, /Layered sulfate lens observed/);
+  });
+
+  it('preserves partial fieldwork and excludes further activity inside a newly reported hazard', () => {
+    const base = bundle.manifest.baseIndex;
+    const origin = [Math.floor(base / bundle.manifest.width), base % bundle.manifest.width];
+    const plan = previewMission({bundle, origin, stops: [shuyak], spent: zeroResources}).optimized;
+    const arrived = advanceMission(startMission(plan, [shuyak]), bundle, 'arrive');
+    const explored = advanceMission(logStopObservation(arrived, 'Sampled bedding'), bundle, 'explore', 5);
+    const interrupted = recordEvent(explored, bundle, {
+      details: {category: 'NEW_TERRAIN_HAZARD', zone: {cell: explored.position, radius: 0}},
+      channel: 'MANUAL_INPUT', description: 'Exclusion at the sampling location',
+    });
+    assert.equal(interrupted.finishProposal, null);
+    assert.deepEqual(interrupted.events[0].astronautCell, explored.position);
+    assert.equal(interrupted.proposal.legs[0].targetId, landingId);
+    const left = decideReplan(interrupted, interrupted.proposal, 'approved');
+    assert.equal(left.stopProgress.shuyak.status, 'departed-early');
+    assert.equal(left.stopProgress.shuyak.exploredMinutes, 5);
+    assert.equal(left.stopProgress.shuyak.observations[0].note, 'Sampled bedding');
+    assert.deepEqual(left.spent, explored.spent);
   });
 
   it('evaluates live position opportunities accurately back to landing site', () => {

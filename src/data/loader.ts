@@ -19,6 +19,7 @@ export interface MapDisplayManifest {
   jezeroFullMaxZoom: number;
   jezeroFanZoom: number;
   jezeroTileBounds: [number, number, number, number];
+  jezeroSourceSha256?: string;
   jezeroTiles: string[];
   credits: string[];
 }
@@ -27,9 +28,6 @@ export interface GeologicUnitEntry {
   index: number;
   symbol: string;
   name: string;
-  description: string;
-  characteristics: string;
-  interpretation: string;
   color: string;
 }
 
@@ -37,6 +35,8 @@ export interface GeologicUnitsMeta {
   sourceTitle: string;
   sourceUrl: string;
   licenseNote: string;
+  sourceFileSha256?: string;
+  conflictingCells?: number;
   width: number;
   height: number;
   unknownCells: number;
@@ -240,12 +240,14 @@ async function fetchOptionalContext(root: '/data' | '/demo', m: DatasetManifest)
           fetchWithRetry(`${root}/${meta.jsonPath}`, 1),
         ]);
         if (!binRes.ok || !jsonRes.ok) throw new Error('HTTP error');
-        const [binBuf, jsonText] = await Promise.all([binRes.arrayBuffer(), jsonRes.text()]);
-        if (binBuf.byteLength !== meta.binaryBytes || await sha256Hex(binBuf) !== meta.binarySha256) {
-          throw new Error('binary hash mismatch');
+        const [binBuf, jsonBuf] = await Promise.all([binRes.arrayBuffer(), jsonRes.arrayBuffer()]);
+        if (binBuf.byteLength !== meta.binaryBytes || await sha256Hex(binBuf) !== meta.binarySha256 ||
+          await sha256Hex(jsonBuf) !== meta.jsonSha256) {
+          throw new Error('geologic data hash mismatch');
         }
+        const units = JSON.parse(new TextDecoder().decode(jsonBuf)) as GeologicUnitsMeta;
         context.geologicUnitGrid = new Uint8Array(binBuf);
-        context.geologicUnits = JSON.parse(jsonText) as GeologicUnitsMeta;
+        context.geologicUnits = units;
       } catch {
         optionalFailures.push('geologicUnits');
       }
@@ -258,7 +260,9 @@ async function fetchOptionalContext(root: '/data' | '/demo', m: DatasetManifest)
       try {
         const res = await fetchWithRetry(`${root}/${meta.jsonPath}`, 1);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        context.meda = JSON.parse(await res.text()) as MedaContextMeta;
+        const data = await res.arrayBuffer();
+        if (await sha256Hex(data) !== meta.jsonSha256) throw new Error('MEDA hash mismatch');
+        context.meda = JSON.parse(new TextDecoder().decode(data)) as MedaContextMeta;
       } catch {
         optionalFailures.push('medaPressure');
       }

@@ -15,23 +15,26 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import io
 import json
 import math
 import statistics
 import urllib.error
 import urllib.request
+from zipfile import ZipFile
 from pathlib import Path
 
 import numpy as np
 import rasterio
 import rasterio.features
+import shapefile
 from affine import Affine
 from PIL import Image
 from pyproj import CRS as PyprojCRS, Transformer
 from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.transform import from_bounds
-from rasterio.warp import reproject
+from rasterio.warp import reproject, transform_geom
 from rasterio.windows import from_bounds as window_from_bounds
 
 VIKING_URL_TEMPLATE = (
@@ -290,44 +293,41 @@ def _compile_thermal_inertia(ti_path: Path, bundle_dir: Path, manifest: dict, ge
     }
 
 
-def _compile_geologic_units(geo_json_path: Path, bundle_dir: Path, manifest: dict, geo_bounds: list[float]) -> dict | None:
-    if not geo_json_path.is_file():
+def _compile_geologic_units(source_path: Path, bundle_dir: Path, manifest: dict, geo_bounds: list[float]) -> dict | None:
+    if not source_path.is_file():
         return None
-    raw = json.loads(geo_json_path.read_text())
-    src_crs = PyprojCRS.from_wkt(raw['spatialReference']['wkt'])
     dst_crs = PyprojCRS.from_wkt(manifest['crsWkt'])
-    tr = Transformer.from_crs(src_crs, dst_crs, always_xy=True)
     h, w = int(manifest['height']), int(manifest['width'])
     aff = Affine(*manifest['rasterTransform'])
+    shapes_by_unit: dict[str, list[dict]] = {}
+    with ZipFile(source_path) as archive:
+        members = {Path(name).suffix.lower(): name for name in archive.namelist()}
+        src_crs = PyprojCRS.from_wkt(archive.read(members['.prj']).decode())
+        to_source = Transformer.from_crs(dst_crs, src_crs, always_xy=True)
+        west, north = aff * (0, 0)
+        east, south = aff * (w, h)
+        bounds = to_source.transform_bounds(west, south, east, north, densify_pts=21)
+        with shapefile.Reader(**{ext: io.BytesIO(archive.read(members[f'.{ext}'])) for ext in ('shp', 'shx', 'dbf')}) as reader:
+            for record in reader.iterShapeRecords(bbox=bounds):
+                unit = record.record['BedrkUName'].strip()
+                if unit and unit.lower() not in {'unknown', 'undifferentiated', 'unassigned'}:
+                    geometry = transform_geom(src_crs.to_wkt(), dst_crs.to_wkt(), record.shape.__geo_interface__)
+                    shapes_by_unit.setdefault(unit, []).append(geometry)
 
-    # Deduplicate units by symbol while merging multipolygon features
-    symbol_to_idx: dict[str, int] = {}
-    units_meta: list[dict] = []
-    shapes: list[tuple[dict, int]] = []
-    for feat in raw.get('features', []):
-        attrs = feat.get('attributes') or {}
-        symbol = str(attrs.get('symbol') or attrs.get('unit') or 'UNK')
-        if symbol not in symbol_to_idx:
-            idx = len(units_meta) + 1
-            symbol_to_idx[symbol] = idx
-            r_col, g_col, b_col = UNIT_PALETTE[(idx - 1) % len(UNIT_PALETTE)]
-            units_meta.append({
-                'index': idx,
-                'symbol': symbol,
-                'name': attrs.get('name', symbol),
-                'description': attrs.get('Unit_Description', ''),
-                'characteristics': attrs.get('Additional_Characteristics', ''),
-                'interpretation': attrs.get('Unit_Interpretation', ''),
-                'color': f'#{r_col:02x}{g_col:02x}{b_col:02x}',
-            })
-        else:
-            idx = symbol_to_idx[symbol]
-        rings = feat.get('geometry', {}).get('rings', [])
-        if rings:
-            proj_rings = [list(zip(*tr.transform([p[0] for p in ring], [p[1] for p in ring]))) for ring in rings]
-            shapes.append(({'type': 'Polygon', 'coordinates': proj_rings}, idx))
-
-    unit_grid = rasterio.features.rasterize(shapes, out_shape=(h, w), transform=aff, fill=0, dtype='uint8') if shapes else np.zeros((h, w), dtype='uint8')
+    units_meta = []
+    unit_grid = np.zeros((h, w), dtype=np.uint8)
+    memberships = np.zeros((h, w), dtype=np.uint8)
+    for unit, shapes in sorted(shapes_by_unit.items()):
+        mask = rasterio.features.rasterize(shapes, out_shape=(h, w), transform=aff, dtype='uint8').astype(bool)
+        if not mask.any():
+            continue
+        idx = len(units_meta) + 1
+        color = UNIT_PALETTE[(idx - 1) % len(UNIT_PALETTE)]
+        units_meta.append({'index': idx, 'symbol': unit, 'name': unit,
+                           'color': '#%02x%02x%02x' % color})
+        memberships[mask] += 1
+        unit_grid[mask] = idx
+    unit_grid[memberships != 1] = 0
     bin_path = bundle_dir / 'geologic-units.bin'
     bin_path.write_bytes(unit_grid.tobytes())
 
@@ -350,9 +350,11 @@ def _compile_geologic_units(geo_json_path: Path, bundle_dir: Path, manifest: dic
                 target_units[t['id']] = units_meta[uidx - 1]['symbol']
 
     meta_json = {
-        'sourceTitle': 'Stack et al. (2020) Jezero Crater Photogeologic Map / USGS SIM 3464',
+        'sourceTitle': 'Stack et al. (2020), Photogeologic Map of the Perseverance Rover Field Site',
         'sourceUrl': 'https://doi.org/10.1007/s11214-020-00739-x',
-        'licenseNote': 'Retain attribution and documented grid reprojection per publisher correction (2025).',
+        'sourceFileSha256': _sha256(source_path),
+        'licenseNote': 'CC BY 4.0 per 2025 publisher correction. Bedrock polygons clipped and rasterized to Mars AEQD; conflicting units omitted.',
+        'conflictingCells': int((memberships > 1).sum()),
         'width': w,
         'height': h,
         'unknownCells': int((unit_grid == 0).sum()),
@@ -386,15 +388,21 @@ def _compile_meda_context(meda_dir: Path, bundle_dir: Path) -> dict | None:
     sols: list[dict] = []
     for path in ps_files:
         sol_num = int(path.name[4:8])
+        label = path.with_suffix('.xml')
+        if not label.is_file():
+            continue
         pressures: list[float] = []
         with path.open(newline='') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                local_day = row.get('LTST', '').split(maxsplit=1)
+                if not local_day or local_day[0] != f'{sol_num:04d}':
+                    continue
                 val = row.get('PRESSURE', '').strip()
                 if val:
                     try:
                         p = float(val)
-                        if math.isfinite(p) and p > 0:
+                        if 0 < p <= 2000:
                             pressures.append(p)
                     except ValueError:
                         continue
@@ -402,6 +410,8 @@ def _compile_meda_context(meda_dir: Path, bundle_dir: Path) -> dict | None:
             sols.append({
                 'sol': sol_num,
                 'file': path.name,
+                'sourceFileSha256': _sha256(path),
+                'labelSha256': _sha256(label),
                 'validRecords': len(pressures),
                 'minPa': round(min(pressures), 2),
                 'medianPa': round(statistics.median(pressures), 2),
@@ -412,7 +422,7 @@ def _compile_meda_context(meda_dir: Path, bundle_dir: Path) -> dict | None:
         'instrument': 'NASA PDS Mars 2020 MEDA Pressure Sensor (PS)',
         'sourceUrl': 'https://pds-atmospheres.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/',
         'units': 'Pa',
-        'note': 'Historical Jezero pressure records for selected sols; not real-time weather.',
+        'note': 'Historical Jezero observations. Rows match the file sol in local true solar time and pass the project plausibility screen of 0 < pressure ≤ 2,000 Pa.',
         'sols': sols,
         'unavailableFields': {
             'boulderRoughness': 'Unavailable (20 m CTX DEM does not resolve sub-meter boulders or regolith cohesion)',
@@ -470,7 +480,7 @@ def compile_mars_map(
 
     # Compile optional context layers
     ti_info = _compile_thermal_inertia(raw_dir / 'Jezero_Thermal_Inertia_v1.tiff', bundle_dir, manifest, geo_bounds)
-    geo_info = _compile_geologic_units(raw_dir / 'jezero-geologic-units.json', bundle_dir, manifest, geo_bounds)
+    geo_info = _compile_geologic_units(raw_dir / 'jezero-photogeology.zip', bundle_dir, manifest, geo_bounds)
     meda_info = _compile_meda_context(raw_dir / 'meda', bundle_dir)
 
     manifest['mapDisplay'] = {
@@ -495,7 +505,7 @@ def compile_mars_map(
             'Mars Global Color Mosaic: NASA/JPL Mars Trek · USGS Viking MDIM 2.1 (232 m)',
             'Wider Jezero Orbital Mosaic: NASA/JPL Mars Trek MRO CTX Controlled 6 m Mosaic',
             'Modeled Routing Grid: USGS MRO CTX 20 m DTM (local spherical Mars AEQD)',
-            'Geologic Context: Stack et al. (2020) / USGS SIM 3464',
+            'Geologic Context: Stack et al. (2020) photogeologic map, CC BY 4.0',
             'Thermal Inertia: Edwards & Buz (2021) Jezero v1 (100 m resampled for display)',
             'Surface Pressure: NASA PDS Mars 2020 MEDA (sols 490, 509, 575)',
         ],
