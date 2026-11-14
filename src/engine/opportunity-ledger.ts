@@ -8,6 +8,8 @@ import type { FieldBundle } from '../data/loader';
 import type { FeasibilityState, MissionScenario, ScienceTarget, TargetAssessment } from './types';
 import { assessTarget } from './feasibility';
 import { routeSummary } from './route-summary';
+import { cellIndex, createTraverseGraph } from './traverse-graph';
+import type { Cell, HazardZone } from './traverse-graph';
 
 export type OpportunityChange = 'UNCHANGED' | 'DOWNGRADED' | 'LOST' | 'UNCERTAIN';
 
@@ -90,4 +92,32 @@ export function opportunityExplanation(entry: OpportunityEntry): string {
       'No tested speed fits the window, even at its start.';
   if (current.state === 'ROBUST') return 'All three modeled speeds retain a return margin.';
   return 'Only some modeled speeds fit the return budget.';
+}
+
+/** Evaluate target feasibility from any live cell back to the landing site. */
+export function evaluatePositionOpportunities(
+  bundle: FieldBundle,
+  fromCell: Cell,
+  scenario: MissionScenario,
+  targets: readonly ScienceTarget[] = bundle.manifest.scienceTargets ?? [],
+  hazards: readonly HazardZone[] = [],
+): Record<string, TargetAssessment> {
+  const fromIdx = cellIndex(fromCell, bundle);
+  const graph = createTraverseGraph(bundle, hazards, fromIdx);
+  const results: Record<string, TargetAssessment> = {};
+  for (const target of targets) {
+    const loc = target.location;
+    const targetIdx = loc.gridRow !== null && loc.gridCol !== null
+      && Number.isInteger(loc.gridRow) && Number.isInteger(loc.gridCol)
+      ? cellIndex([loc.gridRow, loc.gridCol], bundle)
+      : -1;
+    const outbound = fromIdx >= 0 && targetIdx >= 0
+      ? graph.route(fromIdx, targetIdx)
+      : routeSummary(bundle, targetIdx, 'outbound');
+    const inbound = targetIdx >= 0
+      ? graph.route(targetIdx, bundle.manifest.baseIndex)
+      : routeSummary(bundle, targetIdx, 'return');
+    results[target.id] = assessTarget(target, scenario, outbound, inbound);
+  }
+  return results;
 }

@@ -1,4 +1,4 @@
-import type { DatasetManifest } from '../data/loader';
+import type { ContextData, DatasetManifest } from '../data/loader';
 import scenario from '../config/mission-scenario.json';
 import { budget, reserve } from './consumables';
 import type { MissionExecution } from './lifecycle-store';
@@ -14,12 +14,41 @@ export function missionSequence(plan: MissionPlan) {
   return [plan.legs[0]?.from, ...plan.legs.map(leg => leg.to)].join(' → ');
 }
 
-export function createArchive(plan: MissionPlan, source: DatasetManifest, execution?: MissionExecution) {
-  const {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files} = source;
+export function createArchive(
+  plan: MissionPlan,
+  source: DatasetManifest,
+  execution?: MissionExecution,
+  contextData?: ContextData | null,
+) {
+  const {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files, contextLayers} = source;
+  const environmentalContext = {
+    scenarioAssumptions: scenario.environmentalContext,
+    geologicUnits: contextData?.geologicUnits?.units.map(u => ({ symbol: u.symbol, name: u.name })) ?? [],
+    targetUnits: contextData?.geologicUnits?.targetUnits ?? {},
+    thermalInertia: contextLayers?.thermalInertia
+      ? {
+          units: contextLayers.thermalInertia.units,
+          minValue: contextLayers.thermalInertia.minValue,
+          maxValue: contextLayers.thermalInertia.maxValue,
+          credit: contextLayers.thermalInertia.credit,
+        }
+      : null,
+    medaPressureSols: contextData?.meda?.sols ?? [],
+    unavailableFields: contextData?.meda?.unavailableFields ?? {
+      realTimeWeather: 'Unavailable — Mars 2020 MEDA entries are historical PDS Sol 490/509/575 archives only.',
+      realTimeRadiation: 'Unavailable — no live radiation feed in offline export.',
+      subCellSurfaceRoughness: 'Unavailable — 20 m CTX DTM does not resolve sub-20 m boulder hazards or soil cohesion.',
+    },
+  };
   return {
-    schemaVersion: 1, scenario, budget, reserve,
+    schemaVersion: 2,
+    scenario,
+    budget,
+    reserve,
     source: {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files},
-    baseline: plan, execution,
+    environmentalContext,
+    baseline: plan,
+    execution,
   };
 }
 
@@ -55,12 +84,31 @@ export function archiveMarkdown(archive: ReturnType<typeof createArchive>) {
       : `- ${speed}× margins: unknown`), '');
   }
   if (execution) {
+    const progressEntries = Object.values(execution.stopProgress ?? {});
+    const observations = execution.fieldObservations ?? [];
     lines.push('## Mission history', '', `Status: ${execution.status}`, `Elapsed: ${missionClock(execution.spent.minutes)}`,
       `Spent: ${execution.spent.oxygen.toFixed(1)} L oxygen / ${execution.spent.energy.toFixed(1)} Wh`,
-      `Completed stops: ${execution.completed.join(', ') || 'None'}`, '',
+      `Completed stops: ${execution.completed.join(', ') || 'None'}`, '');
+    if (progressEntries.length > 0) {
+      lines.push('### Stop exploration summary', '');
+      for (const item of progressEntries) {
+        lines.push(`- ${item.stopName}: ${item.status} · ${item.exploredMinutes.toFixed(0)} / ${item.plannedMinutes.toFixed(0)} min explored · ${item.observations.length} observation(s)`);
+      }
+      lines.push('');
+    }
+    if (observations.length > 0) {
+      lines.push('### Field observations preserved', '');
+      for (const obs of observations) {
+        lines.push(`- ${missionClock(obs.timestampMinutes)} · ${obs.stopName} (${obs.recordedDuring}): ${obs.note}${obs.measurement ? ` · ${obs.measurement}` : ''}`);
+      }
+      lines.push('');
+    }
+    lines.push(
       ...execution.events.map(event => `- ${missionClock(event.minute)} · ${event.channel} · ${event.category} · ${event.description || 'Event recorded'} · (${event.cell.join(', ')})`),
-      ...execution.decisions.map(decision => `- ${missionClock(decision.minute)} · ${decision.kind} · ${missionSequence(decision.plan)}`),
-      '', 'The JSON archive includes grid geometry and complete event measurements.');
+      ...execution.decisions.map(decision => `- ${missionClock(decision.minute)} · ${decision.kind}${decision.stopAction ? ` (${decision.stopAction})` : ''} · ${missionSequence(decision.plan)}`),
+      '', '### Unavailable / non-realtime context',
+      ...Object.entries(archive.environmentalContext.unavailableFields).map(([k, v]) => `- ${k}: ${v}`),
+      '', 'The JSON archive includes grid geometry, preserved field observations, stop progress, and complete event measurements.');
   }
   return lines.join('\n') + '\n';
 }

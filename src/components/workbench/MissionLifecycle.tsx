@@ -1,16 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
 import type { MapPointInspection } from '@/components/cartography/LeafletGrid';
 import { ElevationProfile } from '@/components/visualizations/ElevationProfile';
 import type { FieldBundle } from '@/data/loader';
 import { addResources, subtractResources, zeroResources } from '@/engine/consumables';
-import { advanceMission, decideReplan, proposeReturn, recordEvent, remainingActivePlan, startMission } from '@/engine/lifecycle-store';
+import {
+  advanceMission,
+  decideReplan,
+  logStopObservation,
+  proposeReturn,
+  recordEvent,
+  recordPendingReading,
+  remainingActivePlan,
+  startMission,
+  triggerSimulatedReading,
+} from '@/engine/lifecycle-store';
 import type { MissionExecution } from '@/engine/lifecycle-store';
-import { archiveMarkdown, createArchive, missionClock } from '@/engine/mission-archive';
+import { archiveMarkdown, createArchive, missionClock, missionSequence } from '@/engine/mission-archive';
 import { canApprove, landingCell, landingId, previewMission, stopLimit, targetCell } from '@/engine/multi-leg-planner';
 import type { MissionPlan, RoutePreference } from '@/engine/multi-leg-planner';
 import { cellIndex } from '@/engine/traverse-graph';
@@ -19,7 +29,15 @@ import type { ScienceTarget } from '@/engine/types';
 import scenario from '@/config/mission-scenario.json';
 import { channelLabels, eventLabel, eventMeasurement, MissionEventRecorder, scenarioPoint } from './MissionEventRecorder';
 import type { EventSubmission } from './MissionEventRecorder';
-import { AnalysisDonutRings, marginText, MissionPlanPreview, nominalMargin, PlanComparison, TwinStatusCards } from './MissionPlanPreview';
+import {
+  AnalysisDonutRings,
+  conservativeSummary,
+  marginText,
+  MissionPlanPreview,
+  nominalMargin,
+  PlanComparison,
+  TwinStatusCards,
+} from './MissionPlanPreview';
 
 const surfaceGallery = [
   {id: 'shuyak', shortName: 'Enchanted Lake', file: 'enchanted-lake.webp', label: 'Enchanted Lake · Cape Nukshak', caption: 'Enchanted Lake area · Perseverance Hazcam · NASA/JPL-Caltech'},
@@ -42,12 +60,17 @@ function download(filename: string, body: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 
-function SiteEvidence({stop}: {stop: ScienceTarget}) {
+function SiteEvidence({stop, unitLabel, thermalValue}: {stop: ScienceTarget; unitLabel?: string; thermalValue?: number | null}) {
   const photo = photos[stop.id];
   return <details className="mission-disclosure site-evidence">
     <summary>Science &amp; provenance</summary>
     <p>{stop.science.summary}</p>
     <p>{stop.location.originalCoordinateText}</p>
+    {unitLabel && <p>Mapped geologic unit (Stack et al. 2020): {unitLabel}</p>}
+    {thermalValue !== undefined && thermalValue !== null && (
+      <p>Thermal inertia (Edwards &amp; Buz 2021): {thermalValue.toFixed(0)} J m⁻² K⁻¹ s⁻¹/²</p>
+    )}
+    <p>Unavailable fields: live weather, radiation &amp; sub-20 m boulder roughness.</p>
     {photo && <figure>
       {/* eslint-disable-next-line @next/next/no-img-element -- local evidence images ship with the offline export */}
       <img loading="lazy" src={`/data/imagery/${photo.file}`} alt={photo.caption} />
@@ -58,12 +81,14 @@ function SiteEvidence({stop}: {stop: ScienceTarget}) {
 }
 
 function SelectionPanel({
-  catalog, selected, limit, origin, width, height, customCol, customRow,
+  catalog, selected, limit, origin, width, height, customCol, customRow, bundle, headingRef,
   onCustomCol, onCustomRow, onAddCustomPoint, onMode, onAdd, onChange, onReorder, onResume,
 }: {
   catalog: ScienceTarget[]; selected: ScienceTarget[]; limit: number;
   origin: Cell; width: number; height: number;
   customCol: string; customRow: string;
+  bundle: FieldBundle;
+  headingRef?: React.RefObject<HTMLHeadingElement | null>;
   onCustomCol: (v: string) => void; onCustomRow: (v: string) => void;
   onAddCustomPoint: () => void;
   onMode: (limit: number) => void; onAdd: (stop: ScienceTarget) => void;
@@ -75,7 +100,7 @@ function SelectionPanel({
     <section className="cc-panel-block cc-panel-compact">
       <div className="cc-panel-header">
         <div>
-          <h1>Plan a science traverse</h1>
+          <h1 ref={headingRef} tabIndex={-1}>Plan a science traverse</h1>
         </div>
         <div className="cc-header-controls">
           <div className="mission-actions" role="group" aria-label="Destination mode">
@@ -144,20 +169,48 @@ function SelectionPanel({
       <h2>Science sites</h2>
       {catalog.length === 0 && <p className="context-note">No documented targets match the current filter.</p>}
       <div className="cc-catalog-grid">
-        {catalog.map(stop => <div key={stop.id} className="cc-catalog-item">
-          <Button label={`Add ${stop.name}`} onClick={() => onAdd(stop)}
-            isDisabled={!targetCell(stop) || selected.some(item => item.id === stop.id) || (limit > 1 && selected.length >= limit)} />
-          <SiteEvidence stop={stop}/>
-        </div>)}
+        {catalog.map(stop => {
+          const cell = targetCell(stop);
+          const idx = cell ? cellIndex(cell, bundle) : -1;
+          const unitLabel = bundle.contextData?.geologicUnits?.targetUnits?.[stop.id];
+          const thermalVal = idx >= 0 && bundle.contextData?.thermalInertia && Number.isFinite(bundle.contextData.thermalInertia[idx])
+            ? bundle.contextData.thermalInertia[idx]
+            : null;
+          return <div key={stop.id} className="cc-catalog-item">
+            <Button label={`Add ${stop.name}`} onClick={() => onAdd(stop)}
+              isDisabled={!cell || selected.some(item => item.id === stop.id) || (limit > 1 && selected.length >= limit)} />
+            <SiteEvidence stop={stop} unitLabel={unitLabel} thermalValue={thermalVal}/>
+          </div>;
+        })}
       </div>
     </section>
   </>;
 }
 
-function ExecutionPanel({mission, onEvent, selected}: {
+function ExecutionPanel({
+  mission,
+  onEvent,
+  onExploreStep,
+  onFinishStop,
+  onLogObservation,
+  onTriggerReading,
+  onRecordReading,
+  onDismissReading,
+  selected,
+  headingRef,
+}: {
   mission: MissionExecution;
-  onEvent: (entry: EventSubmission) => void; selected: Cell | null;
+  onEvent: (entry: EventSubmission) => void;
+  onExploreStep: () => void;
+  onFinishStop: () => void;
+  onLogObservation: (note: string) => void;
+  onTriggerReading: () => void;
+  onRecordReading: () => void;
+  onDismissReading: () => void;
+  selected: Cell | null;
+  headingRef?: React.RefObject<HTMLHeadingElement | null>;
 }) {
+  const [obsInput, setObsInput] = useState('');
   const leg = mission.active.legs[mission.legIndex];
   const complete = mission.status === 'COMPLETED';
   const remaining = mission.active.stops.filter(stop => !mission.completed.includes(stop.id) &&
@@ -172,32 +225,114 @@ function ExecutionPanel({mission, onEvent, selected}: {
     const discovered = mission.events.find(event => event.category === 'NEW_SCIENTIFIC_DISCOVERY' && event.target.id === id);
     return baseline?.name ?? (discovered?.category === 'NEW_SCIENTIFIC_DISCOVERY' ? discovered.target.name : id);
   };
+  const activeProg = mission.activeStopId ? mission.stopProgress?.[mission.activeStopId] : undefined;
+  const observations = mission.fieldObservations ?? [];
+  const progressList = Object.values(mission.stopProgress ?? {});
+
   return <>
     <section className="cc-panel-block cc-panel-compact">
-      <h1>{complete ? 'Returned to landing site' : 'Execute the approved plan'}</h1>
+      <h1 ref={headingRef} tabIndex={-1}>{complete ? 'Returned to landing site' : 'Execute the approved plan'}</h1>
       <div className="cc-coord-pair cc-exec-coords">
         <div className="cc-coord-box"><span>X:</span><strong>{mission.position[1]}</strong><small>col</small></div>
         <div className="cc-coord-box"><span>Y:</span><strong>{mission.position[0]}</strong><small>row</small></div>
       </div>
       <p className="context-note">Simulated position ({mission.position.join(', ')}) · {missionClock(mission.spent.minutes)} · {mission.spent.oxygen.toFixed(1)} L O₂ · {mission.spent.energy.toFixed(1)} Wh</p>
       {baselineClock !== undefined && baselineResources && <p className="context-note">Baseline at {complete ? 'return' : 'latest completed stop'} · {missionClock(baselineClock)} · {baselineResources.oxygen.toFixed(1)} L O₂ · {baselineResources.energy.toFixed(1)} Wh</p>}
-      {leg && <p className="cc-next-leg">Next waypoint: <strong>{leg.to}</strong></p>}
+      {leg && !mission.activeStopId && <p className="cc-next-leg">Next waypoint: <strong>{leg.to}</strong></p>}
     </section>
+
+    {!complete && mission.pendingReading && (
+      <section className="cc-panel-block cc-panel-compact cc-reading-alert" aria-label="Incoming simulated reading">
+        <div className="section-heading">
+          <span>Incoming simulated reading</span>
+          <span className="cc-reading-channel">{channelLabels[mission.pendingReading.channel]}</span>
+        </div>
+        <p><strong>{mission.pendingReading.title}</strong></p>
+        <p className="context-note">{mission.pendingReading.measurement} · near ({mission.pendingReading.cell.join(', ')})</p>
+        <p className="context-note">{mission.pendingReading.description}</p>
+        <div className="mission-buttons">
+          <Button label="Record reading & evaluate impact" variant="primary" onClick={onRecordReading} />
+          <Button label="Dismiss reading" onClick={onDismissReading} />
+        </div>
+      </section>
+    )}
+
+    {mission.status === 'EXECUTING' && activeProg && (
+      <section className="cc-panel-block cc-panel-compact cc-stop-ops" aria-label="Active stop exploration">
+        <div className="section-heading">
+          <span>At station · {activeProg.stopName}</span>
+          <span className="section-index">{activeProg.exploredMinutes.toFixed(0)} / {activeProg.plannedMinutes.toFixed(0)} min</span>
+        </div>
+        <p className="context-note">
+          {activeProg.status === 'arrived'
+            ? 'Arrived at site. Log observations or begin exploration time.'
+            : `Exploring site · ${activeProg.observations.length} observation(s) preserved.`}
+        </p>
+        <form
+          className="cc-obs-form"
+          onSubmit={e => {
+            e.preventDefault();
+            if (!obsInput.trim()) return;
+            onLogObservation(obsInput);
+            setObsInput('');
+          }}
+        >
+          <input
+            type="text"
+            value={obsInput}
+            maxLength={140}
+            aria-label="Observation note"
+            placeholder="Record geology / mineralogy note…"
+            onChange={e => setObsInput(e.target.value)}
+          />
+          <Button label="Record observation" type="submit" isDisabled={!obsInput.trim()} />
+        </form>
+        <div className="mission-buttons">
+          <Button
+            label="Explore +10 min"
+            variant="primary"
+            isDisabled={activeProg.exploredMinutes >= activeProg.plannedMinutes}
+            onClick={onExploreStep}
+          />
+          {!mission.pendingReading && (
+            <Button label="Simulate incoming reading" onClick={onTriggerReading} />
+          )}
+          <Button label="Complete stop" onClick={onFinishStop} />
+        </div>
+      </section>
+    )}
 
     <section className="cc-panel-block cc-panel-compact">
       <h2>Mission history</h2>
       <p className="context-note" role="status">{complete ? 'Returned · archive ready'
         : mission.status === 'REVIEW' ? 'Event analyzed · revised plan awaiting approval'
         : mission.status === 'HOLD' ? 'Holding · record a new event or review direct return'
+        : mission.activeStopId ? 'At stop · exploring and logging observations'
         : mission.decisions.length ? 'Continuing on the approved revision' : 'Baseline approved · tracking progress'}</p>
       <ol className="mission-history">
-        {mission.completed.map(id => <li key={id}>✓ {completedStopName(id)}</li>)}
+        {progressList.filter(item => item.status !== 'pending').map(item => (
+          <li key={`prog-${item.stopId}`}>
+            {item.status === 'completed' ? '✓' : item.status === 'departed-early' ? '◐' : '•'} {item.stopName}
+            <small>{item.status} · {item.exploredMinutes.toFixed(0)}/{item.plannedMinutes.toFixed(0)} min · {item.observations.length} note(s)</small>
+          </li>
+        ))}
+        {mission.completed.filter(id => !progressList.some(p => p.stopId === id && p.status !== 'pending')).map(id => (
+          <li key={id}>✓ {completedStopName(id)}</li>
+        ))}
+        {observations.map(obs => (
+          <li key={obs.id}>{missionClock(obs.timestampMinutes)} · Observation at {obs.stopName}
+            <small>{obs.note} ({obs.recordedDuring})</small></li>
+        ))}
         {mission.events.map(event => <li key={event.id}>{missionClock(event.minute)} · {eventLabel(event.category)}
           <small>{channelLabels[event.channel]} · {eventMeasurement(event)} · ({event.cell.join(', ')})
             {event.description && ` · ${event.description}`}</small></li>)}
-        {mission.decisions.map((decision, i) => <li key={i}>{missionClock(decision.minute)} · Revision {decision.kind}</li>)}
+        {mission.decisions.map((decision, i) => (
+          <li key={i}>{missionClock(decision.minute)} · Revision {decision.kind}{decision.stopAction ? ` (${decision.stopAction})` : ''}</li>
+        ))}
       </ol>
-      {!mission.completed.length && !mission.events.length && <p className="context-note">Baseline locked. Use the map HUD controls to advance along the leg.</p>}
+      {!mission.completed.length && !mission.events.length && !observations.length && (
+        <p className="context-note">Baseline locked. Use Move, Arrive at stop, or Complete next stop on the map HUD.</p>
+      )}
     </section>
 
     {!complete && <details className="mission-disclosure cc-event-disclosure" open={mission.status !== 'REVIEW'}>
@@ -208,35 +343,89 @@ function ExecutionPanel({mission, onEvent, selected}: {
   </>;
 }
 
-function ChangeReview({execution, baselineRemaining, onDecision, returnPlan}: {
+function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, headingRef}: {
   execution: MissionExecution; baselineRemaining: MissionPlan; returnPlan: MissionPlan | null;
-  onDecision: (plan: MissionPlan, decision: 'approved' | 'held' | 'abort') => void;
+  onDecision: (plan: MissionPlan, decision: 'approved' | 'held' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') => void;
+  headingRef?: React.RefObject<HTMLHeadingElement | null>;
 }) {
   const proposed = execution.proposal;
   if (!proposed) return null;
+  const finishBranch = execution.finishProposal;
+  const leaveBranch = execution.leaveStopProposal;
+  const hasDualStopBranches = Boolean(finishBranch && leaveBranch && execution.activeStopId);
+  const activeProg = execution.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
+
   const omitted = baselineRemaining.stops.filter(stop => !proposed.stops.some(candidate => candidate.id === stop.id));
   const previousMargin = nominalMargin(baselineRemaining), proposedMargin = nominalMargin(proposed);
   const delta = previousMargin && proposedMargin && subtractResources(proposedMargin, previousMargin);
   const added = proposed.stops.filter(stop => !baselineRemaining.stops.some(prior => prior.id === stop.id));
   const shortened = proposed.stops.filter(stop => baselineRemaining.stops.some(prior =>
     prior.id === stop.id && prior.activity.minutes > stop.activity.minutes));
+
   return <section className="mission-review" aria-label="Replan review">
-    <h2>{execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}</h2>
-    <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" />
-    {omitted.length > 0 && <p>Deferred: {omitted.map(stop => stop.name).join(', ')}.</p>}
-    {added.length > 0 && <p>Added: {added.map(stop => stop.name).join(', ')}.</p>}
-    {delta && <p>Reserve margin change: {marginText(delta)}.</p>}
-    {shortened.length > 0 && <p>Shortened activity: {shortened.map(stop => stop.name).join(', ')}.</p>}
-    {!canApprove(proposed) && <p role="status">Approval requires all three reserves at every modeled speed.</p>}
-    <div className="mission-buttons">
-      {execution.status === 'REVIEW' && <>
-        <Button label="Approve revision & continue" variant="primary" isDisabled={!canApprove(proposed)}
-          onClick={() => onDecision(proposed, 'approved')} />
-        <Button label="Hold position" onClick={() => onDecision(proposed, 'held')} />
-      </>}
-      {returnPlan && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
-        isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => onDecision(returnPlan, 'abort')} />}
-    </div>
+    <h2 ref={headingRef} tabIndex={-1}>{execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}</h2>
+
+    {hasDualStopBranches && finishBranch && leaveBranch ? (
+      <>
+        {execution.proposalReason && <p className="context-note"><strong>Recommendation:</strong> {execution.proposalReason}</p>}
+        {activeProg && (
+          <p className="context-note">
+            Interrupted at <strong>{activeProg.stopName}</strong>: {activeProg.exploredMinutes.toFixed(0)} / {activeProg.plannedMinutes.toFixed(0)} min explored · {activeProg.observations.length} observation(s) preserved.
+          </p>
+        )}
+        <div className="mission-comparison">
+          <div>
+            <small>Option A · Finish stop &amp; continue {execution.recommendedProposal === 'finish-stop' ? '(Recommended)' : ''}</small>
+            <p>{missionSequence(finishBranch)}</p>
+            <p>{marginText(nominalMargin(finishBranch))}</p>
+            {!canApprove(finishBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
+          </div>
+          <div>
+            <small>Option B · Leave stop now (keep partial science) {execution.recommendedProposal === 'leave-stop' ? '(Recommended)' : ''}</small>
+            <p>{missionSequence(leaveBranch)}</p>
+            <p>{marginText(nominalMargin(leaveBranch))}</p>
+            {!canApprove(leaveBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
+          </div>
+        </div>
+        <div className="mission-buttons">
+          {execution.status === 'REVIEW' && <>
+            <Button
+              label="Approve: finish stop & continue"
+              variant={execution.recommendedProposal === 'finish-stop' ? 'primary' : 'secondary'}
+              isDisabled={!canApprove(finishBranch)}
+              onClick={() => onDecision(finishBranch, 'approved', 'finish-stop')}
+            />
+            <Button
+              label="Approve: leave stop & continue"
+              variant={execution.recommendedProposal === 'leave-stop' ? 'primary' : 'secondary'}
+              isDisabled={!canApprove(leaveBranch)}
+              onClick={() => onDecision(leaveBranch, 'approved', 'leave-stop')}
+            />
+            <Button label="Hold position" onClick={() => onDecision(proposed, 'held')} />
+          </>}
+          {returnPlan && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
+            isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => onDecision(returnPlan, 'abort')} />}
+        </div>
+      </>
+    ) : (
+      <>
+        <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" />
+        {omitted.length > 0 && <p>Deferred: {omitted.map(stop => stop.name).join(', ')}.</p>}
+        {added.length > 0 && <p>Added: {added.map(stop => stop.name).join(', ')}.</p>}
+        {delta && <p>Reserve margin change: {marginText(delta)}.</p>}
+        {shortened.length > 0 && <p>Shortened activity: {shortened.map(stop => stop.name).join(', ')}.</p>}
+        {!canApprove(proposed) && <p role="status">Approval requires all three reserves at every modeled speed.</p>}
+        <div className="mission-buttons">
+          {execution.status === 'REVIEW' && <>
+            <Button label="Approve revision & continue" variant="primary" isDisabled={!canApprove(proposed)}
+              onClick={() => onDecision(proposed, 'approved')} />
+            <Button label="Hold position" onClick={() => onDecision(proposed, 'held')} />
+          </>}
+          {returnPlan && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
+            isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => onDecision(returnPlan, 'abort')} />}
+        </div>
+      </>
+    )}
   </section>;
 }
 
@@ -304,6 +493,52 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   const activePhoto = surfaceGallery[photoIndex % surfaceGallery.length];
   const activeExecutionLeg = execution ? execution.active.legs[execution.legIndex] : undefined;
   const profileLeg = currentPlan?.legs[0];
+  const baselineGate = useMemo(() => conservativeSummary(plan), [plan]);
+  const activeStopProgress = execution?.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
+  const phaseKey = !execution
+    ? 'PLAN'
+    : execution.status === 'REVIEW'
+      ? 'REVIEW'
+      : execution.status === 'HOLD'
+        ? 'HOLD'
+        : execution.status === 'COMPLETED'
+          ? 'COMPLETED'
+          : execution.activeStopId
+            ? activeStopProgress?.status === 'exploring' ? 'EXPLORE' : 'ARRIVED'
+            : 'MOVING';
+  const phaseLabel = phaseKey === 'PLAN'
+    ? 'Plan baseline'
+    : phaseKey === 'MOVING'
+      ? 'Execute · Moving'
+      : phaseKey === 'ARRIVED'
+        ? 'Execute · At stop'
+        : phaseKey === 'EXPLORE'
+          ? 'Execute · Exploring'
+          : phaseKey === 'REVIEW'
+            ? 'Pause & Review'
+            : phaseKey === 'HOLD'
+              ? 'Holding'
+              : 'Returned';
+  const medaFirstSol = bundle.contextData?.meda?.sols?.[0];
+  const medaBadge = medaFirstSol
+    ? `MEDA Sol ${medaFirstSol.sol} · ${Math.round(medaFirstSol.medianPa)} Pa · live weather N/A`
+    : 'MEDA archive · live weather N/A';
+
+  const phaseHeadingRef = useRef<HTMLHeadingElement>(null);
+  const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const prevPhaseRef = useRef(phaseKey);
+
+  useEffect(() => {
+    if (prevPhaseRef.current === phaseKey) return;
+    prevPhaseRef.current = phaseKey;
+    requestAnimationFrame(() => {
+      if (phaseKey === 'REVIEW') {
+        reviewHeadingRef.current?.focus();
+      } else {
+        phaseHeadingRef.current?.focus();
+      }
+    });
+  }, [phaseKey]);
 
   useEffect(() => {
     if (!execution) return;
@@ -366,7 +601,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
 
   function exportPlan(format: 'json' | 'md') {
     if (!plan) return;
-    const archive = createArchive(execution?.baseline ?? plan, manifest, execution ?? undefined);
+    const archive = createArchive(execution?.baseline ?? plan, manifest, execution ?? undefined, bundle.contextData);
     download(`seshat-${execution?.status === 'COMPLETED' ? 'mission-archive' : 'baseline'}.${format}`,
       format === 'json' ? JSON.stringify(archive, null, 2) : archiveMarkdown(archive),
       format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8');
@@ -443,23 +678,20 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                   aria-label="Search Jezero sites"
                 />
               </label>
+              <span className="cc-meda-pill" title="Historical NASA PDS Mars 2020 MEDA archive; live weather unavailable">
+                {medaBadge}
+              </span>
               <button
                 type="button"
-                className="cc-bell-btn"
+                className="cc-map-action-btn"
                 onClick={() => setShowSources(value => !value)}
-                aria-label="Toggle data provenance notice"
                 aria-expanded={showSources}
               >
-                <span aria-hidden="true">◔</span>
-                <i className="cc-bell-dot" aria-hidden="true" />
+                Sources
               </button>
-              <div className="cc-user-pill">
-                <span className="cc-avatar" aria-hidden="true">M2</span>
-                <div>
-                  <strong>Jezero Ops</strong>
-                  <small>Planetary Scientist</small>
-                </div>
-              </div>
+              <span className="cc-phase-pill" data-phase={phaseKey} role="status">
+                {phaseLabel}
+              </span>
             </div>
           </header>
 
@@ -603,23 +835,57 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                 <div className="cc-map-hud">
                   <div className="cc-hud-cta">
                     {!execution && (
-                      <Button
-                        label="Approve & lock baseline plan"
-                        variant="primary"
-                        isDisabled={!plan || !canApprove(plan)}
-                        onClick={() => plan && setExecution(startMission(plan, selected, limit))}
-                      />
+                      <>
+                        <Button
+                          label="Approve & lock baseline plan"
+                          variant="primary"
+                          isDisabled={!plan || !canApprove(plan)}
+                          onClick={() => plan && setExecution(startMission(plan, selected, limit))}
+                        />
+                        {baselineGate && (
+                          <span className="cc-baseline-gate">
+                            {baselineGate.margin
+                              ? `0.8× margin: ${baselineGate.limitingLabel} ${baselineGate.limitingText}`
+                              : '0.8× margin unknown'}
+                          </span>
+                        )}
+                      </>
                     )}
-                    {execution && execution.status !== 'COMPLETED' && (
+                    {execution && execution.status !== 'COMPLETED' && !execution.activeStopId && (
                       <>
                         <Button
                           label="Move along active leg"
                           onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'part')); setMapSelection(null);}}
                           isDisabled={execution.status !== 'EXECUTING' || execution.cursor >= (activeExecutionLeg?.route.geometryGrid.length ?? 1) - 1}
                         />
+                        {activeExecutionLeg?.targetId !== landingId && (
+                          <Button
+                            label="Arrive at stop"
+                            onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'arrive')); setMapSelection(null);}}
+                            isDisabled={execution.status !== 'EXECUTING'}
+                          />
+                        )}
                         <Button
                           label={activeExecutionLeg?.targetId === landingId ? 'Return to Landing Site' : 'Complete next stop'}
                           variant="primary"
+                          onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'finish')); setMapSelection(null);}}
+                          isDisabled={execution.status !== 'EXECUTING'}
+                        />
+                      </>
+                    )}
+                    {execution && execution.status !== 'COMPLETED' && execution.activeStopId && (
+                      <>
+                        <Button
+                          label="Explore +10 min"
+                          variant="primary"
+                          onClick={() => setExecution(current => current && advanceMission(current, bundle, 'explore', 10))}
+                          isDisabled={
+                            execution.status !== 'EXECUTING' ||
+                            (activeStopProgress ? activeStopProgress.exploredMinutes >= activeStopProgress.plannedMinutes : false)
+                          }
+                        />
+                        <Button
+                          label="Complete stop"
                           onClick={() => {setExecution(current => current && advanceMission(current, bundle, 'finish')); setMapSelection(null);}}
                           isDisabled={execution.status !== 'EXECUTING'}
                         />
@@ -714,7 +980,14 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                   <ExecutionPanel
                     mission={execution}
                     selected={mapSelection}
+                    headingRef={phaseHeadingRef}
                     onEvent={entry => {setExecution(recordEvent(execution, bundle, entry)); setMapSelection(null);}}
+                    onExploreStep={() => setExecution(current => current && advanceMission(current, bundle, 'explore', 10))}
+                    onFinishStop={() => {setExecution(current => current && advanceMission(current, bundle, 'finish')); setMapSelection(null);}}
+                    onLogObservation={note => setExecution(current => current && logStopObservation(current, note))}
+                    onTriggerReading={() => setExecution(current => current && triggerSimulatedReading(current, bundle))}
+                    onRecordReading={() => setExecution(current => current && recordPendingReading(current, bundle))}
+                    onDismissReading={() => setExecution(current => current && { ...current, pendingReading: null })}
                   />
                 ) : (
                   <SelectionPanel
@@ -726,6 +999,8 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                     height={manifest.height}
                     customCol={customCol}
                     customRow={customRow}
+                    bundle={bundle}
+                    headingRef={phaseHeadingRef}
                     onCustomCol={setCustomCol}
                     onCustomRow={setCustomRow}
                     onAddCustomPoint={addManualCell}
@@ -751,7 +1026,10 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                     execution={execution}
                     baselineRemaining={previous}
                     returnPlan={returnPlan}
-                    onDecision={(updated, decision) => setExecution(decideReplan(execution, updated, decision))}
+                    headingRef={reviewHeadingRef}
+                    onDecision={(updated, decision, stopAction) =>
+                      setExecution(decideReplan(execution, updated, decision, stopAction ? { stopAction } : undefined))
+                    }
                   />
                 )}
 

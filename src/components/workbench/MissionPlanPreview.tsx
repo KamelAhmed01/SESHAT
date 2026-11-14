@@ -22,6 +22,24 @@ export function nominalMargin(plan: MissionPlan) {
   return plan.margins.find(({speed}) => speed === 1)?.margin ?? null;
 }
 
+export function conservativeSummary(plan: MissionPlan | null | undefined) {
+  if (!plan) return null;
+  const conservative = plan.margins.find(({ speed }) => speed === 0.8)?.margin ?? plan.margins[0]?.margin ?? null;
+  if (!conservative) return { margin: null, limitingLabel: 'Unknown', limitingText: 'Unknown margin' };
+  const usable = subtractResources(budget, reserve);
+  const candidates = [
+    { label: 'Time', ratio: conservative.minutes / Math.max(1, usable.minutes), text: `${conservative.minutes >= 0 ? '+' : ''}${conservative.minutes.toFixed(1)} min` },
+    { label: 'Oxygen', ratio: conservative.oxygen / Math.max(1, usable.oxygen), text: `${conservative.oxygen >= 0 ? '+' : ''}${conservative.oxygen.toFixed(1)} L` },
+    { label: 'Battery', ratio: conservative.energy / Math.max(1, usable.energy), text: `${conservative.energy >= 0 ? '+' : ''}${conservative.energy.toFixed(1)} Wh` },
+  ].sort((a, b) => a.ratio - b.ratio);
+  return {
+    margin: conservative,
+    limitingLabel: candidates[0].label,
+    limitingText: candidates[0].text,
+    fullText: marginText(conservative),
+  };
+}
+
 export function TwinStatusCards({plan, spent}: {plan?: MissionPlan | null; spent: Resources}) {
   const plannedEnergy = plan?.used?.energy ?? 0;
   const committedEnergy = spent.energy + plannedEnergy;

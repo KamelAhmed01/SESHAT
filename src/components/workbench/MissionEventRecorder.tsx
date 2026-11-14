@@ -57,7 +57,17 @@ export function MissionEventRecorder({position, selected, remaining, nextEvent, 
   const [channel, setChannel] = useState<EventChannel>('MANUAL_INPUT');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
-  const chosen = selected ?? position;
+  const fallback = selected ?? position;
+  const selectionKey = selected ? `${selected[0]},${selected[1]}` : '';
+  const [manualCoord, setManualCoord] = useState<{ key: string; row: string; col: string } | null>(null);
+  const rowInput = manualCoord && manualCoord.key === selectionKey ? manualCoord.row : String(fallback[0]);
+  const colInput = manualCoord && manualCoord.key === selectionKey ? manualCoord.col : String(fallback[1]);
+
+  const parsedRow = rowInput.trim() === '' ? Number.NaN : Number(rowInput);
+  const parsedCol = colInput.trim() === '' ? Number.NaN : Number(colInput);
+  const chosen: Cell = Number.isInteger(parsedRow) && Number.isInteger(parsedCol)
+    ? [parsedRow, parsedCol]
+    : fallback;
 
   return <form className="mission-event" onSubmit={event => {
     event.preventDefault();
@@ -101,8 +111,33 @@ export function MissionEventRecorder({position, selected, remaining, nextEvent, 
         <label>Discovery name<input name="target" maxLength={72} required /></label>
         <label>Activity (min)<input name="amount" type="number" min="0" max="120" defaultValue="15" required /></label>
       </>}
-      {(category === 'NEW_TERRAIN_HAZARD' || category === 'NEW_SCIENTIFIC_DISCOVERY') &&
-        <p className="context-note">Cell ({chosen.join(', ')}). Click the map to select another location.</p>}
+      {(category === 'NEW_TERRAIN_HAZARD' || category === 'NEW_SCIENTIFIC_DISCOVERY') && (
+        <div className="cc-event-coords">
+          <div className="cc-coord-pair cc-coord-input-row">
+            <label className="cc-coord-input">
+              <span>Y (row):</span>
+              <input
+                type="number"
+                aria-label="Event row Y"
+                value={rowInput}
+                onChange={e => setManualCoord({ key: selectionKey, row: e.target.value, col: colInput })}
+                required
+              />
+            </label>
+            <label className="cc-coord-input">
+              <span>X (col):</span>
+              <input
+                type="number"
+                aria-label="Event column X"
+                value={colInput}
+                onChange={e => setManualCoord({ key: selectionKey, row: rowInput, col: e.target.value })}
+                required
+              />
+            </label>
+          </div>
+          <p className="context-note">Target cell ({chosen.join(', ')}). Enter coordinates or click the map.</p>
+        </div>
+      )}
     </div>
     <label>Observation <input value={description} maxLength={180} onChange={event => setDescription(event.target.value)} placeholder="Optional field note" /></label>
     {error && <p role="alert" className="mission-error">{error}</p>}

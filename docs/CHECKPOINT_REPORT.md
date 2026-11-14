@@ -1,6 +1,6 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-14 00:26 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-14 00:38 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
@@ -49,14 +49,14 @@ Generated **2026-11-14 00:26 UTC** using `python -m tools.checkpoint --run-tests
 ## Test execution evidence
 
 - Python science + security tests: PASS; last output: `..............................                                           [100%]
-30 passed in 0.81s`
+30 passed in 0.84s`
 - TypeScript engine compile: PASS; last output: ``
-- Node scientific/unit oracles: PASS; last output: `ℹ pass 42
+- Node scientific/unit oracles: PASS; last output: `ℹ pass 44
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 114.713084`
+ℹ duration_ms 411.40175`
 - Synthetic Chromium acceptance harness: PASS; last output: `BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow
 CHECKPOINT: start frontier cells 27870 after +15min 24855`
 

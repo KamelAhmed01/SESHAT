@@ -1,0 +1,3311 @@
+{
+  "schemaVersion": 2,
+  "scenario": {
+    "id": "seshat-research-scenario-v1",
+    "label": "Exploratory Mars science-traverse scenario",
+    "timeBudgetMinutes": 180,
+    "reserveMinutes": 20,
+    "defaultScienceMinutes": 20,
+    "referenceSpeedMetersPerSecond": 0.75,
+    "speedMultipliers": [
+      0.8,
+      1,
+      1.2
+    ],
+    "gradeModelId": "terrain-scenario-v0",
+    "uphillCoefficient": 4,
+    "downhillCoefficient": 1.8,
+    "maxSlopeDegrees": 25,
+    "connectivity": 8,
+    "evidenceStatus": "SCENARIO_ASSUMPTION",
+    "disclaimer": "Exploratory model only. Not NASA EVA guidance or a safety-certified speed or slope limit.",
+    "consumables": {
+      "oxygenBudgetLiters": 540,
+      "oxygenReserveLiters": 90,
+      "oxygenScienceLitersPerMinute": 2.4,
+      "oxygenTravelLitersPerMinute": 3,
+      "oxygenUphillCoefficient": 1.5,
+      "oxygenDownhillCoefficient": 0.5,
+      "energyBudgetWh": 900,
+      "energyReserveWh": 150,
+      "energyScienceWhPerMinute": 3.8,
+      "energyTravelWhPerMinute": 4.6,
+      "energyUphillCoefficient": 1.2
+    },
+    "environmentalContext": {
+      "illumination": "Scenario context only. No local illumination window has been validated.",
+      "thermalAndDust": "Historical terrain and imagery. Local thermal and dust conditions are unknown.",
+      "radiation": "Local radiation exposure has not been modeled."
+    }
+  },
+  "budget": {
+    "minutes": 180,
+    "oxygen": 540,
+    "energy": 900
+  },
+  "reserve": {
+    "minutes": 20,
+    "oxygen": 90,
+    "energy": 150
+  },
+  "source": {
+    "sourceId": "USGS_MARS2020_CTX_DTM_20M_DOI_10_5066_P906QQT8",
+    "sourceUrl": "https://planetarymaps.usgs.gov/mosaic/mars2020_trn/CTX/JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif",
+    "sourceFileSha256": "16a1aa66c3f48c1bca252795827db7b417876217aff0f5e1aff18027fab2327b",
+    "status": "SOURCE_REVIEW_REQUIRED",
+    "optical": {
+      "path": "imagery/orbital-aligned.webp",
+      "bytes": 31242,
+      "sha256": "83a426783e47a4a5143ff28dc60db5eb26b5f79dc44861a3235c049fd914237d",
+      "sourceId": "Mars Trek MRO CTX, Jezero Mosaic, Controlled",
+      "sourceUrl": "https://trek.nasa.gov/mars/TrekWS/rest/cat/data/stream?label=JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0",
+      "sourceFileSha256": "842b457afee7c2672022b66e3f60be836c6d52e99474015bfd9ced60099b8615",
+      "alignment": "REPROJECTED_ONTO_DEM_ANALYSIS_GRID",
+      "reviewStatus": "SOURCE_REVIEW_REQUIRED",
+      "validPixelCount": 48400,
+      "pixelCount": 48400,
+      "sourcePixelsPerBand": 1
+    },
+    "crsWkt": "PROJCS[\"unknown\",GEOGCS[\"unknown\",DATUM[\"unknown\",SPHEROID[\"unknown\",3396190,0]],PRIMEM[\"Reference meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Azimuthal_Equidistant\"],PARAMETER[\"latitude_of_center\",18.452108334386],PARAMETER[\"longitude_of_center\",77.414030650241],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+    "cellWidthMeters": 20,
+    "cellHeightMeters": 20,
+    "files": {
+      "outbound-costs.bin": {
+        "bytes": 387200,
+        "sha256": "ec19a40ffea5ea2655eab52458913190507455cd040b935065dcbd0e4ff8cc2a",
+        "dtype": "float64"
+      },
+      "return-costs.bin": {
+        "bytes": 387200,
+        "sha256": "cbb705abdf6d2d87358c16a7ae2eab5ae3fca0d01d4c06d1d0d51968776c7dcf",
+        "dtype": "float64"
+      },
+      "outbound-parents.bin": {
+        "bytes": 193600,
+        "sha256": "e56daf17bc1954b14e62bee68d58d250eb1ef13dff707dd225a43f8f52eb2a4e",
+        "dtype": "int32"
+      },
+      "return-next.bin": {
+        "bytes": 193600,
+        "sha256": "79b9209b32a54598361b902fa95488cfa1b86e552cdc3796cca29864f767d828",
+        "dtype": "int32"
+      },
+      "elevation.bin": {
+        "bytes": 193600,
+        "sha256": "66f280c092020ee82aa84a67f76a87b0a102fe316351a649b8c6e142d68c1779",
+        "dtype": "float32"
+      },
+      "validity-mask.bin": {
+        "bytes": 48400,
+        "sha256": "bfa76f91ef4e0f429b2944a5122ba2aacdd5b135ba2b825f1b78e5b234fb78d7",
+        "dtype": "uint8"
+      }
+    }
+  },
+  "environmentalContext": {
+    "scenarioAssumptions": {
+      "illumination": "Scenario context only. No local illumination window has been validated.",
+      "thermalAndDust": "Historical terrain and imagery. Local thermal and dust conditions are unknown.",
+      "radiation": "Local radiation exposure has not been modeled."
+    },
+    "geologicUnits": [
+      {
+        "symbol": "Aeb",
+        "name": "Eolian bedform unit"
+      },
+      {
+        "symbol": "Nle",
+        "name": "Lower etched unit"
+      },
+      {
+        "symbol": "Njf",
+        "name": "Jezero floor unit"
+      },
+      {
+        "symbol": "Nue",
+        "name": "Upper etched unit"
+      },
+      {
+        "symbol": "cr",
+        "name": "Crater rim unit"
+      },
+      {
+        "symbol": "NHjf2",
+        "name": "Jezero fan 2 unit"
+      }
+    ],
+    "targetUnits": {
+      "swift-run": "NHjf2",
+      "hazeltop": "NHjf2",
+      "shuyak": "NHjf2"
+    },
+    "thermalInertia": {
+      "units": "J m⁻² K⁻¹ s⁻¹/²",
+      "minValue": 141.84,
+      "maxValue": 304.03,
+      "credit": "Edwards & Buz (2021) Jezero Thermal Inertia Map v1 (Zenodo 4931348)"
+    },
+    "medaPressureSols": [
+      {
+        "sol": 490,
+        "file": "WE__0490___________DER_PS__________________P01.CSV",
+        "validRecords": 34551,
+        "minPa": 776.81,
+        "medianPa": 798.67,
+        "maxPa": 817.19
+      },
+      {
+        "sol": 509,
+        "file": "WE__0509___________DER_PS__________________P01.CSV",
+        "validRecords": 32196,
+        "minPa": 767.25,
+        "medianPa": 791.76,
+        "maxPa": 803.65
+      },
+      {
+        "sol": 575,
+        "file": "WE__0575___________DER_PS__________________P01.CSV",
+        "validRecords": 25719,
+        "minPa": 707.53,
+        "medianPa": 746.52,
+        "maxPa": 768.44
+      }
+    ],
+    "unavailableFields": {
+      "boulderRoughness": "Unavailable (20 m CTX DEM does not resolve sub-meter boulders or regolith cohesion)",
+      "localWind": "Unavailable (MEDA PS context includes pressure only; wind forecast excluded)",
+      "solarIllumination": "Unavailable (dynamic solar elevation/shadow model excluded from static bundle)",
+      "radiationDose": "Unavailable (active particle/RAD forecast excluded from static bundle)"
+    }
+  },
+  "baseline": {
+    "origin": [
+      110,
+      110
+    ],
+    "stops": [
+      {
+        "id": "shuyak",
+        "name": "Shuyak · Cape Nukshak",
+        "location": {
+          "originalCoordinateText": "18.4506895°N planetocentric, 77.4014317°E (source)",
+          "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+          "gridRow": 114,
+          "gridCol": 74,
+          "confidence": "SOURCE_REPORTED_POINT",
+          "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+        },
+        "objectiveTags": [
+          "Jezero western fan",
+          "sedimentary comparison"
+        ],
+        "science": {
+          "summary": "Compare the fine-grained Amalik sedimentary outcrop with the exposures at Hawksbill Gap.",
+          "sourceIds": [
+            "PDS_MARS2020_SAMPLE_DOSSIER",
+            "NASA_M2020_SHUYAK"
+          ],
+          "evidence": [
+            {
+              "title": "NASA PDS Mars 2020 Initial Reports · Chapter 16",
+              "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+              "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+              "claimSupported": "Published sample-site latitude and longitude and geological context."
+            },
+            {
+              "title": "NASA Perseverance · site and sample context",
+              "url": "https://science.nasa.gov/resource/meet-the-mars-samples-shuyak-and-mageik-samples-14-and-15/",
+              "sourceId": "NASA_M2020_SHUYAK",
+              "claimSupported": "Site-specific geological or visual context."
+            }
+          ],
+          "limitations": [
+            "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+            "The DEM cannot resolve the individual outcrop surface."
+          ]
+        },
+        "activity": {
+          "minutes": 20,
+          "basis": "SCENARIO_ASSUMPTION"
+        }
+      },
+      {
+        "id": "swift-run",
+        "name": "Swift Run · Skinner Ridge",
+        "location": {
+          "originalCoordinateText": "18.4589310°N planetocentric, 77.4061708°E (source)",
+          "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+          "gridRow": 89,
+          "gridCol": 87,
+          "confidence": "SOURCE_REPORTED_POINT",
+          "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+        },
+        "objectiveTags": [
+          "Jezero western fan",
+          "sedimentary comparison"
+        ],
+        "science": {
+          "summary": "Compare sediment texture and bedding at the Skinner Ridge sandstone exposure.",
+          "sourceIds": [
+            "PDS_MARS2020_SAMPLE_DOSSIER",
+            "NASA_M2020_SWIFT-RUN"
+          ],
+          "evidence": [
+            {
+              "title": "NASA PDS Mars 2020 Initial Reports · Chapter 11",
+              "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+              "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+              "claimSupported": "Published sample-site latitude and longitude and geological context."
+            },
+            {
+              "title": "NASA Perseverance · site and sample context",
+              "url": "https://science.nasa.gov/resource/perseverance-workspace-at-skinner-ridge/",
+              "sourceId": "NASA_M2020_SWIFT-RUN",
+              "claimSupported": "Site-specific geological or visual context."
+            }
+          ],
+          "limitations": [
+            "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+            "The DEM cannot resolve the individual outcrop surface."
+          ]
+        },
+        "activity": {
+          "minutes": 20,
+          "basis": "SCENARIO_ASSUMPTION"
+        }
+      }
+    ],
+    "legs": [
+      {
+        "from": "Landing Site",
+        "to": "Shuyak · Cape Nukshak",
+        "targetId": "shuyak",
+        "route": {
+          "status": "READY",
+          "distanceMeters": 753.1370849898476,
+          "nominalTravelMinutes": 19.58490397199661,
+          "geometryGrid": [
+            [
+              110,
+              110
+            ],
+            [
+              110,
+              109
+            ],
+            [
+              110,
+              108
+            ],
+            [
+              110,
+              107
+            ],
+            [
+              110,
+              106
+            ],
+            [
+              110,
+              105
+            ],
+            [
+              110,
+              104
+            ],
+            [
+              110,
+              103
+            ],
+            [
+              110,
+              102
+            ],
+            [
+              110,
+              101
+            ],
+            [
+              110,
+              100
+            ],
+            [
+              110,
+              99
+            ],
+            [
+              110,
+              98
+            ],
+            [
+              110,
+              97
+            ],
+            [
+              110,
+              96
+            ],
+            [
+              110,
+              95
+            ],
+            [
+              110,
+              94
+            ],
+            [
+              110,
+              93
+            ],
+            [
+              111,
+              92
+            ],
+            [
+              111,
+              91
+            ],
+            [
+              111,
+              90
+            ],
+            [
+              111,
+              89
+            ],
+            [
+              111,
+              88
+            ],
+            [
+              111,
+              87
+            ],
+            [
+              112,
+              86
+            ],
+            [
+              112,
+              85
+            ],
+            [
+              112,
+              84
+            ],
+            [
+              112,
+              83
+            ],
+            [
+              113,
+              82
+            ],
+            [
+              114,
+              81
+            ],
+            [
+              114,
+              80
+            ],
+            [
+              114,
+              79
+            ],
+            [
+              114,
+              78
+            ],
+            [
+              114,
+              77
+            ],
+            [
+              114,
+              76
+            ],
+            [
+              114,
+              75
+            ],
+            [
+              114,
+              74
+            ]
+          ],
+          "sampledElevationsMeters": [
+            -2558.98046875,
+            -2558.5087890625,
+            -2557.75634765625,
+            -2556.792236328125,
+            -2555.652099609375,
+            -2554.337646484375,
+            -2552.910888671875,
+            -2551.51220703125,
+            -2550.297119140625,
+            -2549.371826171875,
+            -2548.76171875,
+            -2548.41796875,
+            -2548.235595703125,
+            -2548.10205078125,
+            -2547.92041015625,
+            -2547.64111328125,
+            -2547.228759765625,
+            -2546.673828125,
+            -2545.4697265625,
+            -2544.750244140625,
+            -2544.18017578125,
+            -2543.775146484375,
+            -2543.5341796875,
+            -2543.28857421875,
+            -2542.617431640625,
+            -2541.662353515625,
+            -2539.885986328125,
+            -2537.497314453125,
+            -2536.7490234375,
+            -2536.437744140625,
+            -2534.898681640625,
+            -2533.181884765625,
+            -2531.449951171875,
+            -2529.90966796875,
+            -2528.638671875,
+            -2527.67333984375,
+            -2526.9345703125
+          ]
+        },
+        "terrain": {
+          "consumption": {
+            "minutes": 19.58490397199661,
+            "oxygen": 62.73307724298499,
+            "energy": 94.97068640563178
+          },
+          "distance": 753.1370849898476,
+          "gain": 32.0458984375,
+          "loss": 0,
+          "peakSlope": 6.8107792694490765,
+          "meanSlope": 2.4343397501110435,
+          "steepEdges": 0
+        },
+        "departure": 0,
+        "arrival": 19.58490397199661,
+        "leave": 39.58490397199661,
+        "used": {
+          "minutes": 39.58490397199661,
+          "oxygen": 110.73307724298499,
+          "energy": 170.9706864056318
+        },
+        "waypoints": [
+          {
+            "cell": [
+              111,
+              92
+            ],
+            "slope": 2.332646106286548,
+            "returnMinutes": 10.90565575513783
+          }
+        ]
+      },
+      {
+        "from": "Shuyak · Cape Nukshak",
+        "to": "Swift Run · Skinner Ridge",
+        "targetId": "swift-run",
+        "route": {
+          "status": "READY",
+          "distanceMeters": 607.6955262170047,
+          "nominalTravelMinutes": 15.35129815204455,
+          "geometryGrid": [
+            [
+              114,
+              74
+            ],
+            [
+              113,
+              74
+            ],
+            [
+              112,
+              74
+            ],
+            [
+              111,
+              74
+            ],
+            [
+              110,
+              74
+            ],
+            [
+              109,
+              74
+            ],
+            [
+              108,
+              74
+            ],
+            [
+              107,
+              74
+            ],
+            [
+              106,
+              75
+            ],
+            [
+              105,
+              75
+            ],
+            [
+              104,
+              75
+            ],
+            [
+              103,
+              76
+            ],
+            [
+              102,
+              76
+            ],
+            [
+              101,
+              77
+            ],
+            [
+              100,
+              78
+            ],
+            [
+              99,
+              79
+            ],
+            [
+              98,
+              80
+            ],
+            [
+              97,
+              81
+            ],
+            [
+              96,
+              82
+            ],
+            [
+              95,
+              82
+            ],
+            [
+              94,
+              82
+            ],
+            [
+              93,
+              83
+            ],
+            [
+              92,
+              84
+            ],
+            [
+              91,
+              85
+            ],
+            [
+              90,
+              86
+            ],
+            [
+              89,
+              87
+            ]
+          ],
+          "sampledElevationsMeters": [
+            -2526.9345703125,
+            -2526.042236328125,
+            -2525.085693359375,
+            -2524.355712890625,
+            -2524.017578125,
+            -2524.162353515625,
+            -2524.63671875,
+            -2525.183349609375,
+            -2526.33837890625,
+            -2526.556396484375,
+            -2526.715576171875,
+            -2527.74365234375,
+            -2527.95556640625,
+            -2529.00048828125,
+            -2529.277099609375,
+            -2528.9296875,
+            -2528.0771484375,
+            -2527.29150390625,
+            -2527.745361328125,
+            -2526.944580078125,
+            -2526.252685546875,
+            -2526.937744140625,
+            -2524.6513671875,
+            -2521.16845703125,
+            -2518.0625,
+            -2515.43408203125
+          ]
+        },
+        "terrain": {
+          "consumption": {
+            "minutes": 15.35129815204455,
+            "oxygen": 48.63793470694396,
+            "energy": 73.51064496233855
+          },
+          "distance": 607.6955262170047,
+          "gain": 17.89892578125,
+          "loss": 6.3984375,
+          "peakSlope": 7.0200318885193465,
+          "meanSlope": 2.2863965893204212,
+          "steepEdges": 0
+        },
+        "departure": 39.58490397199661,
+        "arrival": 54.93620212404116,
+        "leave": 74.93620212404116,
+        "used": {
+          "minutes": 35.35129815204455,
+          "oxygen": 96.63793470694395,
+          "energy": 149.51064496233855
+        },
+        "waypoints": [
+          {
+            "cell": [
+              101,
+              77
+            ],
+            "slope": 2.495319741444058,
+            "returnMinutes": 21.903400168636317
+          }
+        ]
+      },
+      {
+        "from": "Swift Run · Skinner Ridge",
+        "to": "Landing Site",
+        "targetId": "LANDING_SITE",
+        "route": {
+          "status": "READY",
+          "distanceMeters": 633.9696961966999,
+          "nominalTravelMinutes": 15.899392771384997,
+          "geometryGrid": [
+            [
+              89,
+              87
+            ],
+            [
+              90,
+              88
+            ],
+            [
+              91,
+              89
+            ],
+            [
+              92,
+              90
+            ],
+            [
+              93,
+              91
+            ],
+            [
+              94,
+              92
+            ],
+            [
+              95,
+              93
+            ],
+            [
+              96,
+              94
+            ],
+            [
+              96,
+              95
+            ],
+            [
+              96,
+              96
+            ],
+            [
+              97,
+              97
+            ],
+            [
+              98,
+              98
+            ],
+            [
+              99,
+              99
+            ],
+            [
+              100,
+              100
+            ],
+            [
+              101,
+              101
+            ],
+            [
+              102,
+              102
+            ],
+            [
+              103,
+              103
+            ],
+            [
+              104,
+              104
+            ],
+            [
+              105,
+              105
+            ],
+            [
+              106,
+              106
+            ],
+            [
+              107,
+              107
+            ],
+            [
+              108,
+              108
+            ],
+            [
+              109,
+              109
+            ],
+            [
+              110,
+              110
+            ]
+          ],
+          "sampledElevationsMeters": [
+            -2515.43408203125,
+            -2518.796630859375,
+            -2523.292236328125,
+            -2527.951171875,
+            -2531.52392578125,
+            -2534.68994140625,
+            -2537.94873046875,
+            -2540.510009765625,
+            -2541.072998046875,
+            -2541.466796875,
+            -2542.7373046875,
+            -2543.796630859375,
+            -2544.76513671875,
+            -2545.619873046875,
+            -2546.389892578125,
+            -2546.99951171875,
+            -2546.982177734375,
+            -2546.5888671875,
+            -2546.461669921875,
+            -2547.3857421875,
+            -2549.716552734375,
+            -2553.135498046875,
+            -2556.63916015625,
+            -2558.98046875
+          ]
+        },
+        "terrain": {
+          "consumption": {
+            "minutes": 15.899392771384997,
+            "oxygen": 49.5101534161952,
+            "energy": 73.20615146079606
+          },
+          "distance": 633.9696961966999,
+          "gain": 0.537841796875,
+          "loss": 44.084228515625,
+          "peakSlope": 9.3536689192683,
+          "meanSlope": 4.015118214389207,
+          "steepEdges": 0
+        },
+        "departure": 74.93620212404116,
+        "arrival": 90.83559489542615,
+        "leave": 90.83559489542615,
+        "used": {
+          "minutes": 15.899392771384997,
+          "oxygen": 49.5101534161952,
+          "energy": 73.20615146079606
+        },
+        "waypoints": [
+          {
+            "cell": [
+              99,
+              99
+            ],
+            "slope": 3.406311004110342,
+            "returnMinutes": 9.439835105561276
+          }
+        ]
+      }
+    ],
+    "state": "ROBUST",
+    "used": {
+      "minutes": 90.83559489542615,
+      "oxygen": 256.88116536612415,
+      "energy": 393.6874828287664
+    },
+    "margins": [
+      {
+        "speed": 0.8,
+        "margin": {
+          "minutes": 56.45550638071731,
+          "oxygen": 152.8985432923448,
+          "energy": 295.89064646404205
+        }
+      },
+      {
+        "speed": 1,
+        "margin": {
+          "minutes": 69.16440510457385,
+          "oxygen": 193.11883463387585,
+          "energy": 356.3125171712336
+        }
+      },
+      {
+        "speed": 1.2,
+        "margin": {
+          "minutes": 77.63700425381154,
+          "oxygen": 219.93236219489654,
+          "energy": 396.59376430936135
+        }
+      }
+    ],
+    "routePreference": "fastest",
+    "travelSpeed": 1,
+    "deferred": []
+  },
+  "execution": {
+    "baseline": {
+      "origin": [
+        110,
+        110
+      ],
+      "stops": [
+        {
+          "id": "shuyak",
+          "name": "Shuyak · Cape Nukshak",
+          "location": {
+            "originalCoordinateText": "18.4506895°N planetocentric, 77.4014317°E (source)",
+            "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+            "gridRow": 114,
+            "gridCol": 74,
+            "confidence": "SOURCE_REPORTED_POINT",
+            "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+          },
+          "objectiveTags": [
+            "Jezero western fan",
+            "sedimentary comparison"
+          ],
+          "science": {
+            "summary": "Compare the fine-grained Amalik sedimentary outcrop with the exposures at Hawksbill Gap.",
+            "sourceIds": [
+              "PDS_MARS2020_SAMPLE_DOSSIER",
+              "NASA_M2020_SHUYAK"
+            ],
+            "evidence": [
+              {
+                "title": "NASA PDS Mars 2020 Initial Reports · Chapter 16",
+                "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+                "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+                "claimSupported": "Published sample-site latitude and longitude and geological context."
+              },
+              {
+                "title": "NASA Perseverance · site and sample context",
+                "url": "https://science.nasa.gov/resource/meet-the-mars-samples-shuyak-and-mageik-samples-14-and-15/",
+                "sourceId": "NASA_M2020_SHUYAK",
+                "claimSupported": "Site-specific geological or visual context."
+              }
+            ],
+            "limitations": [
+              "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+              "The DEM cannot resolve the individual outcrop surface."
+            ]
+          },
+          "activity": {
+            "minutes": 20,
+            "basis": "SCENARIO_ASSUMPTION"
+          }
+        },
+        {
+          "id": "swift-run",
+          "name": "Swift Run · Skinner Ridge",
+          "location": {
+            "originalCoordinateText": "18.4589310°N planetocentric, 77.4061708°E (source)",
+            "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+            "gridRow": 89,
+            "gridCol": 87,
+            "confidence": "SOURCE_REPORTED_POINT",
+            "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+          },
+          "objectiveTags": [
+            "Jezero western fan",
+            "sedimentary comparison"
+          ],
+          "science": {
+            "summary": "Compare sediment texture and bedding at the Skinner Ridge sandstone exposure.",
+            "sourceIds": [
+              "PDS_MARS2020_SAMPLE_DOSSIER",
+              "NASA_M2020_SWIFT-RUN"
+            ],
+            "evidence": [
+              {
+                "title": "NASA PDS Mars 2020 Initial Reports · Chapter 11",
+                "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+                "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+                "claimSupported": "Published sample-site latitude and longitude and geological context."
+              },
+              {
+                "title": "NASA Perseverance · site and sample context",
+                "url": "https://science.nasa.gov/resource/perseverance-workspace-at-skinner-ridge/",
+                "sourceId": "NASA_M2020_SWIFT-RUN",
+                "claimSupported": "Site-specific geological or visual context."
+              }
+            ],
+            "limitations": [
+              "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+              "The DEM cannot resolve the individual outcrop surface."
+            ]
+          },
+          "activity": {
+            "minutes": 20,
+            "basis": "SCENARIO_ASSUMPTION"
+          }
+        }
+      ],
+      "legs": [
+        {
+          "from": "Landing Site",
+          "to": "Shuyak · Cape Nukshak",
+          "targetId": "shuyak",
+          "route": {
+            "status": "READY",
+            "distanceMeters": 753.1370849898476,
+            "nominalTravelMinutes": 19.58490397199661,
+            "geometryGrid": [
+              [
+                110,
+                110
+              ],
+              [
+                110,
+                109
+              ],
+              [
+                110,
+                108
+              ],
+              [
+                110,
+                107
+              ],
+              [
+                110,
+                106
+              ],
+              [
+                110,
+                105
+              ],
+              [
+                110,
+                104
+              ],
+              [
+                110,
+                103
+              ],
+              [
+                110,
+                102
+              ],
+              [
+                110,
+                101
+              ],
+              [
+                110,
+                100
+              ],
+              [
+                110,
+                99
+              ],
+              [
+                110,
+                98
+              ],
+              [
+                110,
+                97
+              ],
+              [
+                110,
+                96
+              ],
+              [
+                110,
+                95
+              ],
+              [
+                110,
+                94
+              ],
+              [
+                110,
+                93
+              ],
+              [
+                111,
+                92
+              ],
+              [
+                111,
+                91
+              ],
+              [
+                111,
+                90
+              ],
+              [
+                111,
+                89
+              ],
+              [
+                111,
+                88
+              ],
+              [
+                111,
+                87
+              ],
+              [
+                112,
+                86
+              ],
+              [
+                112,
+                85
+              ],
+              [
+                112,
+                84
+              ],
+              [
+                112,
+                83
+              ],
+              [
+                113,
+                82
+              ],
+              [
+                114,
+                81
+              ],
+              [
+                114,
+                80
+              ],
+              [
+                114,
+                79
+              ],
+              [
+                114,
+                78
+              ],
+              [
+                114,
+                77
+              ],
+              [
+                114,
+                76
+              ],
+              [
+                114,
+                75
+              ],
+              [
+                114,
+                74
+              ]
+            ],
+            "sampledElevationsMeters": [
+              -2558.98046875,
+              -2558.5087890625,
+              -2557.75634765625,
+              -2556.792236328125,
+              -2555.652099609375,
+              -2554.337646484375,
+              -2552.910888671875,
+              -2551.51220703125,
+              -2550.297119140625,
+              -2549.371826171875,
+              -2548.76171875,
+              -2548.41796875,
+              -2548.235595703125,
+              -2548.10205078125,
+              -2547.92041015625,
+              -2547.64111328125,
+              -2547.228759765625,
+              -2546.673828125,
+              -2545.4697265625,
+              -2544.750244140625,
+              -2544.18017578125,
+              -2543.775146484375,
+              -2543.5341796875,
+              -2543.28857421875,
+              -2542.617431640625,
+              -2541.662353515625,
+              -2539.885986328125,
+              -2537.497314453125,
+              -2536.7490234375,
+              -2536.437744140625,
+              -2534.898681640625,
+              -2533.181884765625,
+              -2531.449951171875,
+              -2529.90966796875,
+              -2528.638671875,
+              -2527.67333984375,
+              -2526.9345703125
+            ]
+          },
+          "terrain": {
+            "consumption": {
+              "minutes": 19.58490397199661,
+              "oxygen": 62.73307724298499,
+              "energy": 94.97068640563178
+            },
+            "distance": 753.1370849898476,
+            "gain": 32.0458984375,
+            "loss": 0,
+            "peakSlope": 6.8107792694490765,
+            "meanSlope": 2.4343397501110435,
+            "steepEdges": 0
+          },
+          "departure": 0,
+          "arrival": 19.58490397199661,
+          "leave": 39.58490397199661,
+          "used": {
+            "minutes": 39.58490397199661,
+            "oxygen": 110.73307724298499,
+            "energy": 170.9706864056318
+          },
+          "waypoints": [
+            {
+              "cell": [
+                111,
+                92
+              ],
+              "slope": 2.332646106286548,
+              "returnMinutes": 10.90565575513783
+            }
+          ]
+        },
+        {
+          "from": "Shuyak · Cape Nukshak",
+          "to": "Swift Run · Skinner Ridge",
+          "targetId": "swift-run",
+          "route": {
+            "status": "READY",
+            "distanceMeters": 607.6955262170047,
+            "nominalTravelMinutes": 15.35129815204455,
+            "geometryGrid": [
+              [
+                114,
+                74
+              ],
+              [
+                113,
+                74
+              ],
+              [
+                112,
+                74
+              ],
+              [
+                111,
+                74
+              ],
+              [
+                110,
+                74
+              ],
+              [
+                109,
+                74
+              ],
+              [
+                108,
+                74
+              ],
+              [
+                107,
+                74
+              ],
+              [
+                106,
+                75
+              ],
+              [
+                105,
+                75
+              ],
+              [
+                104,
+                75
+              ],
+              [
+                103,
+                76
+              ],
+              [
+                102,
+                76
+              ],
+              [
+                101,
+                77
+              ],
+              [
+                100,
+                78
+              ],
+              [
+                99,
+                79
+              ],
+              [
+                98,
+                80
+              ],
+              [
+                97,
+                81
+              ],
+              [
+                96,
+                82
+              ],
+              [
+                95,
+                82
+              ],
+              [
+                94,
+                82
+              ],
+              [
+                93,
+                83
+              ],
+              [
+                92,
+                84
+              ],
+              [
+                91,
+                85
+              ],
+              [
+                90,
+                86
+              ],
+              [
+                89,
+                87
+              ]
+            ],
+            "sampledElevationsMeters": [
+              -2526.9345703125,
+              -2526.042236328125,
+              -2525.085693359375,
+              -2524.355712890625,
+              -2524.017578125,
+              -2524.162353515625,
+              -2524.63671875,
+              -2525.183349609375,
+              -2526.33837890625,
+              -2526.556396484375,
+              -2526.715576171875,
+              -2527.74365234375,
+              -2527.95556640625,
+              -2529.00048828125,
+              -2529.277099609375,
+              -2528.9296875,
+              -2528.0771484375,
+              -2527.29150390625,
+              -2527.745361328125,
+              -2526.944580078125,
+              -2526.252685546875,
+              -2526.937744140625,
+              -2524.6513671875,
+              -2521.16845703125,
+              -2518.0625,
+              -2515.43408203125
+            ]
+          },
+          "terrain": {
+            "consumption": {
+              "minutes": 15.35129815204455,
+              "oxygen": 48.63793470694396,
+              "energy": 73.51064496233855
+            },
+            "distance": 607.6955262170047,
+            "gain": 17.89892578125,
+            "loss": 6.3984375,
+            "peakSlope": 7.0200318885193465,
+            "meanSlope": 2.2863965893204212,
+            "steepEdges": 0
+          },
+          "departure": 39.58490397199661,
+          "arrival": 54.93620212404116,
+          "leave": 74.93620212404116,
+          "used": {
+            "minutes": 35.35129815204455,
+            "oxygen": 96.63793470694395,
+            "energy": 149.51064496233855
+          },
+          "waypoints": [
+            {
+              "cell": [
+                101,
+                77
+              ],
+              "slope": 2.495319741444058,
+              "returnMinutes": 21.903400168636317
+            }
+          ]
+        },
+        {
+          "from": "Swift Run · Skinner Ridge",
+          "to": "Landing Site",
+          "targetId": "LANDING_SITE",
+          "route": {
+            "status": "READY",
+            "distanceMeters": 633.9696961966999,
+            "nominalTravelMinutes": 15.899392771384997,
+            "geometryGrid": [
+              [
+                89,
+                87
+              ],
+              [
+                90,
+                88
+              ],
+              [
+                91,
+                89
+              ],
+              [
+                92,
+                90
+              ],
+              [
+                93,
+                91
+              ],
+              [
+                94,
+                92
+              ],
+              [
+                95,
+                93
+              ],
+              [
+                96,
+                94
+              ],
+              [
+                96,
+                95
+              ],
+              [
+                96,
+                96
+              ],
+              [
+                97,
+                97
+              ],
+              [
+                98,
+                98
+              ],
+              [
+                99,
+                99
+              ],
+              [
+                100,
+                100
+              ],
+              [
+                101,
+                101
+              ],
+              [
+                102,
+                102
+              ],
+              [
+                103,
+                103
+              ],
+              [
+                104,
+                104
+              ],
+              [
+                105,
+                105
+              ],
+              [
+                106,
+                106
+              ],
+              [
+                107,
+                107
+              ],
+              [
+                108,
+                108
+              ],
+              [
+                109,
+                109
+              ],
+              [
+                110,
+                110
+              ]
+            ],
+            "sampledElevationsMeters": [
+              -2515.43408203125,
+              -2518.796630859375,
+              -2523.292236328125,
+              -2527.951171875,
+              -2531.52392578125,
+              -2534.68994140625,
+              -2537.94873046875,
+              -2540.510009765625,
+              -2541.072998046875,
+              -2541.466796875,
+              -2542.7373046875,
+              -2543.796630859375,
+              -2544.76513671875,
+              -2545.619873046875,
+              -2546.389892578125,
+              -2546.99951171875,
+              -2546.982177734375,
+              -2546.5888671875,
+              -2546.461669921875,
+              -2547.3857421875,
+              -2549.716552734375,
+              -2553.135498046875,
+              -2556.63916015625,
+              -2558.98046875
+            ]
+          },
+          "terrain": {
+            "consumption": {
+              "minutes": 15.899392771384997,
+              "oxygen": 49.5101534161952,
+              "energy": 73.20615146079606
+            },
+            "distance": 633.9696961966999,
+            "gain": 0.537841796875,
+            "loss": 44.084228515625,
+            "peakSlope": 9.3536689192683,
+            "meanSlope": 4.015118214389207,
+            "steepEdges": 0
+          },
+          "departure": 74.93620212404116,
+          "arrival": 90.83559489542615,
+          "leave": 90.83559489542615,
+          "used": {
+            "minutes": 15.899392771384997,
+            "oxygen": 49.5101534161952,
+            "energy": 73.20615146079606
+          },
+          "waypoints": [
+            {
+              "cell": [
+                99,
+                99
+              ],
+              "slope": 3.406311004110342,
+              "returnMinutes": 9.439835105561276
+            }
+          ]
+        }
+      ],
+      "state": "ROBUST",
+      "used": {
+        "minutes": 90.83559489542615,
+        "oxygen": 256.88116536612415,
+        "energy": 393.6874828287664
+      },
+      "margins": [
+        {
+          "speed": 0.8,
+          "margin": {
+            "minutes": 56.45550638071731,
+            "oxygen": 152.8985432923448,
+            "energy": 295.89064646404205
+          }
+        },
+        {
+          "speed": 1,
+          "margin": {
+            "minutes": 69.16440510457385,
+            "oxygen": 193.11883463387585,
+            "energy": 356.3125171712336
+          }
+        },
+        {
+          "speed": 1.2,
+          "margin": {
+            "minutes": 77.63700425381154,
+            "oxygen": 219.93236219489654,
+            "energy": 396.59376430936135
+          }
+        }
+      ],
+      "routePreference": "fastest",
+      "travelSpeed": 1,
+      "deferred": []
+    },
+    "active": {
+      "origin": [
+        114,
+        74
+      ],
+      "stops": [
+        {
+          "id": "sim-contact-1",
+          "name": "Carbonate-olivine contact (120, 80)",
+          "objectiveTags": [
+            "simulated-sensor",
+            "spectrometry"
+          ],
+          "location": {
+            "gridRow": 120,
+            "gridCol": 80,
+            "originalCoordinateText": "Simulated contact at grid cell (120, 80)",
+            "coordinateFrame": "LOCAL_ANALYSIS_GRID",
+            "confidence": "USER_SELECTED",
+            "locationSource": null
+          },
+          "science": {
+            "summary": "Simulated spectrometer follow-up contact adjacent to current station (synthetic sensor prompt, not a PDS observation).",
+            "sourceIds": [],
+            "evidence": [],
+            "limitations": [
+              "Simulated sensor trigger for mission-replan testing",
+              "Activity duration is assumed"
+            ]
+          },
+          "activity": {
+            "minutes": 15,
+            "basis": "SCENARIO_ASSUMPTION"
+          }
+        },
+        {
+          "id": "swift-run",
+          "name": "Swift Run · Skinner Ridge",
+          "location": {
+            "originalCoordinateText": "18.4589310°N planetocentric, 77.4061708°E (source)",
+            "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+            "gridRow": 89,
+            "gridCol": 87,
+            "confidence": "SOURCE_REPORTED_POINT",
+            "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+          },
+          "objectiveTags": [
+            "Jezero western fan",
+            "sedimentary comparison"
+          ],
+          "science": {
+            "summary": "Compare sediment texture and bedding at the Skinner Ridge sandstone exposure.",
+            "sourceIds": [
+              "PDS_MARS2020_SAMPLE_DOSSIER",
+              "NASA_M2020_SWIFT-RUN"
+            ],
+            "evidence": [
+              {
+                "title": "NASA PDS Mars 2020 Initial Reports · Chapter 11",
+                "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+                "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+                "claimSupported": "Published sample-site latitude and longitude and geological context."
+              },
+              {
+                "title": "NASA Perseverance · site and sample context",
+                "url": "https://science.nasa.gov/resource/perseverance-workspace-at-skinner-ridge/",
+                "sourceId": "NASA_M2020_SWIFT-RUN",
+                "claimSupported": "Site-specific geological or visual context."
+              }
+            ],
+            "limitations": [
+              "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+              "The DEM cannot resolve the individual outcrop surface."
+            ]
+          },
+          "activity": {
+            "minutes": 20,
+            "basis": "SCENARIO_ASSUMPTION"
+          }
+        }
+      ],
+      "legs": [
+        {
+          "from": "Astronaut position",
+          "to": "Carbonate-olivine contact (120, 80)",
+          "targetId": "sim-contact-1",
+          "route": {
+            "status": "READY",
+            "distanceMeters": 169.7056274847714,
+            "nominalTravelMinutes": 4.023339030911587,
+            "geometryGrid": [
+              [
+                114,
+                74
+              ],
+              [
+                115,
+                75
+              ],
+              [
+                116,
+                76
+              ],
+              [
+                117,
+                77
+              ],
+              [
+                118,
+                78
+              ],
+              [
+                119,
+                79
+              ],
+              [
+                120,
+                80
+              ]
+            ],
+            "sampledElevationsMeters": [
+              -2526.9345703125,
+              -2528.33349609375,
+              -2529.3427734375,
+              -2529.72802734375,
+              -2529.659912109375,
+              -2528.998046875,
+              -2528.14892578125
+            ]
+          },
+          "terrain": {
+            "consumption": {
+              "minutes": 4.023339030911587,
+              "oxygen": 12.344126975680574,
+              "energy": 18.721250376348898
+            },
+            "distance": 169.7056274847714,
+            "gain": 1.5791015625,
+            "loss": 2.79345703125,
+            "peakSlope": 2.8315129875773577,
+            "meanSlope": 1.4755931792982901,
+            "steepEdges": 0
+          },
+          "departure": 29.58490397199661,
+          "arrival": 33.608243002908196,
+          "leave": 48.608243002908196,
+          "used": {
+            "minutes": 19.023339030911586,
+            "oxygen": 48.344126975680574,
+            "energy": 75.7212503763489
+          },
+          "waypoints": [
+            {
+              "cell": [
+                117,
+                77
+              ],
+              "slope": 3.9523872067348496,
+              "returnMinutes": 21.40678592398565
+            }
+          ]
+        },
+        {
+          "from": "Carbonate-olivine contact (120, 80)",
+          "to": "Swift Run · Skinner Ridge",
+          "targetId": "swift-run",
+          "route": {
+            "status": "READY",
+            "distanceMeters": 677.9898987322333,
+            "nominalTravelMinutes": 17.48475274092463,
+            "geometryGrid": [
+              [
+                120,
+                80
+              ],
+              [
+                119,
+                80
+              ],
+              [
+                118,
+                80
+              ],
+              [
+                117,
+                80
+              ],
+              [
+                116,
+                80
+              ],
+              [
+                115,
+                80
+              ],
+              [
+                114,
+                80
+              ],
+              [
+                113,
+                81
+              ],
+              [
+                112,
+                82
+              ],
+              [
+                111,
+                83
+              ],
+              [
+                110,
+                83
+              ],
+              [
+                109,
+                83
+              ],
+              [
+                108,
+                83
+              ],
+              [
+                107,
+                83
+              ],
+              [
+                106,
+                83
+              ],
+              [
+                105,
+                83
+              ],
+              [
+                104,
+                83
+              ],
+              [
+                103,
+                83
+              ],
+              [
+                102,
+                83
+              ],
+              [
+                101,
+                83
+              ],
+              [
+                100,
+                83
+              ],
+              [
+                99,
+                83
+              ],
+              [
+                98,
+                83
+              ],
+              [
+                97,
+                83
+              ],
+              [
+                96,
+                83
+              ],
+              [
+                95,
+                83
+              ],
+              [
+                94,
+                83
+              ],
+              [
+                93,
+                83
+              ],
+              [
+                92,
+                84
+              ],
+              [
+                91,
+                85
+              ],
+              [
+                90,
+                86
+              ],
+              [
+                89,
+                87
+              ]
+            ],
+            "sampledElevationsMeters": [
+              -2528.14892578125,
+              -2530.21826171875,
+              -2532.262451171875,
+              -2534.00537109375,
+              -2535.28857421875,
+              -2535.730224609375,
+              -2534.898681640625,
+              -2534.71533203125,
+              -2534.840576171875,
+              -2535.822265625,
+              -2534.166015625,
+              -2533.079833984375,
+              -2532.763427734375,
+              -2532.958984375,
+              -2533.37890625,
+              -2533.838623046875,
+              -2534.069091796875,
+              -2533.936767578125,
+              -2533.611572265625,
+              -2533.3798828125,
+              -2533.3037109375,
+              -2533.0263671875,
+              -2532.214111328125,
+              -2531.021484375,
+              -2530.029296875,
+              -2529.438720703125,
+              -2528.83984375,
+              -2526.937744140625,
+              -2524.6513671875,
+              -2521.16845703125,
+              -2518.0625,
+              -2515.43408203125
+            ]
+          },
+          "terrain": {
+            "consumption": {
+              "minutes": 17.48475274092463,
+              "oxygen": 55.82920908554566,
+              "energy": 84.10775932998631
+            },
+            "distance": 677.9898987322333,
+            "gain": 22.708740234375,
+            "loss": 9.993896484375,
+            "peakSlope": 7.0200318885193465,
+            "meanSlope": 2.7570831825694,
+            "steepEdges": 0
+          },
+          "departure": 48.608243002908196,
+          "arrival": 66.09299574383283,
+          "leave": 86.09299574383283,
+          "used": {
+            "minutes": 37.484752740924634,
+            "oxygen": 103.82920908554567,
+            "energy": 160.10775932998632
+          },
+          "waypoints": [
+            {
+              "cell": [
+                102,
+                83
+              ],
+              "slope": 3.7664905743742434,
+              "returnMinutes": 18.109393990321397
+            }
+          ]
+        },
+        {
+          "from": "Swift Run · Skinner Ridge",
+          "to": "Landing Site",
+          "targetId": "LANDING_SITE",
+          "route": {
+            "status": "READY",
+            "distanceMeters": 633.9696961966999,
+            "nominalTravelMinutes": 15.899392771384997,
+            "geometryGrid": [
+              [
+                89,
+                87
+              ],
+              [
+                90,
+                88
+              ],
+              [
+                91,
+                89
+              ],
+              [
+                92,
+                90
+              ],
+              [
+                93,
+                91
+              ],
+              [
+                94,
+                92
+              ],
+              [
+                95,
+                93
+              ],
+              [
+                96,
+                94
+              ],
+              [
+                96,
+                95
+              ],
+              [
+                96,
+                96
+              ],
+              [
+                97,
+                97
+              ],
+              [
+                98,
+                98
+              ],
+              [
+                99,
+                99
+              ],
+              [
+                100,
+                100
+              ],
+              [
+                101,
+                101
+              ],
+              [
+                102,
+                102
+              ],
+              [
+                103,
+                103
+              ],
+              [
+                104,
+                104
+              ],
+              [
+                105,
+                105
+              ],
+              [
+                106,
+                106
+              ],
+              [
+                107,
+                107
+              ],
+              [
+                108,
+                108
+              ],
+              [
+                109,
+                109
+              ],
+              [
+                110,
+                110
+              ]
+            ],
+            "sampledElevationsMeters": [
+              -2515.43408203125,
+              -2518.796630859375,
+              -2523.292236328125,
+              -2527.951171875,
+              -2531.52392578125,
+              -2534.68994140625,
+              -2537.94873046875,
+              -2540.510009765625,
+              -2541.072998046875,
+              -2541.466796875,
+              -2542.7373046875,
+              -2543.796630859375,
+              -2544.76513671875,
+              -2545.619873046875,
+              -2546.389892578125,
+              -2546.99951171875,
+              -2546.982177734375,
+              -2546.5888671875,
+              -2546.461669921875,
+              -2547.3857421875,
+              -2549.716552734375,
+              -2553.135498046875,
+              -2556.63916015625,
+              -2558.98046875
+            ]
+          },
+          "terrain": {
+            "consumption": {
+              "minutes": 15.899392771384997,
+              "oxygen": 49.5101534161952,
+              "energy": 73.20615146079606
+            },
+            "distance": 633.9696961966999,
+            "gain": 0.537841796875,
+            "loss": 44.084228515625,
+            "peakSlope": 9.3536689192683,
+            "meanSlope": 4.015118214389207,
+            "steepEdges": 0
+          },
+          "departure": 86.09299574383283,
+          "arrival": 101.99238851521783,
+          "leave": 101.99238851521783,
+          "used": {
+            "minutes": 15.899392771384997,
+            "oxygen": 49.5101534161952,
+            "energy": 73.20615146079606
+          },
+          "waypoints": [
+            {
+              "cell": [
+                99,
+                99
+              ],
+              "slope": 3.406311004110342,
+              "returnMinutes": 9.439835105561276
+            }
+          ]
+        }
+      ],
+      "state": "ROBUST",
+      "used": {
+        "minutes": 72.40748454322122,
+        "oxygen": 201.68348947742143,
+        "energy": 309.03516116713126
+      },
+      "margins": [
+        {
+          "speed": 0.8,
+          "margin": {
+            "minutes": 48.65574034897688,
+            "oxygen": 132.1625609102382,
+            "energy": 263.9853621354541
+          }
+        },
+        {
+          "speed": 1,
+          "margin": {
+            "minutes": 58.00761148478219,
+            "oxygen": 161.58343327959355,
+            "energy": 307.99415242723694
+          }
+        },
+        {
+          "speed": 1.2,
+          "margin": {
+            "minutes": 64.24219224198572,
+            "oxygen": 181.19734819249712,
+            "energy": 337.3333459550921
+          }
+        }
+      ],
+      "routePreference": "fastest",
+      "travelSpeed": 1,
+      "deferred": []
+    },
+    "proposal": null,
+    "status": "COMPLETED",
+    "position": [
+      110,
+      110
+    ],
+    "spent": {
+      "minutes": 101.99238851521783,
+      "oxygen": 288.4165667204064,
+      "energy": 442.00584757276306
+    },
+    "cursor": 0,
+    "legIndex": 3,
+    "completed": [
+      "sim-contact-1",
+      "swift-run"
+    ],
+    "travels": [
+      {
+        "targetId": "shuyak",
+        "cells": [
+          [
+            110,
+            110
+          ],
+          [
+            110,
+            109
+          ],
+          [
+            110,
+            108
+          ],
+          [
+            110,
+            107
+          ],
+          [
+            110,
+            106
+          ],
+          [
+            110,
+            105
+          ],
+          [
+            110,
+            104
+          ],
+          [
+            110,
+            103
+          ],
+          [
+            110,
+            102
+          ],
+          [
+            110,
+            101
+          ],
+          [
+            110,
+            100
+          ],
+          [
+            110,
+            99
+          ],
+          [
+            110,
+            98
+          ],
+          [
+            110,
+            97
+          ],
+          [
+            110,
+            96
+          ],
+          [
+            110,
+            95
+          ],
+          [
+            110,
+            94
+          ],
+          [
+            110,
+            93
+          ],
+          [
+            111,
+            92
+          ],
+          [
+            111,
+            91
+          ],
+          [
+            111,
+            90
+          ],
+          [
+            111,
+            89
+          ],
+          [
+            111,
+            88
+          ],
+          [
+            111,
+            87
+          ],
+          [
+            112,
+            86
+          ],
+          [
+            112,
+            85
+          ],
+          [
+            112,
+            84
+          ],
+          [
+            112,
+            83
+          ],
+          [
+            113,
+            82
+          ],
+          [
+            114,
+            81
+          ],
+          [
+            114,
+            80
+          ],
+          [
+            114,
+            79
+          ],
+          [
+            114,
+            78
+          ],
+          [
+            114,
+            77
+          ],
+          [
+            114,
+            76
+          ],
+          [
+            114,
+            75
+          ],
+          [
+            114,
+            74
+          ]
+        ],
+        "used": {
+          "minutes": 19.58490397199661,
+          "oxygen": 62.73307724298499,
+          "energy": 94.97068640563178
+        }
+      },
+      {
+        "targetId": "sim-contact-1",
+        "cells": [
+          [
+            114,
+            74
+          ],
+          [
+            115,
+            75
+          ],
+          [
+            116,
+            76
+          ],
+          [
+            117,
+            77
+          ],
+          [
+            118,
+            78
+          ],
+          [
+            119,
+            79
+          ],
+          [
+            120,
+            80
+          ]
+        ],
+        "used": {
+          "minutes": 19.023339030911586,
+          "oxygen": 48.344126975680574,
+          "energy": 75.7212503763489
+        }
+      },
+      {
+        "targetId": "swift-run",
+        "cells": [
+          [
+            120,
+            80
+          ],
+          [
+            119,
+            80
+          ],
+          [
+            118,
+            80
+          ],
+          [
+            117,
+            80
+          ],
+          [
+            116,
+            80
+          ],
+          [
+            115,
+            80
+          ],
+          [
+            114,
+            80
+          ],
+          [
+            113,
+            81
+          ],
+          [
+            112,
+            82
+          ],
+          [
+            111,
+            83
+          ],
+          [
+            110,
+            83
+          ],
+          [
+            109,
+            83
+          ],
+          [
+            108,
+            83
+          ],
+          [
+            107,
+            83
+          ],
+          [
+            106,
+            83
+          ],
+          [
+            105,
+            83
+          ],
+          [
+            104,
+            83
+          ],
+          [
+            103,
+            83
+          ],
+          [
+            102,
+            83
+          ],
+          [
+            101,
+            83
+          ],
+          [
+            100,
+            83
+          ],
+          [
+            99,
+            83
+          ],
+          [
+            98,
+            83
+          ],
+          [
+            97,
+            83
+          ],
+          [
+            96,
+            83
+          ],
+          [
+            95,
+            83
+          ],
+          [
+            94,
+            83
+          ],
+          [
+            93,
+            83
+          ],
+          [
+            92,
+            84
+          ],
+          [
+            91,
+            85
+          ],
+          [
+            90,
+            86
+          ],
+          [
+            89,
+            87
+          ]
+        ],
+        "used": {
+          "minutes": 37.484752740924634,
+          "oxygen": 103.82920908554567,
+          "energy": 160.10775932998632
+        }
+      },
+      {
+        "targetId": "LANDING_SITE",
+        "cells": [
+          [
+            89,
+            87
+          ],
+          [
+            90,
+            88
+          ],
+          [
+            91,
+            89
+          ],
+          [
+            92,
+            90
+          ],
+          [
+            93,
+            91
+          ],
+          [
+            94,
+            92
+          ],
+          [
+            95,
+            93
+          ],
+          [
+            96,
+            94
+          ],
+          [
+            96,
+            95
+          ],
+          [
+            96,
+            96
+          ],
+          [
+            97,
+            97
+          ],
+          [
+            98,
+            98
+          ],
+          [
+            99,
+            99
+          ],
+          [
+            100,
+            100
+          ],
+          [
+            101,
+            101
+          ],
+          [
+            102,
+            102
+          ],
+          [
+            103,
+            103
+          ],
+          [
+            104,
+            104
+          ],
+          [
+            105,
+            105
+          ],
+          [
+            106,
+            106
+          ],
+          [
+            107,
+            107
+          ],
+          [
+            108,
+            108
+          ],
+          [
+            109,
+            109
+          ],
+          [
+            110,
+            110
+          ]
+        ],
+        "used": {
+          "minutes": 15.899392771384997,
+          "oxygen": 49.5101534161952,
+          "energy": 73.20615146079606
+        }
+      }
+    ],
+    "priorities": [
+      "shuyak",
+      "swift-run"
+    ],
+    "stopCapacity": 4,
+    "events": [
+      {
+        "category": "NEW_SCIENTIFIC_DISCOVERY",
+        "target": {
+          "id": "sim-contact-1",
+          "name": "Carbonate-olivine contact (120, 80)",
+          "objectiveTags": [
+            "simulated-sensor",
+            "spectrometry"
+          ],
+          "location": {
+            "gridRow": 120,
+            "gridCol": 80,
+            "originalCoordinateText": "Simulated contact at grid cell (120, 80)",
+            "coordinateFrame": "LOCAL_ANALYSIS_GRID",
+            "confidence": "USER_SELECTED",
+            "locationSource": null
+          },
+          "science": {
+            "summary": "Simulated spectrometer follow-up contact adjacent to current station (synthetic sensor prompt, not a PDS observation).",
+            "sourceIds": [],
+            "evidence": [],
+            "limitations": [
+              "Simulated sensor trigger for mission-replan testing",
+              "Activity duration is assumed"
+            ]
+          },
+          "activity": {
+            "minutes": 15,
+            "basis": "SCENARIO_ASSUMPTION"
+          }
+        },
+        "id": 1,
+        "minute": 29.58490397199661,
+        "cell": [
+          120,
+          80
+        ],
+        "channel": "INSTRUMENT_INTEGRATION",
+        "description": "Carbonate-olivine contact signature · 76% carbonate-olivine band depth at 2.31 μm (simulated sensor reading)"
+      }
+    ],
+    "decisions": [
+      {
+        "kind": "approved",
+        "minute": 29.58490397199661,
+        "plan": {
+          "origin": [
+            114,
+            74
+          ],
+          "stops": [
+            {
+              "id": "sim-contact-1",
+              "name": "Carbonate-olivine contact (120, 80)",
+              "objectiveTags": [
+                "simulated-sensor",
+                "spectrometry"
+              ],
+              "location": {
+                "gridRow": 120,
+                "gridCol": 80,
+                "originalCoordinateText": "Simulated contact at grid cell (120, 80)",
+                "coordinateFrame": "LOCAL_ANALYSIS_GRID",
+                "confidence": "USER_SELECTED",
+                "locationSource": null
+              },
+              "science": {
+                "summary": "Simulated spectrometer follow-up contact adjacent to current station (synthetic sensor prompt, not a PDS observation).",
+                "sourceIds": [],
+                "evidence": [],
+                "limitations": [
+                  "Simulated sensor trigger for mission-replan testing",
+                  "Activity duration is assumed"
+                ]
+              },
+              "activity": {
+                "minutes": 15,
+                "basis": "SCENARIO_ASSUMPTION"
+              }
+            },
+            {
+              "id": "swift-run",
+              "name": "Swift Run · Skinner Ridge",
+              "location": {
+                "originalCoordinateText": "18.4589310°N planetocentric, 77.4061708°E (source)",
+                "coordinateFrame": "MARS_PLANETOCENTRIC_POSITIVE_EAST",
+                "gridRow": 89,
+                "gridCol": 87,
+                "confidence": "SOURCE_REPORTED_POINT",
+                "locationSource": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf"
+              },
+              "objectiveTags": [
+                "Jezero western fan",
+                "sedimentary comparison"
+              ],
+              "science": {
+                "summary": "Compare sediment texture and bedding at the Skinner Ridge sandstone exposure.",
+                "sourceIds": [
+                  "PDS_MARS2020_SAMPLE_DOSSIER",
+                  "NASA_M2020_SWIFT-RUN"
+                ],
+                "evidence": [
+                  {
+                    "title": "NASA PDS Mars 2020 Initial Reports · Chapter 11",
+                    "url": "https://pds-geosciences.wustl.edu/missions/mars2020/Mars%202020%20Initial%20Reports%20Volume%202%20Release%202.pdf",
+                    "sourceId": "PDS_MARS2020_SAMPLE_DOSSIER",
+                    "claimSupported": "Published sample-site latitude and longitude and geological context."
+                  },
+                  {
+                    "title": "NASA Perseverance · site and sample context",
+                    "url": "https://science.nasa.gov/resource/perseverance-workspace-at-skinner-ridge/",
+                    "sourceId": "NASA_M2020_SWIFT-RUN",
+                    "claimSupported": "Site-specific geological or visual context."
+                  }
+                ],
+                "limitations": [
+                  "Source-reported sample coordinates mapped to a 20 m analysis cell. Independent frame and target review is pending.",
+                  "The DEM cannot resolve the individual outcrop surface."
+                ]
+              },
+              "activity": {
+                "minutes": 20,
+                "basis": "SCENARIO_ASSUMPTION"
+              }
+            }
+          ],
+          "legs": [
+            {
+              "from": "Astronaut position",
+              "to": "Carbonate-olivine contact (120, 80)",
+              "targetId": "sim-contact-1",
+              "route": {
+                "status": "READY",
+                "distanceMeters": 169.7056274847714,
+                "nominalTravelMinutes": 4.023339030911587,
+                "geometryGrid": [
+                  [
+                    114,
+                    74
+                  ],
+                  [
+                    115,
+                    75
+                  ],
+                  [
+                    116,
+                    76
+                  ],
+                  [
+                    117,
+                    77
+                  ],
+                  [
+                    118,
+                    78
+                  ],
+                  [
+                    119,
+                    79
+                  ],
+                  [
+                    120,
+                    80
+                  ]
+                ],
+                "sampledElevationsMeters": [
+                  -2526.9345703125,
+                  -2528.33349609375,
+                  -2529.3427734375,
+                  -2529.72802734375,
+                  -2529.659912109375,
+                  -2528.998046875,
+                  -2528.14892578125
+                ]
+              },
+              "terrain": {
+                "consumption": {
+                  "minutes": 4.023339030911587,
+                  "oxygen": 12.344126975680574,
+                  "energy": 18.721250376348898
+                },
+                "distance": 169.7056274847714,
+                "gain": 1.5791015625,
+                "loss": 2.79345703125,
+                "peakSlope": 2.8315129875773577,
+                "meanSlope": 1.4755931792982901,
+                "steepEdges": 0
+              },
+              "departure": 29.58490397199661,
+              "arrival": 33.608243002908196,
+              "leave": 48.608243002908196,
+              "used": {
+                "minutes": 19.023339030911586,
+                "oxygen": 48.344126975680574,
+                "energy": 75.7212503763489
+              },
+              "waypoints": [
+                {
+                  "cell": [
+                    117,
+                    77
+                  ],
+                  "slope": 3.9523872067348496,
+                  "returnMinutes": 21.40678592398565
+                }
+              ]
+            },
+            {
+              "from": "Carbonate-olivine contact (120, 80)",
+              "to": "Swift Run · Skinner Ridge",
+              "targetId": "swift-run",
+              "route": {
+                "status": "READY",
+                "distanceMeters": 677.9898987322333,
+                "nominalTravelMinutes": 17.48475274092463,
+                "geometryGrid": [
+                  [
+                    120,
+                    80
+                  ],
+                  [
+                    119,
+                    80
+                  ],
+                  [
+                    118,
+                    80
+                  ],
+                  [
+                    117,
+                    80
+                  ],
+                  [
+                    116,
+                    80
+                  ],
+                  [
+                    115,
+                    80
+                  ],
+                  [
+                    114,
+                    80
+                  ],
+                  [
+                    113,
+                    81
+                  ],
+                  [
+                    112,
+                    82
+                  ],
+                  [
+                    111,
+                    83
+                  ],
+                  [
+                    110,
+                    83
+                  ],
+                  [
+                    109,
+                    83
+                  ],
+                  [
+                    108,
+                    83
+                  ],
+                  [
+                    107,
+                    83
+                  ],
+                  [
+                    106,
+                    83
+                  ],
+                  [
+                    105,
+                    83
+                  ],
+                  [
+                    104,
+                    83
+                  ],
+                  [
+                    103,
+                    83
+                  ],
+                  [
+                    102,
+                    83
+                  ],
+                  [
+                    101,
+                    83
+                  ],
+                  [
+                    100,
+                    83
+                  ],
+                  [
+                    99,
+                    83
+                  ],
+                  [
+                    98,
+                    83
+                  ],
+                  [
+                    97,
+                    83
+                  ],
+                  [
+                    96,
+                    83
+                  ],
+                  [
+                    95,
+                    83
+                  ],
+                  [
+                    94,
+                    83
+                  ],
+                  [
+                    93,
+                    83
+                  ],
+                  [
+                    92,
+                    84
+                  ],
+                  [
+                    91,
+                    85
+                  ],
+                  [
+                    90,
+                    86
+                  ],
+                  [
+                    89,
+                    87
+                  ]
+                ],
+                "sampledElevationsMeters": [
+                  -2528.14892578125,
+                  -2530.21826171875,
+                  -2532.262451171875,
+                  -2534.00537109375,
+                  -2535.28857421875,
+                  -2535.730224609375,
+                  -2534.898681640625,
+                  -2534.71533203125,
+                  -2534.840576171875,
+                  -2535.822265625,
+                  -2534.166015625,
+                  -2533.079833984375,
+                  -2532.763427734375,
+                  -2532.958984375,
+                  -2533.37890625,
+                  -2533.838623046875,
+                  -2534.069091796875,
+                  -2533.936767578125,
+                  -2533.611572265625,
+                  -2533.3798828125,
+                  -2533.3037109375,
+                  -2533.0263671875,
+                  -2532.214111328125,
+                  -2531.021484375,
+                  -2530.029296875,
+                  -2529.438720703125,
+                  -2528.83984375,
+                  -2526.937744140625,
+                  -2524.6513671875,
+                  -2521.16845703125,
+                  -2518.0625,
+                  -2515.43408203125
+                ]
+              },
+              "terrain": {
+                "consumption": {
+                  "minutes": 17.48475274092463,
+                  "oxygen": 55.82920908554566,
+                  "energy": 84.10775932998631
+                },
+                "distance": 677.9898987322333,
+                "gain": 22.708740234375,
+                "loss": 9.993896484375,
+                "peakSlope": 7.0200318885193465,
+                "meanSlope": 2.7570831825694,
+                "steepEdges": 0
+              },
+              "departure": 48.608243002908196,
+              "arrival": 66.09299574383283,
+              "leave": 86.09299574383283,
+              "used": {
+                "minutes": 37.484752740924634,
+                "oxygen": 103.82920908554567,
+                "energy": 160.10775932998632
+              },
+              "waypoints": [
+                {
+                  "cell": [
+                    102,
+                    83
+                  ],
+                  "slope": 3.7664905743742434,
+                  "returnMinutes": 18.109393990321397
+                }
+              ]
+            },
+            {
+              "from": "Swift Run · Skinner Ridge",
+              "to": "Landing Site",
+              "targetId": "LANDING_SITE",
+              "route": {
+                "status": "READY",
+                "distanceMeters": 633.9696961966999,
+                "nominalTravelMinutes": 15.899392771384997,
+                "geometryGrid": [
+                  [
+                    89,
+                    87
+                  ],
+                  [
+                    90,
+                    88
+                  ],
+                  [
+                    91,
+                    89
+                  ],
+                  [
+                    92,
+                    90
+                  ],
+                  [
+                    93,
+                    91
+                  ],
+                  [
+                    94,
+                    92
+                  ],
+                  [
+                    95,
+                    93
+                  ],
+                  [
+                    96,
+                    94
+                  ],
+                  [
+                    96,
+                    95
+                  ],
+                  [
+                    96,
+                    96
+                  ],
+                  [
+                    97,
+                    97
+                  ],
+                  [
+                    98,
+                    98
+                  ],
+                  [
+                    99,
+                    99
+                  ],
+                  [
+                    100,
+                    100
+                  ],
+                  [
+                    101,
+                    101
+                  ],
+                  [
+                    102,
+                    102
+                  ],
+                  [
+                    103,
+                    103
+                  ],
+                  [
+                    104,
+                    104
+                  ],
+                  [
+                    105,
+                    105
+                  ],
+                  [
+                    106,
+                    106
+                  ],
+                  [
+                    107,
+                    107
+                  ],
+                  [
+                    108,
+                    108
+                  ],
+                  [
+                    109,
+                    109
+                  ],
+                  [
+                    110,
+                    110
+                  ]
+                ],
+                "sampledElevationsMeters": [
+                  -2515.43408203125,
+                  -2518.796630859375,
+                  -2523.292236328125,
+                  -2527.951171875,
+                  -2531.52392578125,
+                  -2534.68994140625,
+                  -2537.94873046875,
+                  -2540.510009765625,
+                  -2541.072998046875,
+                  -2541.466796875,
+                  -2542.7373046875,
+                  -2543.796630859375,
+                  -2544.76513671875,
+                  -2545.619873046875,
+                  -2546.389892578125,
+                  -2546.99951171875,
+                  -2546.982177734375,
+                  -2546.5888671875,
+                  -2546.461669921875,
+                  -2547.3857421875,
+                  -2549.716552734375,
+                  -2553.135498046875,
+                  -2556.63916015625,
+                  -2558.98046875
+                ]
+              },
+              "terrain": {
+                "consumption": {
+                  "minutes": 15.899392771384997,
+                  "oxygen": 49.5101534161952,
+                  "energy": 73.20615146079606
+                },
+                "distance": 633.9696961966999,
+                "gain": 0.537841796875,
+                "loss": 44.084228515625,
+                "peakSlope": 9.3536689192683,
+                "meanSlope": 4.015118214389207,
+                "steepEdges": 0
+              },
+              "departure": 86.09299574383283,
+              "arrival": 101.99238851521783,
+              "leave": 101.99238851521783,
+              "used": {
+                "minutes": 15.899392771384997,
+                "oxygen": 49.5101534161952,
+                "energy": 73.20615146079606
+              },
+              "waypoints": [
+                {
+                  "cell": [
+                    99,
+                    99
+                  ],
+                  "slope": 3.406311004110342,
+                  "returnMinutes": 9.439835105561276
+                }
+              ]
+            }
+          ],
+          "state": "ROBUST",
+          "used": {
+            "minutes": 72.40748454322122,
+            "oxygen": 201.68348947742143,
+            "energy": 309.03516116713126
+          },
+          "margins": [
+            {
+              "speed": 0.8,
+              "margin": {
+                "minutes": 48.65574034897688,
+                "oxygen": 132.1625609102382,
+                "energy": 263.9853621354541
+              }
+            },
+            {
+              "speed": 1,
+              "margin": {
+                "minutes": 58.00761148478219,
+                "oxygen": 161.58343327959355,
+                "energy": 307.99415242723694
+              }
+            },
+            {
+              "speed": 1.2,
+              "margin": {
+                "minutes": 64.24219224198572,
+                "oxygen": 181.19734819249712,
+                "energy": 337.3333459550921
+              }
+            }
+          ],
+          "routePreference": "fastest",
+          "travelSpeed": 1,
+          "deferred": []
+        },
+        "stopAction": "leave-stop"
+      }
+    ],
+    "hazards": [],
+    "speedFactor": 1,
+    "activeStopId": null,
+    "stopProgress": {
+      "shuyak": {
+        "stopId": "shuyak",
+        "stopName": "Shuyak · Cape Nukshak",
+        "cell": [
+          114,
+          74
+        ],
+        "plannedMinutes": 20,
+        "exploredMinutes": 10,
+        "status": "departed-early",
+        "observations": [
+          {
+            "id": "obs-1",
+            "stopId": "shuyak",
+            "stopName": "Shuyak · Cape Nukshak",
+            "timestampMinutes": 19.58490397199661,
+            "note": "Layered sulfate lens observed at Shuyak bench",
+            "measurement": "CaSO4 peak",
+            "recordedDuring": "exploration"
+          }
+        ]
+      },
+      "swift-run": {
+        "stopId": "swift-run",
+        "stopName": "Swift Run · Skinner Ridge",
+        "cell": [
+          89,
+          87
+        ],
+        "plannedMinutes": 20,
+        "exploredMinutes": 20,
+        "status": "completed",
+        "observations": []
+      },
+      "sim-contact-1": {
+        "stopId": "sim-contact-1",
+        "stopName": "Carbonate-olivine contact (120, 80)",
+        "cell": [
+          120,
+          80
+        ],
+        "plannedMinutes": 15,
+        "exploredMinutes": 15,
+        "status": "completed",
+        "observations": []
+      }
+    },
+    "fieldObservations": [
+      {
+        "id": "obs-1",
+        "stopId": "shuyak",
+        "stopName": "Shuyak · Cape Nukshak",
+        "timestampMinutes": 19.58490397199661,
+        "note": "Layered sulfate lens observed at Shuyak bench",
+        "measurement": "CaSO4 peak",
+        "recordedDuring": "exploration"
+      }
+    ],
+    "pendingReading": null,
+    "finishProposal": null,
+    "leaveStopProposal": null,
+    "recommendedProposal": null,
+    "proposalReason": null
+  }
+}

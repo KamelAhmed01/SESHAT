@@ -371,7 +371,9 @@
 
   .cc-topbar-right {
     margin-left: 0;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
   }
 
   .cc-search-wrap {
@@ -465,6 +467,50 @@
     font: 10px ui-monospace, monospace;
     color: #c5bdb4;
     white-space: nowrap;
+  }
+
+  .cc-meda-pill,
+  .cc-phase-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid #3c3630;
+    background: #23201c;
+    color: #d6cfc6;
+    font: 600 11px/1.2 ui-monospace, monospace;
+    white-space: nowrap;
+  }
+
+  .cc-meda-pill {
+    color: #b7afa6;
+    font-weight: 500;
+  }
+
+  .cc-phase-pill[data-phase="MOVING"] {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: rgba(245, 158, 11, 0.14);
+    color: #fcd34d;
+  }
+
+  .cc-phase-pill[data-phase="ARRIVED"],
+  .cc-phase-pill[data-phase="EXPLORE"] {
+    border-color: rgba(52, 211, 153, 0.45);
+    background: rgba(16, 185, 129, 0.14);
+    color: #6ee7b7;
+  }
+
+  .cc-phase-pill[data-phase="REVIEW"],
+  .cc-phase-pill[data-phase="HOLD"] {
+    border-color: rgba(251, 146, 60, 0.6);
+    background: rgba(234, 88, 12, 0.2);
+    color: #fdba74;
+  }
+
+  .cc-phase-pill[data-phase="COMPLETED"] {
+    border-color: rgba(16, 185, 129, 0.55);
+    background: rgba(6, 78, 59, 0.42);
+    color: #a7f3d0;
   }
 
   .text-action {
@@ -1134,8 +1180,8 @@
 
   .cc-catalog-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 
   .cc-catalog-item {
@@ -1148,10 +1194,11 @@
 
   .cc-catalog-item button {
     font-size: 11px;
-    padding: 5px 7px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 6px 9px;
+    white-space: normal;
+    text-align: left;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .cc-event-disclosure {
@@ -2242,6 +2289,82 @@
     font-size: 10px;
   }
 
+  .cc-baseline-gate {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 9px;
+    border-radius: 8px;
+    border: 1px solid #443d36;
+    background: rgba(31, 27, 24, 0.9);
+    color: #e2d9cf;
+    font: 500 11px/1.3 ui-monospace, monospace;
+    overflow-wrap: anywhere;
+  }
+
+  .cc-reading-alert {
+    border-color: rgba(245, 158, 11, 0.52);
+    background: linear-gradient(180deg, rgba(61, 41, 21, 0.48), rgba(29, 25, 22, 0.96));
+    display: grid;
+    gap: 6px;
+  }
+
+  .cc-reading-alert p {
+    margin: 0;
+  }
+
+  .cc-reading-channel {
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fcd34d;
+    font: 600 10px/1.2 ui-monospace, monospace;
+  }
+
+  .cc-stop-ops {
+    display: grid;
+    gap: 8px;
+    border-color: rgba(52, 211, 153, 0.35);
+    background: linear-gradient(180deg, rgba(16, 48, 39, 0.28), rgba(27, 24, 21, 0.95));
+  }
+
+  .cc-obs-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .cc-obs-form input {
+    min-width: 0;
+    width: 100%;
+    height: 32px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid #49413a;
+    background: #1d1a17;
+    color: var(--s-text);
+    font-size: 12px;
+    outline: none;
+  }
+
+  .cc-obs-form input:focus-visible {
+    border-color: var(--s-accent);
+  }
+
+  .cc-obs-form input::placeholder {
+    color: #8c8278;
+  }
+
+  .cc-event-coords {
+    display: grid;
+    gap: 6px;
+  }
+
+  .cc-event-coords .cc-coord-input-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .mission-disclosure {
     padding: 6px 0;
     border-top: 1px solid var(--s-line);
@@ -2585,6 +2708,40 @@
       padding: 10px 14px;
       flex-wrap: wrap;
       font-size: 9px;
+    }
+
+    .cc-meda-pill,
+    .cc-phase-pill {
+      white-space: normal;
+      max-width: 100%;
+    }
+
+    .cc-obs-form {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cc-baseline-gate {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .cc-workbench .cc-topbar,
+    .cc-workbench .content-grid {
+      padding-inline: 10px;
+    }
+
+    .cc-card {
+      border-radius: 12px;
+    }
+
+    .cc-event-coords .cc-coord-input-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .map-canvas {
+      min-height: 360px;
+      height: 54svh;
     }
   }
 
