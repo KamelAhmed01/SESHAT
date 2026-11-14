@@ -125,6 +125,7 @@ export function MapLegend({
             <line x1="7" y1="7" x2="7" y2="14" />
           </svg>
           <strong>Map Layers &amp; Elevation</strong>
+          <span className="cc-legend-source-pill">NASA Data</span>
         </div>
         <IconButton
           label="Close map layer legend"
