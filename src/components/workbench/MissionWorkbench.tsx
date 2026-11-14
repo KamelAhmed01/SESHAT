@@ -46,6 +46,7 @@ export function MissionWorkbench() {
   const demoMode = search.get('demo') === '1';
   const opportunityMode = search.get('opportunities') === '1';
   const [showOptical, setShowOptical] = useState(false);
+  const [showElevation, setShowElevation] = useState(false);
   const [showGeology, setShowGeology] = useState(false);
   const [showThermal, setShowThermal] = useState(false);
   const [resetViewRequestKey, setResetViewRequestKey] = useState(0);
@@ -246,6 +247,14 @@ export function MissionWorkbench() {
               <button type="button" aria-pressed={!showOptical} onClick={() => setShowOptical(false)}>Terrain</button>
               <button type="button" aria-pressed={showOptical} onClick={() => setShowOptical(true)}>Orbital</button>
             </div>}
+            <button
+              type="button"
+              className="cc-map-action-btn"
+              aria-pressed={showElevation}
+              onClick={() => setShowElevation(v => !v)}
+            >
+              Elevation
+            </button>
             {bundle?.manifest.contextLayers?.geologicUnits?.geoImagePath && (
               <button
                 type="button"
@@ -272,7 +281,7 @@ export function MissionWorkbench() {
           selectedCell={selected} onCellSelect={(r,c) => { if (isReady) setSelected([r,c]); }}
           onInspectPoint={setInspectedPoint}
           outboundRoute={outbound} returnRoute={returnRoute} showOptical={showOptical}
-          showGeology={showGeology} showThermal={showThermal} resetViewRequestKey={resetViewRequestKey}
+          showElevation={showElevation} showGeology={showGeology} showThermal={showThermal} resetViewRequestKey={resetViewRequestKey}
           opportunities={ledger?.entries}/>
         {inspectedPoint && inspectedPoint.status !== 'COVERED' && (
           <div className="cc-point-inspector" role="status" aria-label="Map point inspection">

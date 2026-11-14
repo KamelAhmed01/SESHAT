@@ -25,6 +25,7 @@ import type { Cell, HazardZone } from '@/engine/traverse-graph';
 import type { RouteSummary } from '@/engine/types';
 import type { OpportunityEntry } from '@/engine/opportunity-ledger';
 import { targetMarkers } from '@/cartography/target-markers';
+import { MapLegend } from './MapLegend';
 
 export interface MapPointInspection {
   lat: number | null;
@@ -48,6 +49,7 @@ interface Props {
   outboundRoute?: RouteSummary | null;
   returnRoute?: RouteSummary | null;
   showOptical?: boolean;
+  showElevation?: boolean;
   showGeology?: boolean;
   showThermal?: boolean;
   opportunities?: readonly OpportunityEntry[];
@@ -76,6 +78,114 @@ function niceScaleMeters(rawMeters: number): number {
   const scaled = rawMeters / pow;
   const mult = scaled >= 5 ? 5 : scaled >= 2 ? 2 : 1;
   return mult * pow;
+}
+
+function hypsometricColor(t: number): [number, number, number] {
+  const clamped = Math.max(0, Math.min(1, t));
+  if (clamped <= 0.25) {
+    const u = clamped / 0.25;
+    return [
+      Math.round(35 + u * (20 - 35)),
+      Math.round(30 + u * (165 - 30)),
+      Math.round(160 + u * (215 - 160)),
+    ];
+  } else if (clamped <= 0.5) {
+    const u = (clamped - 0.25) / 0.25;
+    return [
+      Math.round(20 + u * (34 - 20)),
+      Math.round(165 + u * (197 - 165)),
+      Math.round(215 + u * (94 - 215)),
+    ];
+  } else if (clamped <= 0.75) {
+    const u = (clamped - 0.5) / 0.25;
+    return [
+      Math.round(34 + u * (245 - 34)),
+      Math.round(197 + u * (158 - 197)),
+      Math.round(94 + u * (11 - 94)),
+    ];
+  }
+  const u = (clamped - 0.75) / 0.25;
+  return [
+    Math.round(245 + u * (235 - 245)),
+    Math.round(158 + u * (55 - 158)),
+    Math.round(11 + u * (65 - 11)),
+  ];
+}
+
+function elevationHeatmapPng(
+  bundle: FieldBundle,
+  geoBounds?: { south: number; west: number; north: number; east: number },
+): string {
+  const m = bundle.manifest;
+  const z = bundle.elevationMeters;
+  const mask = bundle.mask;
+  const w = m.width;
+  const h = m.height;
+  const total = w * h;
+
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (let i = 0; i < total; i++) {
+    if (mask[i] === 1 && Number.isFinite(z[i])) {
+      if (z[i] < minZ) minZ = z[i];
+      if (z[i] > maxZ) maxZ = z[i];
+    }
+  }
+  if (!Number.isFinite(minZ) || maxZ <= minZ) return '';
+  const span = maxZ - minZ;
+
+  const canvas = document.createElement('canvas');
+  if (geoBounds && isMarsGeographic(m)) {
+    const gw = 240;
+    const gh = 240;
+    canvas.width = gw;
+    canvas.height = gh;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    const imgData = ctx.createImageData(gw, gh);
+    for (let py = 0; py < gh; py++) {
+      const lat = geoBounds.north - ((py + 0.5) / gh) * (geoBounds.north - geoBounds.south);
+      for (let px = 0; px < gw; px++) {
+        const lon = geoBounds.west + ((px + 0.5) / gw) * (geoBounds.east - geoBounds.west);
+        const pt = marsLatLngToGridFloat(lat, lon, m);
+        const off = (py * gw + px) * 4;
+        if (!pt) continue;
+        const r = Math.floor(pt[0]);
+        const c = Math.floor(pt[1]);
+        if (r < 0 || r >= h || c < 0 || c >= w) continue;
+        const idx = r * w + c;
+        if (mask[idx] === 1 && Number.isFinite(z[idx])) {
+          const t = (z[idx] - minZ) / span;
+          const [red, green, blue] = hypsometricColor(t);
+          imgData.data[off] = red;
+          imgData.data[off + 1] = green;
+          imgData.data[off + 2] = blue;
+          imgData.data[off + 3] = 185;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return canvas.toDataURL('image/png');
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  const imgData = ctx.createImageData(w, h);
+  for (let i = 0; i < total; i++) {
+    const off = i * 4;
+    if (mask[i] === 1 && Number.isFinite(z[i])) {
+      const t = (z[i] - minZ) / span;
+      const [red, green, blue] = hypsometricColor(t);
+      imgData.data[off] = red;
+      imgData.data[off + 1] = green;
+      imgData.data[off + 2] = blue;
+      imgData.data[off + 3] = 185;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL('image/png');
 }
 
 function contourOverlayPng(bundle: FieldBundle, geoBounds?: { south: number; west: number; north: number; east: number }): string {
@@ -319,6 +429,7 @@ export function LeafletGrid({
   outboundRoute,
   returnRoute,
   showOptical = false,
+  showElevation = false,
   showGeology = false,
   showThermal = false,
   opportunities = [],
@@ -335,6 +446,7 @@ export function LeafletGrid({
   const leafletRef = useRef<typeof import('leaflet') | null>(null);
   const backgroundOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const contourOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
+  const elevationOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const geologyOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const thermalOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const selectionLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
@@ -661,6 +773,7 @@ export function LeafletGrid({
       selectionLayerRef.current = null;
       backgroundOverlayRef.current = null;
       contourOverlayRef.current = null;
+      elevationOverlayRef.current = null;
       geologyOverlayRef.current = null;
       thermalOverlayRef.current = null;
       frontierRef.current = null;
@@ -718,6 +831,39 @@ export function LeafletGrid({
       ).addTo(map);
     }
   }, [bundle, showGeology, showThermal, mapRevision]);
+
+  // Toggle Elevation Heatmap (hypsometric tint) overlay
+  useEffect(() => {
+    const map = mapRef.current, L = leafletRef.current;
+    if (!map || !L || !bundle) return;
+    elevationOverlayRef.current?.remove();
+    elevationOverlayRef.current = null;
+    if (!showElevation) return;
+
+    if (isMarsGeographic(bundle.manifest)) {
+      const b = gridGeographicBounds(bundle.manifest);
+      const latLngBounds = L.latLngBounds([b.south, b.west], [b.north, b.east]);
+      const url = elevationHeatmapPng(bundle, b);
+      if (url) {
+        elevationOverlayRef.current = L.imageOverlay(url, latLngBounds, {
+          opacity: 0.75,
+          interactive: false,
+          zIndex: 47,
+        }).addTo(map);
+      }
+    } else {
+      const h = bundle.manifest.height, w = bundle.manifest.width;
+      const bounds = L.latLngBounds([[0, 0], [h, w]]);
+      const url = elevationHeatmapPng(bundle);
+      if (url) {
+        elevationOverlayRef.current = L.imageOverlay(url, bounds, {
+          opacity: 0.75,
+          interactive: false,
+          zIndex: 47,
+        }).addTo(map);
+      }
+    }
+  }, [bundle, showElevation, mapRevision]);
 
   // Frontier overlay for Opportunity Navigator mode (`!isMissionMap`)
   useEffect(() => {
@@ -962,6 +1108,17 @@ export function LeafletGrid({
           {cursorInfo && <span className="cc-cursor-coord">{cursorInfo}</span>}
         </div>
       )}
+      <MapLegend
+        bundle={bundle}
+        showOptical={showOptical}
+        showElevation={showElevation}
+        showGeology={showGeology}
+        showThermal={showThermal}
+        isMissionMap={isMissionMap}
+        hasPlannedRoute={(mission?.planned?.length ?? 0) > 0 || outboundRoute?.status === 'READY'}
+        hasPreviousRoute={(mission?.previous?.length ?? 0) > 0 || returnRoute?.status === 'READY'}
+        hasHazards={(mission?.hazards?.length ?? 0) > 0}
+      />
     </div>
   );
 }

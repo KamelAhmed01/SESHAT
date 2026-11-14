@@ -888,6 +888,514 @@
     margin-top: 2px;
   }
 
+  /* Precision Scientific Map Legend & Elevation Guide */
+  .cc-map-legend-docked {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 550;
+    pointer-events: auto;
+  }
+
+  .cc-map-legend-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 11px;
+    background: rgba(20, 17, 15, 0.9);
+    border: 1px solid #443c34;
+    border-radius: 6px;
+    color: #f5f0eb;
+    font: 600 12px/1.2 system-ui, sans-serif;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.15s, border-color 0.15s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .cc-map-legend-toggle:hover {
+    background: rgba(32, 27, 24, 0.96);
+    border-color: #63574b;
+  }
+
+  .cc-map-legend-toggle:focus-visible {
+    outline: 2px solid #f3a833;
+    outline-offset: 1px;
+  }
+
+  .cc-legend-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    color: #f3a833;
+  }
+
+  .cc-legend-toggle-text {
+    font-weight: 650;
+    letter-spacing: 0.02em;
+  }
+
+  .cc-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font: 600 9px ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .cc-chip-elev {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+  }
+
+  .cc-chip-geo {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+  }
+
+  .cc-chip-ti {
+    background: rgba(243, 168, 51, 0.18);
+    color: #f3a833;
+    border: 1px solid rgba(243, 168, 51, 0.35);
+  }
+
+  .cc-map-legend-panel {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 550;
+    width: 320px;
+    max-width: calc(100% - 28px);
+    max-height: calc(100% - 28px);
+    overflow-y: auto;
+    background: rgba(18, 15, 13, 0.94);
+    border: 1px solid #483f36;
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(12px);
+    pointer-events: auto;
+    color: #ede6dd;
+  }
+
+  .cc-legend-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #332d27;
+    padding-bottom: 8px;
+  }
+
+  .cc-legend-head-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #f3a833;
+    font: 700 11px ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .cc-legend-close-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #a89f96;
+    font-size: 13px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .cc-legend-close-btn:hover {
+    background: #2b2520;
+    color: #fff;
+    border-color: #574c42;
+  }
+
+  .cc-legend-close-btn:focus-visible {
+    outline: 2px solid #f3a833;
+    outline-offset: 1px;
+  }
+
+  .cc-legend-callout {
+    background: rgba(243, 168, 51, 0.09);
+    border: 1px solid rgba(243, 168, 51, 0.3);
+    border-left: 3px solid #f3a833;
+    border-radius: 4px;
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .cc-callout-header {
+    display: flex;
+    align-items: center;
+  }
+
+  .cc-callout-badge {
+    font: 700 9px ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #f3a833;
+  }
+
+  .cc-callout-body {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #fce7cf;
+  }
+
+  .cc-callout-body strong {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .cc-callout-body em {
+    font-style: normal;
+    color: #fca5a5;
+    font-weight: 600;
+  }
+
+  .cc-legend-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-bottom: 1px solid #2d2722;
+    padding-bottom: 10px;
+  }
+
+  .cc-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .cc-section-name {
+    font: 700 11px ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #e5ded4;
+  }
+
+  .cc-section-source {
+    font: 10px system-ui, sans-serif;
+    color: #9a9085;
+  }
+
+  .cc-geology-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .cc-geology-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .cc-unit-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    border: 1px solid rgba(0, 0, 0, 0.35);
+  }
+
+  .cc-unit-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.25;
+  }
+
+  .cc-unit-title {
+    font-weight: 600;
+    color: #f5f0eb;
+    font-size: 11px;
+  }
+
+  .cc-unit-desc {
+    font-size: 10px;
+    color: #a89f96;
+  }
+
+  .cc-ti-bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .cc-ti-gradient-bar {
+    height: 11px;
+    border-radius: 3px;
+    background: linear-gradient(to right, rgb(45, 90, 220) 0%, rgb(147, 200, 127) 50%, rgb(250, 90, 35) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .cc-ti-scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .cc-ti-label {
+    display: flex;
+    flex-direction: column;
+    max-width: 32%;
+  }
+
+  .cc-ti-label strong {
+    font: 700 10px ui-monospace, monospace;
+    color: #f5f0eb;
+  }
+
+  .cc-ti-label span {
+    color: #a89f96;
+    font-size: 9px;
+  }
+
+  .cc-ti-label-low {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .cc-ti-label-mid {
+    align-items: center;
+    text-align: center;
+  }
+
+  .cc-ti-label-high {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .cc-elev-bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .cc-elevation-gradient {
+    height: 11px;
+    border-radius: 3px;
+    background: linear-gradient(to right, rgb(35, 30, 160) 0%, rgb(20, 165, 215) 25%, rgb(34, 197, 94) 50%, rgb(245, 158, 11) 75%, rgb(235, 55, 65) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .cc-elev-scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .cc-elev-label {
+    display: flex;
+    flex-direction: column;
+    max-width: 32%;
+  }
+
+  .cc-elev-label strong {
+    font: 700 10px ui-monospace, monospace;
+    color: #f5f0eb;
+  }
+
+  .cc-elev-label span {
+    color: #a89f96;
+    font-size: 9px;
+  }
+
+  .cc-elev-label-low {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .cc-elev-label-mid {
+    align-items: center;
+    text-align: center;
+  }
+
+  .cc-elev-label-high {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .cc-section-caption {
+    font-size: 10px;
+    line-height: 1.35;
+    color: #8e8479;
+    margin: 2px 0 0;
+  }
+
+  .cc-elevation-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .cc-elev-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #cfc5ba;
+  }
+
+  .cc-elev-row strong {
+    color: #f5f0eb;
+  }
+
+  .cc-elev-line {
+    display: inline-block;
+    width: 18px;
+    flex-shrink: 0;
+  }
+
+  .cc-line-major-contour {
+    height: 2.5px;
+    background: #f3a833;
+    border-radius: 1px;
+  }
+
+  .cc-line-minor-contour {
+    height: 1.5px;
+    background: rgba(245, 240, 235, 0.45);
+    border-radius: 1px;
+  }
+
+  .cc-elev-hillshade {
+    font-size: 12px;
+    color: #a89f96;
+    width: 18px;
+    text-align: center;
+    line-height: 1;
+  }
+
+  .cc-relief-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1f1b18;
+    border: 1px solid #362f29;
+    border-radius: 5px;
+    padding: 5px 8px;
+    margin-top: 4px;
+  }
+
+  .cc-relief-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .cc-relief-tag {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: #a89f96;
+    font-weight: 600;
+  }
+
+  .cc-relief-number {
+    font: 700 11px ui-monospace, monospace;
+    color: #f3a833;
+  }
+
+  .cc-relief-arrow {
+    font: 10px ui-monospace, monospace;
+    color: #7a7065;
+  }
+
+  .cc-inspect-tip {
+    font-size: 10px;
+    color: #a89f96;
+    margin: 3px 0 0;
+    font-style: italic;
+  }
+
+  .cc-legend-features {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .cc-features-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    font-size: 11px;
+    color: #cfc5ba;
+  }
+
+  .cc-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cc-feat-line {
+    display: inline-block;
+    width: 18px;
+    flex-shrink: 0;
+  }
+
+  .cc-feat-boundary {
+    border-top: 2px dashed #f3a833;
+  }
+
+  .cc-feat-route {
+    border-top: 3px solid #27c5ae;
+  }
+
+  .cc-feat-previous {
+    border-top: 2px dashed #535e63;
+  }
+
+  .cc-feat-marker {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+
+  .cc-marker-base {
+    background: #181512;
+    border: 2px solid #f3a833;
+  }
+
+  .cc-marker-target {
+    background: #10b981;
+    border: 1.5px solid #14110f;
+  }
+
+  .cc-marker-hazard {
+    background: rgba(239, 68, 68, 0.3);
+    border: 1.5px dashed #ef4444;
+  }
+
   /* Bottom-Left Camera View Card */
   .cc-camera-card {
     position: relative;

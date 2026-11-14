@@ -80,6 +80,7 @@
 .field-panel .field-complete { margin: 12px 0; }
 .field-sources a { color: var(--field-accent); text-decoration: underline; }
 .field-map-tools, .field-map-legend, .field-map-credit { position: absolute; z-index: 600; }
+.field-map .cc-map-legend-docked, .field-map .cc-map-legend-panel { position: absolute; z-index: 600; }
 .field-map-tools { top: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: start; max-width: calc(100% - 32px); }
 .field-map-tools > button, .field-layers, .field-map-legend, .field-map-credit, .field-map .cc-mars-scale-bar, .field-point {
   background: var(--field-paper);
@@ -122,6 +123,7 @@
   .field-map-tools { top: 9px; left: 9px; gap: 5px; }
   .field-map-tools > button, .field-layers summary { min-height: 38px; padding-inline: 7px; }
   .field-map-legend, .field-map .cc-mars-scale-bar, .field-point { left: 9px; }
+  .field-map .cc-map-legend-docked, .field-map .cc-map-legend-panel { top: 9px; right: 9px; }
 }
 @media print {
   .field-map { position: relative; height: 32vh; min-height: 0; }

@@ -401,6 +401,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   const [locked, setLocked] = useState(false);
   const [notice, setNotice] = useState('');
   const [showSources, setShowSources] = useState(false);
+  const [showElevation, setShowElevation] = useState(false);
   const [showGeology, setShowGeology] = useState(false);
   const [showThermal, setShowThermal] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
@@ -581,6 +582,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
             missionBudgetMinutes={scenario.timeBudgetMinutes}
             reserveMinutes={scenario.reserveMinutes}
             showOptical={optical}
+            showElevation={showElevation}
             showGeology={showGeology}
             showThermal={showThermal}
             fitRequestKey={fitRequestKey}
@@ -594,6 +596,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                 <div className="field-layer-options" role="group" aria-label="Surface layer">
                   <button type="button" aria-pressed={!optical} onClick={() => setOptical(false)}>Terrain</button>
                   {manifest.optical && <button type="button" aria-pressed={optical} onClick={() => setOptical(true)}>Orbital</button>}
+                  <button type="button" aria-pressed={showElevation} onClick={() => setShowElevation(value => !value)}>Elevation</button>
                   {bundle.contextData?.geologicUnits && <button type="button" aria-pressed={showGeology} onClick={() => setShowGeology(value => !value)}>Geology</button>}
                   {bundle.contextData?.thermalInertia && <button type="button" aria-pressed={showThermal} onClick={() => setShowThermal(value => !value)}>Thermal</button>}
                 </div>
@@ -611,16 +614,17 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
               {Math.abs(inspectedPoint.lat).toFixed(4)}°{inspectedPoint.lat < 0 ? 'S' : 'N'}, {Math.abs(inspectedPoint.lon).toFixed(4)}°{inspectedPoint.lon < 0 ? 'W' : 'E'}
             </p>}
             {inspectedPoint.status === 'COVERED' && inspectedPoint.elevationMeters != null && <p>{inspectedPoint.elevationMeters.toFixed(0)} m elevation</p>}
+            {inspectedPoint.status === 'COVERED' && inspectedPoint.geologicUnit && showGeology && (
+              <p>Geologic unit: {inspectedPoint.geologicUnit}</p>
+            )}
+            {inspectedPoint.status === 'COVERED' && inspectedPoint.thermalInertia != null && showThermal && (
+              <p>Thermal inertia: {inspectedPoint.thermalInertia.toFixed(1)} J m⁻² K⁻¹ s⁻¹/²</p>
+            )}
             {inspectedPoint.status === 'COVERED' && inspectedPoint.cell && !locked && !execution && (
               <Button label="Add this stop" variant="primary" onClick={() => {selectCell(...inspectedPoint.cell!); clearInspection();}} />
             )}
             {inspectedPoint.status === 'COVERED' && execution && <p>Selected location for your next event.</p>}
           </div>}
-          <div className="field-map-legend" aria-label="Map legend">
-            <span><i className="field-key-boundary" />Modeled area</span>
-            {displayed?.length ? <span><i className="field-key-route" />{reviewing ? execution?.recommendedProposal ? 'Recommended route' : 'Proposed route' : 'Mission route'}</span> : null}
-            {reviewing && <span><i className="field-key-previous" />Previous route</span>}
-          </div>
           {manifest.mapDisplay && <div className="field-map-credit">NASA / JPL · USGS</div>}
         </section>
         <aside className="field-panel" aria-label={execution ? 'Mission execution' : 'Mission planning'}>
