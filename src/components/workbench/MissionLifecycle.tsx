@@ -697,6 +697,7 @@ export function MissionLifecycle({
   const [showElevation, setShowElevation] = useState(false);
   const [showGeology, setShowGeology] = useState(false);
   const [showThermal, setShowThermal] = useState(false);
+  const [show3D, setShow3D] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [resetViewRequestKey, setResetViewRequestKey] = useState(0);
   const [inspectedPoint, setInspectedPoint] = useState<MapPointInspection | null>(null);
@@ -850,19 +851,40 @@ export function MissionLifecycle({
     if (execution) return setMapSelection(point);
     if (locked) return;
     const index = cellIndex(point, bundle);
-    if (bundle.mask[index] !== 1 || index === manifest.baseIndex) {
+    const inCentral = index !== -1;
+    const nbMeta = manifest.mapDisplay?.neighborhood;
+    let isValidTerrain = false;
+
+    if (inCentral) {
+      isValidTerrain = bundle.mask[index] === 1 && index !== manifest.baseIndex;
+    } else if (nbMeta && bundle.contextData?.neighborhoodMask) {
+      const nbCol = Math.min(nbMeta.width - 1, Math.max(0, Math.floor(220 + col / 2)));
+      const nbRow = Math.min(nbMeta.height - 1, Math.max(0, Math.floor(220 + row / 2)));
+      const nbIdx = nbRow * nbMeta.width + nbCol;
+      isValidTerrain = bundle.contextData.neighborhoodMask[nbIdx] === 1;
+    }
+
+    if (!isValidTerrain) {
       return setNotice('Choose a covered terrain cell away from the landing site.');
     }
+
     const documented = manifest.scienceTargets?.find(stop => stop.location.gridRow === row && stop.location.gridCol === col);
-    addStop(documented ?? scenarioPoint(point, `Custom point (${row}, ${col})`));
+    const chunkSpan = 220;
+    const cCol = Math.floor(col / chunkSpan);
+    const cRow = Math.floor(row / chunkSpan);
+    const chDesc = nbMeta?.chunks.find(c => c.rowOffset === cRow && c.colOffset === cCol);
+    const defaultName = chDesc ? `${chDesc.label} · (${row}, ${col})` : `Point (${row}, ${col})`;
+    addStop(documented ?? scenarioPoint(point, defaultName));
   }
 
   function addManualCell() {
     if (!customRow.trim() || !customCol.trim()) return setNotice('Enter both grid coordinates.');
     const row = Number(customRow);
     const col = Number(customCol);
-    if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row >= manifest.height || col < 0 || col >= manifest.width) {
-      return setNotice(`Coordinates must be integers within 0–${manifest.width - 1} (X) and 0–${manifest.height - 1} (Y).`);
+    const minCoord = manifest.mapDisplay?.neighborhood ? -440 : 0;
+    const maxCoord = manifest.mapDisplay?.neighborhood ? 660 : manifest.width;
+    if (!Number.isInteger(row) || !Number.isInteger(col) || row < minCoord || row >= maxCoord || col < minCoord || col >= maxCoord) {
+      return setNotice(`Coordinates must be integers within ${minCoord}–${maxCoord - 1}.`);
     }
     selectCell(row, col);
   }
@@ -958,6 +980,8 @@ export function MissionLifecycle({
             showElevation={showElevation}
             showGeology={showGeology}
             showThermal={showThermal}
+            show3D={show3D}
+            onToggle3D={() => setShow3D(v => !v)}
             fitRequestKey={fitRequestKey}
             resetViewRequestKey={resetViewRequestKey}
             mission={overlay}
@@ -995,8 +1019,30 @@ export function MissionLifecycle({
                 </ToggleButtonGroup>
               </HStack>
             </Collapsible>
-            <Button label="Back to Jezero" variant="secondary" size="sm" onClick={() => setResetViewRequestKey(key => key + 1)} />
-            <Button label="Fit mission" variant="secondary" size="sm" onClick={() => setFitRequestKey(key => key + 1)} />
+            <Button
+              label={show3D ? '2D Map' : '3D Terrain'}
+              variant={show3D ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setShow3D(v => !v)}
+            />
+            <Button
+              label="Back to Jezero"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setShow3D(false);
+                setResetViewRequestKey(key => key + 1);
+              }}
+            />
+            <Button
+              label="Fit mission"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setShow3D(false);
+                setFitRequestKey(key => key + 1);
+              }}
+            />
           </div>
           {inspectedPoint && (
             <div className="cc-point-inspector field-point" aria-label="Map point inspection">
@@ -1016,7 +1062,7 @@ export function MissionLifecycle({
                   {Math.abs(inspectedPoint.lon).toFixed(4)}°{inspectedPoint.lon < 0 ? 'W' : 'E'}
                 </p>
               )}
-              {inspectedPoint.status === 'COVERED' && inspectedPoint.elevationMeters != null && (
+              {inspectedPoint.elevationMeters != null && (
                 <p>{inspectedPoint.elevationMeters.toFixed(0)} m elevation</p>
               )}
               {inspectedPoint.status === 'COVERED' && inspectedPoint.geologicUnit && showGeology && (

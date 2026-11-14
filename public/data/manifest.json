@@ -224,8 +224,8 @@
   "sourceAcquiredAtUTC": "2026-11-13T18:18:12.925550+00:00",
   "optical": {
     "path": "imagery/orbital-aligned.webp",
-    "bytes": 31242,
-    "sha256": "83a426783e47a4a5143ff28dc60db5eb26b5f79dc44861a3235c049fd914237d",
+    "bytes": 20936,
+    "sha256": "d54b5b7f6cc2599f34c56e98202b7aff84944d38f362d1c5870276ec478c577f",
     "sourceId": "Mars Trek MRO CTX, Jezero Mosaic, Controlled",
     "sourceUrl": "https://trek.nasa.gov/mars/TrekWS/rest/cat/data/stream?label=JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0",
     "sourceFileSha256": "842b457afee7c2672022b66e3f60be836c6d52e99474015bfd9ced60099b8615",
@@ -766,9 +766,9 @@
       ]
     ],
     "terrainGeoPath": "imagery/study-area-geo.webp",
-    "terrainGeoSha256": "0de6b557b465b8879520705081391088cd0879dbb10159d887cdc345e5589304",
+    "terrainGeoSha256": "60f89613e5051cf3d5de7491e346ef353899ed96ddd01e7b98bacec2baaedbf2",
     "orbitalGeoPath": "imagery/orbital-geo.webp",
-    "orbitalGeoSha256": "3bd20619fb952ee35c18ccb7302407aa8d883fb01193c7c6a79297a02cb80b65",
+    "orbitalGeoSha256": "58a7e241ba167e3eeae022ee47f62c1899a151123fccd7ae86f1ee2c34ef05d6",
     "vikingTileTemplate": "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg",
     "localVikingTemplate": "/data/tiles/viking/{z}/{y}/{x}.jpg",
     "localVikingTiles": [
@@ -1884,7 +1884,7 @@
       "terrainGeoPath": "imagery/neighborhood-terrain-geo.webp",
       "terrainGeoSha256": "3a2c55dcabc778077fa41eed89ea55321b7d1d4e080f2f000773c255f2ab3b67",
       "heatmapGeoPath": "imagery/neighborhood-heatmap-geo.webp",
-      "heatmapGeoSha256": "b42e0d86977d9bca2fd70369a902575a89034396ddc2390fa52138f666ca5ba9",
+      "heatmapGeoSha256": "f08db183f6c1c7ea0835167f057cbe48719c807f2a12f3ed6672d2ddea69005d",
       "orbitalGeoPath": "imagery/neighborhood-orbital-geo.webp",
       "orbitalGeoSha256": "50fc78146a423fe2f322468bc1c7296ab0c4a0fd6d198aab84882cf520c2c40a",
       "chunks": [

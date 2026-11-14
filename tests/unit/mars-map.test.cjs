@@ -95,4 +95,79 @@ describe('Mars geographic AEQD coordinate transforms', () => {
     const expectedDiagMeters = Math.hypot(manifest.width * 20, manifest.height * 20);
     assert.ok(Math.abs(diagMeters - expectedDiagMeters) < 5, `diag=${diagMeters}, expected=${expectedDiagMeters}`);
   });
+
+  it('includes the 2-layer chunk neighborhood (5x5 = 25 chunks, 22x22 km) with verified binary files', () => {
+    const nb = manifest.mapDisplay?.neighborhood;
+    assert.ok(nb, 'manifest.mapDisplay.neighborhood must be present');
+    assert.equal(nb.rings, 2);
+    assert.equal(nb.chunksPerSide, 5);
+    assert.equal(nb.totalChunks, 25);
+    assert.equal(nb.spanMeters, 22000);
+    assert.equal(nb.chunks.length, 25);
+
+    const elevBuf = fs.readFileSync(path.join(process.cwd(), 'public/data', nb.elevationPath));
+    const maskBuf = fs.readFileSync(path.join(process.cwd(), 'public/data', nb.maskPath));
+    assert.equal(elevBuf.byteLength, nb.width * nb.height * 4);
+    assert.equal(maskBuf.byteLength, nb.width * nb.height);
+    assert.ok(nb.minElevationMeters < -2650 && nb.maxElevationMeters > -1700);
+  });
+
+  it('allows navigation stops and calculates terrain-aware routes into neighborhood chunks', () => {
+    const { routeNeighborhood } = require('../../.build/src/engine/traverse-graph.js');
+    const origin = [86, 24]; // Landing site
+    const targetInRing1 = [86, 280]; // East in Chunk (0, +1)
+    const centerElevBuf = fs.readFileSync(path.join(process.cwd(), 'public/data/elevation.bin'));
+    const centerElev = new Float32Array(
+      centerElevBuf.buffer.slice(centerElevBuf.byteOffset, centerElevBuf.byteOffset + centerElevBuf.byteLength),
+    );
+    const nbElevBuf = fs.readFileSync(path.join(process.cwd(), 'public/data/neighborhood-elevation.bin'));
+    const nbElev = new Float32Array(
+      nbElevBuf.buffer.slice(nbElevBuf.byteOffset, nbElevBuf.byteOffset + nbElevBuf.byteLength),
+    );
+    const nbMask = new Uint8Array(fs.readFileSync(path.join(process.cwd(), 'public/data/neighborhood-mask.bin')));
+    const realBundle = {
+      manifest,
+      elevationMeters: centerElev,
+      mask: new Uint8Array(fs.readFileSync(path.join(process.cwd(), 'public/data/validity-mask.bin'))),
+      contextData: { neighborhoodElevation: nbElev, neighborhoodMask: nbMask },
+    };
+
+    const route = routeNeighborhood(realBundle, origin, targetInRing1);
+    assert.equal(route.status, 'READY');
+    assert.ok(route.distanceMeters > 5000);
+    assert.ok(route.geometryGrid.length > 200);
+    assert.ok(route.nominalTravelMinutes > 40);
+
+    // Verify terrain-aware avoidance: place a steep peak/ridge on the direct line in Chunk (0, +1)
+    // around 20m cell (86, 250) -> nbRow = 263, nbCol = 345
+    const ridgeElev = nbElev.slice();
+    for (let r = 259; r <= 267; r++) {
+      for (let c = 343; c <= 347; c++) {
+        ridgeElev[r * 550 + c] += 85; // 85m spire/ridge blocking the straight line
+      }
+    }
+    const ridgeBundle = {
+      ...realBundle,
+      contextData: { neighborhoodElevation: ridgeElev, neighborhoodMask: nbMask },
+    };
+    const detourRoute = routeNeighborhood(ridgeBundle, [86, 224], [86, 276]);
+    assert.equal(detourRoute.status, 'READY');
+    // The route must detour around the peak at row 86, col 250 rather than going straight through it
+    const passedThroughPeakCenter = detourRoute.geometryGrid.some(
+      ([r, c]) => Math.abs(r - 86) <= 2 && Math.abs(c - 250) <= 2,
+    );
+    assert.equal(passedThroughPeakCenter, false, 'routeNeighborhood must detour around steep peaks outside the first chunk');
+
+    // Also verify HazardZone avoidance in outer chunks
+    const hazardRoute = routeNeighborhood(
+      realBundle,
+      [86, 224],
+      [86, 276],
+      [{ cell: [86, 250], radius: 8 }],
+      false,
+    );
+    assert.equal(hazardRoute.status, 'READY');
+    const hitHazard = hazardRoute.geometryGrid.some(([r, c]) => Math.hypot(r - 86, c - 250) <= 6);
+    assert.equal(hitHazard, false, 'routeNeighborhood must detour around hazard zones in outer chunks');
+  });
 });

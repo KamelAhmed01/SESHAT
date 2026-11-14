@@ -2,7 +2,7 @@ import type { FieldBundle } from '../data/loader';
 import { indexToGrid } from '../cartography/coordinates';
 import { addResources, atSpeed, budget, hasReserve, reserve, scienceResources, subtractResources, zeroResources } from './consumables';
 import type { Resources } from './consumables';
-import { cellIndex, createTraverseGraph, routeMetrics } from './traverse-graph';
+import { cellIndex, createTraverseGraph, routeMetrics, routeNeighborhood } from './traverse-graph';
 import type { Cell, HazardZone } from './traverse-graph';
 import { SPEED_FACTORS } from './types';
 import type { FeasibilityState, RouteSummary, ScienceTarget, SpeedFactor } from './types';
@@ -90,31 +90,39 @@ function createEvaluator(input: PlannerInput) {
   const available = subtractResources(subtractResources(budget, spent), reserve);
   const routes = new Map<string, { route: RouteSummary; terrain: ReturnType<typeof routeMetrics> }>();
 
-  function segment(from: number, to: number) {
-    const key = `${from}/${to}`;
+  function segment(fromCell: Cell, toCell: Cell) {
+    const fromIdx = cellIndex(fromCell, bundle);
+    const toIdx = cellIndex(toCell, bundle);
+    const key = `${fromCell[0]},${fromCell[1]}/${toCell[0]},${toCell[1]}`;
     let cached = routes.get(key);
     if (!cached) {
-      const route = graph.route(from, to);
-      cached = {route, terrain: routeMetrics(bundle, route.geometryGrid)};
+      let route: RouteSummary;
+      if (fromIdx !== -1 && toIdx !== -1) {
+        route = graph.route(fromIdx, toIdx);
+      } else {
+        route = routeNeighborhood(bundle, fromCell, toCell, hazards, routePreference === 'lowerSlope');
+      }
+      cached = { route, terrain: routeMetrics(bundle, route.geometryGrid) };
       routes.set(key, cached);
     }
     return cached;
   }
 
   function itinerary(stops: ScienceTarget[]): MissionPlan {
-    let current = originIndex, label = current === bundle.manifest.baseIndex ? landingName : 'Astronaut position';
+    let currentCell = origin;
+    let label = (currentCell[0] === origin[0] && currentCell[1] === origin[1]) ? landingName : 'Astronaut position';
     let travel = zeroResources, science = zeroResources, clock: number | null = spent.minutes;
     const legs = [...stops.map(stop => ({id: stop.id, name: stop.name, cell: targetCell(stop), duration: stop.activity.minutes})),
       {id: landingId, name: landingName, cell: landingCell(bundle), duration: 0}].map(destination => {
-      const index = destination.cell ? cellIndex(destination.cell, bundle) : -1;
-      const {route, terrain} = segment(current, index);
+      const targetPt = destination.cell ?? currentCell;
+      const {route, terrain} = segment(currentCell, targetPt);
       const activity = scienceResources(destination.duration), moving = atSpeed(terrain.consumption, speedPenalty);
       const departure: number = clock ?? NaN;
       const arrival = route.status === 'READY' ? departure + moving.minutes : NaN;
       const leave = arrival + destination.duration;
       const leg: MissionLeg = {from: label, to: destination.name, targetId: destination.id, route, terrain,
         departure, arrival, leave, used: addResources(moving, activity), waypoints: []};
-      current = index;
+      currentCell = targetPt;
       label = destination.name;
       clock = Number.isFinite(leave) ? leave : null;
       travel = addResources(travel, moving);
@@ -135,7 +143,9 @@ function createEvaluator(input: PlannerInput) {
       .filter(candidate => candidate.i > 0 && candidate.i < cells.length - 1 && candidate.slope !== null && candidate.slope < 4)
       .sort((a, b) => Math.abs(a.i - cells.length / 2) - Math.abs(b.i - cells.length / 2));
     for (const {cell, i, slope} of local) {
-      const returnRoute = segment(cellIndex(cell, bundle), bundle.manifest.baseIndex);
+      const idx = cellIndex(cell, bundle);
+      if (idx === -1) continue;
+      const returnRoute = segment(cell, landingCell(bundle));
       if (returnRoute.route.status !== 'READY' || slope === null) continue;
       const speed = 0.8 * speedPenalty;
       const prefix = atSpeed(routeMetrics(bundle, cells.slice(0, i + 1)).consumption, speed);

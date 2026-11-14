@@ -53,8 +53,11 @@ export function MapLegend({
     prevThermal.current = showThermal;
   }, [showElevation, showGeology, showThermal]);
 
-  const { minElev, maxElev } = useMemo(() => {
-    if (!bundle) return { minElev: -2586, maxElev: -2419 };
+  const { minElev, maxElev, nbMinElev, nbMaxElev } = useMemo(() => {
+    const nb = bundle?.manifest.mapDisplay?.neighborhood;
+    const nMin = nb?.minElevationMeters != null ? Math.round(nb.minElevationMeters) : null;
+    const nMax = nb?.maxElevationMeters != null ? Math.round(nb.maxElevationMeters) : null;
+    if (!bundle) return { minElev: -2586, maxElev: -2419, nbMinElev: nMin, nbMaxElev: nMax };
     const z = bundle.elevationMeters;
     const mask = bundle.mask;
     let minZ = Infinity;
@@ -67,9 +70,9 @@ export function MapLegend({
       }
     }
     if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
-      return { minElev: -2586, maxElev: -2419 };
+      return { minElev: -2586, maxElev: -2419, nbMinElev: nMin, nbMaxElev: nMax };
     }
-    return { minElev: Math.round(minZ), maxElev: Math.round(maxZ) };
+    return { minElev: Math.round(minZ), maxElev: Math.round(maxZ), nbMinElev: nMin, nbMaxElev: nMax };
   }, [bundle]);
 
   const units = useMemo(() => {
@@ -172,21 +175,21 @@ export function MapLegend({
             <div className="cc-elevation-gradient" aria-hidden="true" />
             <div className="cc-elev-scale-labels">
               <div className="cc-elev-label cc-elev-label-low">
-                <strong>{minElev.toLocaleString()} m</strong>
-                <span>Lowest · Crater floor (Blue)</span>
+                <strong>{(nbMinElev ?? minElev).toLocaleString()} m</strong>
+                <span>Lowest · Crater basin (Blue)</span>
               </div>
               <div className="cc-elev-label cc-elev-label-mid">
-                <strong>{Math.round((minElev + maxElev) / 2).toLocaleString()} m</strong>
-                <span>Mid · Delta slope (Green)</span>
+                <strong>{maxElev.toLocaleString()} m</strong>
+                <span>Delta peaks · Red ({minElev.toLocaleString()} m floor)</span>
               </div>
               <div className="cc-elev-label cc-elev-label-high">
-                <strong>{maxElev.toLocaleString()} m</strong>
-                <span>Highest · Delta rim (Red)</span>
+                <strong>{(nbMaxElev ?? maxElev).toLocaleString()} m</strong>
+                <span>Highest · Rim crest (Rose/Crimson)</span>
               </div>
             </div>
           </div>
           <p className="cc-section-caption">
-            Blue colors represent low crater floor terrain; red colors represent high delta crests and rim scarps.
+            Center chunk ({minElev.toLocaleString()} m to {maxElev.toLocaleString()} m) + 2-ring 5×5 chunk neighborhood (22×22 km).
           </p>
         </section>
       )}
@@ -287,8 +290,14 @@ export function MapLegend({
         <div className="cc-features-list">
           <div className="cc-feature-item">
             <span className="cc-feat-line cc-feat-boundary" aria-hidden="true" />
-            <span>Modeled area boundary (20 m AEQD)</span>
+            <span>Center routing chunk (4.4×4.4 km · 20 m)</span>
           </div>
+          {nbMinElev != null && (
+            <div className="cc-feature-item">
+              <span className="cc-feat-line cc-feat-previous" aria-hidden="true" />
+              <span>Ring 1 &amp; Ring 2 chunks (5×5 · 22×22 km)</span>
+            </div>
+          )}
           {hasPlannedRoute && (
             <div className="cc-feature-item">
               <span className="cc-feat-line cc-feat-route" aria-hidden="true" />
