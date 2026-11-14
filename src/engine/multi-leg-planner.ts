@@ -3,14 +3,14 @@ import { indexToGrid } from '../cartography/coordinates';
 import { addResources, atSpeed, budget, hasReserve, reserve, scienceResources, subtractResources, zeroResources } from './consumables';
 import type { Resources } from './consumables';
 import { cellIndex, createTraverseGraph, routeMetrics, routeNeighborhood } from './traverse-graph';
-import type { Cell, HazardZone } from './traverse-graph';
+import type { Cell, GraphPreference, HazardZone } from './traverse-graph';
 import { SPEED_FACTORS } from './types';
 import type { FeasibilityState, RouteSummary, ScienceTarget, SpeedFactor } from './types';
 
 export const landingId = 'LANDING_SITE';
 export const landingName = 'Landing Site';
 export const stopLimit = 4;
-export type RoutePreference = 'fastest' | 'lowerSlope';
+export type RoutePreference = GraphPreference;
 
 export interface MissionLeg {
   from: string;
@@ -86,7 +86,7 @@ export function canApprove(plan: MissionPlan): boolean {
 function createEvaluator(input: PlannerInput) {
   const { bundle, origin, spent, speedPenalty = 1, routePreference = 'fastest', hazards = [] } = input;
   const originIndex = cellIndex(origin, bundle);
-  const graph = createTraverseGraph(bundle, hazards, originIndex, routePreference === 'lowerSlope');
+  const graph = createTraverseGraph(bundle, hazards, originIndex, routePreference);
   const available = subtractResources(subtractResources(budget, spent), reserve);
   const routes = new Map<string, { route: RouteSummary; terrain: ReturnType<typeof routeMetrics> }>();
 
@@ -216,4 +216,100 @@ export function replanMission(input: PlannerInput) {
     if (!subset.length) return evaluate.withWaypoints(plan);
   }
   return evaluate.withWaypoints(evaluate.itinerary([]));
+}
+
+export interface TriageBranch {
+  id: 'optimal' | 'rapid-salvage' | 'low-slope' | 'firm-ground';
+  label: string;
+  summary: string;
+  plan: MissionPlan;
+  approvable: boolean;
+}
+
+function planSignature(plan: MissionPlan): string {
+  const stopsSig = plan.stops.map(s => `${s.id}:${s.activity.minutes}`).join('|');
+  const routeSig = plan.legs
+    .map(l => `${l.terrain.distance.toFixed(0)},${l.terrain.peakSlope.toFixed(1)},${l.route.geometryGrid.length}`)
+    .join(';');
+  return `${stopsSig}::${routeSig}`;
+}
+
+/**
+ * Generates up to four distinct tactical replanning branches for mid-traverse crew triage:
+ * priority optimal subset, rapid-pass activity salvage, gentler-slope detour, and firm-ground TI routing.
+ */
+export function triageReplanBranches(input: PlannerInput): TriageBranch[] {
+  const optimal = replanMission(input);
+  const seen = new Set<string>([planSignature(optimal)]);
+  const branches: TriageBranch[] = [
+    {
+      id: 'optimal',
+      label: 'Priority plan',
+      summary: optimal.deferred.length > 0
+        ? `Retains ${optimal.stops.length} highest-priority stop(s); defers ${optimal.deferred.map(s => s.name.split(' · ')[0]).join(', ')}.`
+        : 'Preserves all remaining stops under your active route preference.',
+      plan: optimal,
+      approvable: canApprove(optimal),
+    },
+  ];
+
+  if (input.stops.length > 0) {
+    const rapidStops = input.stops.map(stop => ({
+      ...stop,
+      activity: {
+        ...stop.activity,
+        minutes: Math.min(stop.activity.minutes, Math.max(8, Math.floor(stop.activity.minutes * 0.6))),
+      },
+    }));
+    const rapid = replanMission({ ...input, stops: rapidStops });
+    const rapidSig = planSignature(rapid);
+    const improvesCoverageOrSafety =
+      rapid.stops.length > optimal.stops.length ||
+      (canApprove(rapid) && !canApprove(optimal)) ||
+      (canApprove(rapid) && (rapid.margins[0]?.margin?.minutes ?? -Infinity) > (optimal.margins[0]?.margin?.minutes ?? -Infinity) + 3);
+    if (!seen.has(rapidSig) && improvesCoverageOrSafety) {
+      seen.add(rapidSig);
+      branches.push({
+        id: 'rapid-salvage',
+        label: 'Rapid-pass science salvage',
+        summary: rapid.stops.length > optimal.stops.length
+          ? `Compresses science stops (~60% duration) to rescue ${rapid.stops.length - optimal.stops.length} deferred target(s).`
+          : 'Compresses remaining science duration to recover conservative 0.8× safety margin.',
+        plan: rapid,
+        approvable: canApprove(rapid),
+      });
+    }
+  }
+
+  if (input.routePreference !== 'lowerSlope') {
+    const lowSlope = replanMission({ ...input, routePreference: 'lowerSlope' });
+    const lowSig = planSignature(lowSlope);
+    if (!seen.has(lowSig) && (canApprove(lowSlope) || !canApprove(optimal))) {
+      seen.add(lowSig);
+      branches.push({
+        id: 'low-slope',
+        label: 'Gentler-slope detour',
+        summary: 'Trades a slight travel extension for lower peak grades and reduced uphill O₂ / Wh exertion.',
+        plan: lowSlope,
+        approvable: canApprove(lowSlope),
+      });
+    }
+  }
+
+  if (input.bundle.contextData?.thermalInertia && input.routePreference !== 'firmGround') {
+    const firmGround = replanMission({ ...input, routePreference: 'firmGround' });
+    const firmSig = planSignature(firmGround);
+    if (!seen.has(firmSig) && (canApprove(firmGround) || !canApprove(optimal))) {
+      seen.add(firmSig);
+      branches.push({
+        id: 'firm-ground',
+        label: 'Consolidated footing (thermal inertia)',
+        summary: 'Routes along higher thermal inertia bedrock to reduce loose dust/sand sinkage exposure.',
+        plan: firmGround,
+        approvable: canApprove(firmGround),
+      });
+    }
+  }
+
+  return branches;
 }

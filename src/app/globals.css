@@ -673,6 +673,58 @@
     font-size: 14px;
   }
 
+  .field-notice-box {
+    display: grid;
+    gap: 8px;
+  }
+
+  .cc-comms-callout {
+    padding: 10px 12px;
+    border-radius: var(--token-radius-md);
+    border: 1px solid var(--token-border);
+    background: var(--token-surface-container-low);
+    display: grid;
+    gap: 4px;
+    font-size: 12.5px;
+  }
+
+  .cc-comms-callout-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .cc-comms-callout p {
+    margin: 0;
+    color: var(--token-text-primary);
+  }
+
+  .cc-comms-callout small {
+    color: var(--token-text-secondary);
+  }
+
+  .cc-triage-options {
+    display: grid;
+    gap: 8px;
+  }
+
+  .cc-triage-options [data-recommended="true"] {
+    border-color: var(--token-primary);
+    background: var(--token-primary-container);
+  }
+
+  .cc-frontier-strip {
+    display: grid;
+    gap: 4px;
+  }
+
+  .cc-inspector-frontier {
+    font-weight: 600;
+    color: var(--token-primary);
+  }
+
   .mission-error {
     color: var(--token-error);
     font-weight: 600;
@@ -1161,6 +1213,16 @@
   .cc-marker-hazard {
     background: rgba(239, 68, 68, 0.28);
     border: 1.5px dashed #ef4444;
+  }
+
+  .cc-marker-frontier-full {
+    background: rgba(16, 185, 129, 0.32);
+    border: 1.5px solid #10b981;
+  }
+
+  .cc-marker-frontier-transit {
+    background: rgba(245, 158, 11, 0.3);
+    border: 1.5px solid #f59e0b;
   }
 
   .cc-relief-box {

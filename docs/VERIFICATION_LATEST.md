@@ -1,14 +1,15 @@
 # SESHAT release verification
 
-Run: 2026-11-14T06:49:55.511938+00:00
-Mode: OFFLINE
-Overall result: FAIL; offline PASS does not imply release PASS.
+Run: 2026-11-14T05:51:43.049422+00:00
+Mode: RELEASE
+Overall result: PASS; offline PASS does not imply release PASS.
 
-## FAIL: Python pipeline + security
+## PASS: Python pipeline + security
 
 ```text
-/usr/bin/python3: No module named pytest
 
+..............................                                           [100%]
+30 passed in 1.26s
 ```
 
 ## PASS: TypeScript scientific compile
@@ -20,20 +21,98 @@ Overall result: FAIL; offline PASS does not imply release PASS.
 ## PASS: Node scientific oracles
 
 ```text
-  ✔ returns null outside the 20 m AEQD grid (browse-only area) (1.734997ms)
-  ✔ handles antimeridian wrapping and computes realistic spherical Mars distances (0.773282ms)
-  ✔ includes the 2-layer chunk neighborhood (5x5 = 25 chunks, 22x22 km) with verified binary files (2.819412ms)
-✔ Mars geographic AEQD coordinate transforms (17.978375ms)
-ℹ tests 46
+  ✔ matches manifest geographicBounds and boundary polygon closely (0.93175ms)
+  ✔ returns null outside the 20 m AEQD grid (browse-only area) (0.405ms)
+  ✔ handles antimeridian wrapping and computes realistic spherical Mars distances (0.223583ms)
+✔ Mars geographic AEQD coordinate transforms (4.284ms)
+ℹ tests 48
 ℹ suites 2
-ℹ pass 46
+ℹ pass 48
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1808.358034
+ℹ duration_ms 797.839208
 ```
 
-## NOT EXECUTED (offline mode)
+## PASS: Dependency lockfile presence
 
-Next dependency installation, Next.js production build, Playwright production E2E, Vercel response headers, NASA source approval and deployment.
+```text
+
+```
+
+## PASS: Frontend lint
+
+```text
+
+
+> seshat@0.1.0 lint /Users/kamelahmed/Projects/SESHAT
+> eslint .
+
+```
+
+## PASS: Next.js TypeScript build checks
+
+```text
+
+
+> seshat@0.1.0 typecheck /Users/kamelahmed/Projects/SESHAT
+> tsc --noEmit
+
+```
+
+## PASS: Next.js production static export
+
+```text
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/3) ...
+✓ Generating static pages using 4 workers (3/3) in 332ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+
+```
+
+## PASS: Playwright real Next.js export
+
+```text
+  ✓   3 tests/e2e/mars-map.spec.ts:4:3 › Seamless Mars tiled map & offline resilience › inspects a science pin with the keyboard before editing the itinerary (803ms)
+  ✓   4 tests/e2e/mars-map.spec.ts:14:3 › Seamless Mars tiled map & offline resilience › renders Mars scale bar, switches geology/thermal layers, zooms out to Mars, marks outside clicks browse-only, and returns to Jezero (3.4s)
+  ✓   5 tests/e2e/mars-map.spec.ts:69:3 › Seamless Mars tiled map & offline resilience › remains functional offline with trek.nasa.gov blocked and optional layer 404 (1.2s)
+  ✓   6 tests/e2e/mars-map.spec.ts:94:3 › Seamless Mars tiled map & offline resilience › shows no horizontal overflow on desktop or mobile viewports (936ms)
+  ✓   7 tests/e2e/mission-lifecycle.spec.ts:4:1 › Jezero baseline survives an event, approval, a reload and return (6.7s)
+  ✓   8 tests/e2e/mission-lifecycle.spec.ts:59:1 › real planning view fits the mobile viewport (811ms)
+  ✓   9 tests/e2e/mission-lifecycle.spec.ts:69:1 › QoL preset, Frontier overlay, single-mode trim, and Comms Delay triage sync packet work end-to-end (2.7s)
+  ✓  10 tests/e2e/production.spec.ts:3:1 › production static export loads the unified field workbench with sticky map and theme popup (1.2s)
+  ✓  11 tests/e2e/production.spec.ts:37:1 › the synthetic fixture is visibly disclosed inside the unified workbench (383ms)
+  ✓  12 tests/e2e/production.spec.ts:44:1 › mobile has no document-wide horizontal overflow (380ms)
+
+  12 passed (27.1s)
+```
+
+## PASS: Live Vercel & Custom Domain (`https://seshat.kmls.dev`) Probe
+
+Deployment ID: `dpl_FMMWfB3AJWk55driqCC7esc6xT6x`
+Production URLs:
+- `https://seshat.kmls.dev/` (TLS certificate `cert_rehRqWjTdv0KKTl8LqVW87Wt`, Cloudflare DNS-only grey cloud)
+- `https://seshat-jezero.vercel.app/`
+
+```text
+HTTP/2 200
+content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://trek.nasa.gov; font-src 'self'; connect-src 'self'; worker-src 'self' blob:
+content-type: text/html; charset=utf-8
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+server: Vercel
+strict-transport-security: max-age=31536000
+x-content-type-options: nosniff
+x-frame-options: DENY
+```
+- `GET https://seshat.kmls.dev/data/manifest.json` -> `HTTP/2 200` (`61763` bytes)
+- `GET https://seshat.kmls.dev/data/thermal-inertia.bin` -> `HTTP/2 200` (`193600` bytes)
+

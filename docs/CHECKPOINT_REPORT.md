@@ -1,6 +1,6 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-14 08:45 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-14 08:56 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
@@ -50,12 +50,12 @@ Generated **2026-11-14 08:45 UTC** using `python -m tools.checkpoint --run-tests
 
 - Python science + security tests: FAIL; last output: `/usr/bin/python3: No module named pytest`
 - TypeScript engine compile: PASS; last output: ``
-- Node scientific/unit oracles: PASS; last output: `ℹ pass 47
+- Node scientific/unit oracles: PASS; last output: `ℹ pass 50
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1149.452986`
+ℹ duration_ms 1614.918159`
 - Synthetic Chromium acceptance harness: FAIL; last output: `Traceback (most recent call last):
   File "/home/ali13yassin/Documents/GitHub/SESHAT/tools/preview/test_preview.py", line 6, in <module>
     from playwright.sync_api import sync_playwright

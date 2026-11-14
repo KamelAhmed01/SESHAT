@@ -21,6 +21,8 @@ import type { MapPointInspection } from '@/components/cartography/LeafletGrid';
 import type { BundleResult, FieldBundle } from '@/data/loader';
 import { addResources, subtractResources, zeroResources } from '@/engine/consumables';
 import { stateLabel } from '@/engine/formatting';
+import { liveFrontierMembership, summarizeFrontier } from '@/engine/frontier';
+import type { FrontierSummary } from '@/engine/frontier';
 import {
   advanceMission,
   decideReplan,
@@ -33,9 +35,16 @@ import {
   triggerSimulatedReading,
 } from '@/engine/lifecycle-store';
 import type { MissionExecution } from '@/engine/lifecycle-store';
-import { archiveMarkdown, createArchive, missionClock, missionSequence } from '@/engine/mission-archive';
+import {
+  ASSUMED_ONE_WAY_LIGHT_MINUTES,
+  archiveMarkdown,
+  createArchive,
+  missionClock,
+  missionSequence,
+  stationaryRoundTripWaitCost,
+} from '@/engine/mission-archive';
 import { canApprove, landingCell, landingId, previewMission, stopLimit, targetCell } from '@/engine/multi-leg-planner';
-import type { MissionPlan, RoutePreference } from '@/engine/multi-leg-planner';
+import type { MissionPlan, RoutePreference, TriageBranch } from '@/engine/multi-leg-planner';
 import { evaluatePositionOpportunities } from '@/engine/opportunity-ledger';
 import { cellIndex } from '@/engine/traverse-graph';
 import type { Cell } from '@/engine/traverse-graph';
@@ -58,10 +67,14 @@ const photos: Record<string, { file: string; caption: string }> = {
   shuyak: { file: 'enchanted-lake.webp', caption: 'Enchanted Lake area · Perseverance Hazcam · NASA/JPL-Caltech' },
 };
 
-const routePreferenceOptions = [
+const baseRoutePreferenceOptions = [
   { value: 'fastest', label: 'Minimum travel time' },
   { value: 'lowerSlope', label: 'Prefer gentler terrain' },
 ];
+const thermalRoutePreferenceOption = {
+  value: 'firmGround',
+  label: 'Prefer consolidated footing (thermal inertia)',
+};
 
 function download(filename: string, body: string, type: string) {
   const href = URL.createObjectURL(new Blob([body], { type }));
@@ -243,7 +256,17 @@ function SelectionPanel({
       {decision}
 
       <section className="field-section mission-catalog">
-        <h2>Science sites</h2>
+        <div className="section-heading">
+          <h2>Science sites</h2>
+          {limit > 1 && catalog.length > 1 && selected.length < Math.min(limit, catalog.length) && (
+            <Button
+              label="Load all sites"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange(catalog.filter(stop => Boolean(targetCell(stop))).slice(0, limit))}
+            />
+          )}
+        </div>
         <div className="field-catalog-grid">
           {catalog.map(stop => {
             const cell = targetCell(stop);
@@ -534,6 +557,11 @@ function ChangeReview({
   returnPlan,
   headingRef,
   onReopen,
+  activeProposal,
+  selectedBranchId,
+  onSelectBranch,
+  initialFrontier,
+  currentFrontier,
 }: {
   execution: MissionExecution;
   baselineRemaining: MissionPlan;
@@ -541,13 +569,18 @@ function ChangeReview({
   onDecision: (plan: MissionPlan, decision: 'approved' | 'held' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') => void;
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
   onReopen: () => void;
+  activeProposal: MissionPlan;
+  selectedBranchId: TriageBranch['id'];
+  onSelectBranch: (id: TriageBranch['id']) => void;
+  initialFrontier: FrontierSummary;
+  currentFrontier: FrontierSummary;
 }) {
-  const proposed = execution.proposal;
-  if (!proposed) return null;
+  const proposed = activeProposal;
   const finishBranch = execution.finishProposal;
   const leaveBranch = execution.leaveStopProposal;
   const hasDualStopBranches = Boolean(finishBranch && leaveBranch && execution.activeStopId);
   const activeProg = execution.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
+  const triageBranches = !hasDualStopBranches ? (execution.triageBranches ?? []) : [];
 
   const omitted = baselineRemaining.stops.filter(stop => !proposed.stops.some(candidate => candidate.id === stop.id));
   const previousMargin = conservativeSummary(baselineRemaining)?.margin;
@@ -557,6 +590,10 @@ function ChangeReview({
   const shortened = proposed.stops.filter(stop =>
     baselineRemaining.stops.some(prior => prior.id === stop.id && prior.activity.minutes > stop.activity.minutes),
   );
+  const roundTripBurn = stationaryRoundTripWaitCost();
+  const frontierPct = initialFrontier.fullScienceKm2 > 0
+    ? Math.round((currentFrontier.fullScienceKm2 / initialFrontier.fullScienceKm2) * 100)
+    : 100;
 
   return (
     <section className="mission-review" aria-label="Replan review">
@@ -564,6 +601,18 @@ function ChangeReview({
         {execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}
       </h1>
       {execution.events.at(-1) && <p className="field-event-title">{eventLabel(execution.events.at(-1)!.category)}</p>}
+      <div className="cc-comms-callout" role="note">
+        <div className="cc-comms-callout-head">
+          <strong>Onboard crew triage · Earth delay bypassed</strong>
+          <Badge variant="info" label={`${ASSUMED_ONE_WAY_LIGHT_MINUTES.toFixed(1)} min OWLT`} />
+        </div>
+        <p>
+          Acting now avoids ~{(ASSUMED_ONE_WAY_LIGHT_MINUTES * 2).toFixed(0)} min round-trip Earth wait (~{roundTripBurn.oxygen.toFixed(0)} L O₂ / {roundTripBurn.energy.toFixed(0)} Wh stationary burn, scenario assumption).
+        </p>
+        <small>
+          Safe-return science frontier: {currentFrontier.fullScienceKm2.toFixed(2)} km² ({frontierPct}% of baseline) · {currentFrontier.totalReachableKm2.toFixed(2)} km² transit-safe
+        </small>
+      </div>
       {execution.status === 'HOLD' && <Button label="Resume review" variant="primary" onClick={onReopen} />}
       {!hasDualStopBranches && execution.proposalReason && <p>{execution.proposalReason}</p>}
 
@@ -642,6 +691,37 @@ function ChangeReview({
         </>
       ) : (
         <>
+          {triageBranches.length > 1 && (
+            <div className="cc-triage-options" role="radiogroup" aria-label="Tactical triage options">
+              {triageBranches.map(branch => {
+                const isSelected = branch.id === selectedBranchId;
+                const branchMargin = conservativeSummary(branch.plan)?.margin ?? null;
+                return (
+                  <Card
+                    key={branch.id}
+                    padding={2}
+                    data-recommended={isSelected}
+                  >
+                    <VStack gap={1}>
+                      <HStack hAlign="between" vAlign="center" gap={1.5} wrap="wrap">
+                        <strong>{branch.label}</strong>
+                        <Badge variant={stateBadgeVariant(branch.plan.state)} label={stateLabel(branch.plan.state)} />
+                      </HStack>
+                      <small>{branch.summary}</small>
+                      <small>{marginText(branchMargin)} at 0.8×</small>
+                      <Button
+                        label={isSelected ? 'Selected for preview' : 'Preview this option'}
+                        variant={isSelected ? 'primary' : 'secondary'}
+                        size="sm"
+                        isDisabled={isSelected}
+                        onClick={() => onSelectBranch(branch.id)}
+                      />
+                    </VStack>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
           <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" speed={0.8} />
           {omitted.length > 0 && <p>Deferred: {omitted.map(stop => stop.name).join(', ')}.</p>}
           {added.length > 0 && <p>Added: {added.map(stop => stop.name).join(', ')}.</p>}
@@ -698,6 +778,9 @@ export function MissionLifecycle({
   const [showGeology, setShowGeology] = useState(false);
   const [showThermal, setShowThermal] = useState(false);
   const [show3D, setShow3D] = useState(false);
+  const [showFrontier, setShowFrontier] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<TriageBranch['id']>('optimal');
+  const [pendingSingleSwitch, setPendingSingleSwitch] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [resetViewRequestKey, setResetViewRequestKey] = useState(0);
   const [inspectedPoint, setInspectedPoint] = useState<MapPointInspection | null>(null);
@@ -708,6 +791,40 @@ export function MissionLifecycle({
   const [customCol, setCustomCol] = useState(String(origin[1]));
   const [customRow, setCustomRow] = useState(String(origin[0]));
 
+  const initialFrontier = useMemo(
+    () => liveFrontierMembership(bundle, { origin, spent: zeroResources }),
+    [bundle, origin],
+  );
+  const initialFrontierSummary = useMemo(
+    () => summarizeFrontier(initialFrontier, manifest.cellWidthMeters, manifest.cellHeightMeters),
+    [initialFrontier, manifest.cellHeightMeters, manifest.cellWidthMeters],
+  );
+  const liveFrontier = useMemo(
+    () =>
+      execution
+        ? liveFrontierMembership(bundle, {
+            origin: execution.position,
+            spent: execution.spent,
+            hazards: execution.hazards,
+            speedFactor: execution.speedFactor,
+            preference: execution.active.routePreference,
+          })
+        : initialFrontier,
+    [bundle, execution, initialFrontier],
+  );
+  const currentFrontierSummary = useMemo(
+    () => summarizeFrontier(liveFrontier, manifest.cellWidthMeters, manifest.cellHeightMeters),
+    [liveFrontier, manifest.cellHeightMeters, manifest.cellWidthMeters],
+  );
+
+  const routePreferenceOptions = useMemo(
+    () =>
+      bundle.contextData?.thermalInertia
+        ? [...baseRoutePreferenceOptions, thermalRoutePreferenceOption]
+        : baseRoutePreferenceOptions,
+    [bundle.contextData?.thermalInertia],
+  );
+
   const planning = useMemo(() => {
     if (execution || !selected.length) return null;
     const input = { bundle, origin, stops: selected, spent: zeroResources, routePreference: preference };
@@ -717,9 +834,15 @@ export function MissionLifecycle({
     };
   }, [bundle, execution, origin, preference, selected]);
 
+  const activeTriagePlan = useMemo(() => {
+    if (!execution?.proposal) return null;
+    if (execution.activeStopId || !execution.triageBranches?.length) return execution.proposal;
+    return execution.triageBranches.find(b => b.id === selectedBranchId)?.plan ?? execution.proposal;
+  }, [execution, selectedBranchId]);
+
   const primary = planning?.primary.optimized;
   const plan =
-    execution?.proposal ??
+    activeTriagePlan ??
     execution?.active ??
     (useAlternative === 'subset' ? planning?.primary.subset : undefined) ??
     (useAlternative === 'priority' ? planning?.primary.priority : undefined) ??
@@ -829,6 +952,7 @@ export function MissionLifecycle({
     setSelected(stops);
     setLocked(false);
     setUseAlternative('primary');
+    setPendingSingleSwitch(false);
     setNotice('');
     const last = stops.at(-1);
     if (last && last.location.gridCol !== null && last.location.gridRow !== null) {
@@ -891,7 +1015,14 @@ export function MissionLifecycle({
 
   function exportPlan(format: 'json' | 'md') {
     if (!plan) return;
-    const archive = createArchive(execution?.baseline ?? plan, manifest, execution ?? undefined, bundle.contextData, execution ? undefined : limit);
+    const archive = createArchive(
+      execution?.baseline ?? plan,
+      manifest,
+      execution ?? undefined,
+      bundle.contextData,
+      execution ? undefined : limit,
+      { initial: initialFrontierSummary, current: currentFrontierSummary },
+    );
     download(
       `seshat-${execution?.status === 'COMPLETED' ? 'mission-archive' : 'baseline'}.${format}`,
       format === 'json' ? JSON.stringify(archive, null, 2) : archiveMarkdown(archive),
@@ -920,12 +1051,14 @@ export function MissionLifecycle({
   }
 
   const activeOverlays = [
+    ...(showFrontier ? ['frontier'] : []),
     ...(showElevation ? ['elevation'] : []),
     ...(showGeology ? ['geology'] : []),
     ...(showThermal ? ['thermal'] : []),
   ];
 
   const handleOverlayToggle = (next: string[]) => {
+    setShowFrontier(next.includes('frontier'));
     setShowElevation(next.includes('elevation'));
     setShowGeology(next.includes('geology'));
     setShowThermal(next.includes('thermal'));
@@ -982,6 +1115,8 @@ export function MissionLifecycle({
             showThermal={showThermal}
             show3D={show3D}
             onToggle3D={() => setShow3D(v => !v)}
+            showFrontier={showFrontier}
+            liveFrontier={liveFrontier}
             fitRequestKey={fitRequestKey}
             resetViewRequestKey={resetViewRequestKey}
             mission={overlay}
@@ -1013,6 +1148,7 @@ export function MissionLifecycle({
                   value={activeOverlays}
                   onChange={handleOverlayToggle}
                 >
+                  <ToggleButton value="frontier" label="Frontier" />
                   <ToggleButton value="elevation" label="Elevation" />
                   {bundle.contextData?.geologicUnits && <ToggleButton value="geology" label="Geology" />}
                   {bundle.contextData?.thermalInertia && <ToggleButton value="thermal" label="Thermal" />}
@@ -1065,11 +1201,17 @@ export function MissionLifecycle({
               {inspectedPoint.elevationMeters != null && (
                 <p>{inspectedPoint.elevationMeters.toFixed(0)} m elevation</p>
               )}
-              {inspectedPoint.status === 'COVERED' && inspectedPoint.geologicUnit && showGeology && (
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.frontierStatus && (
+                <p className="cc-inspector-frontier">{inspectedPoint.frontierStatus}</p>
+              )}
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.geologicUnit && (showGeology || inspectedPoint.geologicUnit !== 'Unknown / unmapped') && (
                 <p>Geologic unit: {inspectedPoint.geologicUnit}</p>
               )}
-              {inspectedPoint.status === 'COVERED' && inspectedPoint.thermalInertia != null && showThermal && (
-                <p>Thermal inertia: {inspectedPoint.thermalInertia.toFixed(1)} J m⁻² K⁻¹ s⁻¹/²</p>
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.thermalInertia != null && (
+                <p>
+                  Thermal inertia: {inspectedPoint.thermalInertia.toFixed(1)} J m⁻² K⁻¹ s⁻¹/²{' '}
+                  {inspectedPoint.thermalInertia >= 220 ? '(consolidated bedrock)' : inspectedPoint.thermalInertia < 200 ? '(loose sand/dust)' : '(mixed regolith)'}
+                </p>
               )}
               {inspectedPoint.status === 'COVERED' && inspectedPoint.cell && !locked && !execution && (
                 <Button
@@ -1261,7 +1403,7 @@ export function MissionLifecycle({
               </div>
             </section>
           )}
-          {reviewing && execution && previous ? (
+          {reviewing && execution && previous && activeTriagePlan ? (
             <ChangeReview
               execution={execution}
               baselineRemaining={previous}
@@ -1269,6 +1411,11 @@ export function MissionLifecycle({
               headingRef={reviewHeadingRef}
               onDecision={decide}
               onReopen={() => setExecution(current => (current?.status === 'HOLD' ? { ...current, status: 'REVIEW' } : current))}
+              activeProposal={activeTriagePlan}
+              selectedBranchId={selectedBranchId}
+              onSelectBranch={setSelectedBranchId}
+              initialFrontier={initialFrontierSummary}
+              currentFrontier={currentFrontierSummary}
             />
           ) : execution ? (
             <>
@@ -1277,6 +1424,7 @@ export function MissionLifecycle({
                 selected={mapSelection}
                 headingRef={phaseHeadingRef}
                 onEvent={entry => {
+                  setSelectedBranchId('optimal');
                   setExecution(recordEvent(execution, bundle, entry));
                   setMapSelection(null);
                 }}
@@ -1284,7 +1432,10 @@ export function MissionLifecycle({
                 onFinishStop={() => advance('finish')}
                 onLogObservation={note => setExecution(current => current && logStopObservation(current, note))}
                 onTriggerReading={() => setExecution(current => current && triggerSimulatedReading(current, bundle))}
-                onRecordReading={() => setExecution(current => current && recordPendingReading(current, bundle))}
+                onRecordReading={() => {
+                  setSelectedBranchId('optimal');
+                  setExecution(current => current && recordPendingReading(current, bundle));
+                }}
                 onDismissReading={() => setExecution(current => current && { ...current, pendingReading: null })}
               />
               {travelControls && (
@@ -1332,8 +1483,10 @@ export function MissionLifecycle({
               onAddCustomPoint={addManualCell}
               onMode={newLimit => {
                 if (newLimit === 1 && selected.length > 1) {
-                  return setNotice('Remove stops until one remains, then choose Single.');
+                  setPendingSingleSwitch(true);
+                  return setNotice('Multiple stops selected. Trim to your top-priority stop to switch to Single mode.');
                 }
+                setPendingSingleSwitch(false);
                 setLimit(newLimit);
                 setNotice('');
               }}
@@ -1348,9 +1501,40 @@ export function MissionLifecycle({
             />
           )}
           {notice && (
-            <p role="status" className="field-notice">
-              {notice}
-            </p>
+            <div role="status" className="field-notice-box">
+              <p className="field-notice">{notice}</p>
+              {pendingSingleSwitch && selected.length > 1 && (
+                <Button
+                  label={`Keep ${selected[0].name.split(' · ')[0]} only & switch to Single`}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setLimit(1);
+                    changeStops([selected[0]]);
+                  }}
+                />
+              )}
+            </div>
+          )}
+          {execution?.status !== 'COMPLETED' && (
+            <section className="field-section cc-frontier-strip" aria-label="Live safe-return frontier">
+              <div className="section-heading">
+                <span>Safe-return frontier (0.8×)</span>
+                <Button
+                  label={showFrontier ? 'Hide map overlay' : 'Show on map'}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFrontier(v => !v)}
+                />
+              </div>
+              <p className="context-note">
+                {currentFrontierSummary.fullScienceKm2.toFixed(2)} km² full-science ·{' '}
+                {currentFrontierSummary.totalReachableKm2.toFixed(2)} km² transit-safe
+                {execution && initialFrontierSummary.fullScienceKm2 > 0
+                  ? ` (${Math.round((currentFrontierSummary.fullScienceKm2 / initialFrontierSummary.fullScienceKm2) * 100)}% of start)`
+                  : ''}
+              </p>
+            </section>
           )}
           {execution?.status === 'COMPLETED' && <h2 className="field-complete">Mission complete</h2>}
           {returnPlan && !reviewing && (
@@ -1377,19 +1561,17 @@ export function MissionLifecycle({
               trigger="Route options"
             >
               <VStack gap={2}>
-                {selected.length > 1 && (
-                  <Selector
-                    label="Route preference"
-                    size="sm"
-                    width="100%"
-                    options={routePreferenceOptions}
-                    value={preference}
-                    onChange={value => {
-                      setPreference(value as RoutePreference);
-                      setUseAlternative('primary');
-                    }}
-                  />
-                )}
+                <Selector
+                  label="Route preference"
+                  size="sm"
+                  width="100%"
+                  options={routePreferenceOptions}
+                  value={preference}
+                  onChange={value => {
+                    setPreference(value as RoutePreference);
+                    setUseAlternative('primary');
+                  }}
+                />
                 <div className="field-actions">
                   <Button label="Show optimized order" variant="secondary" size="sm" onClick={() => setUseAlternative('primary')} />
                   {planning?.primary.subset && (

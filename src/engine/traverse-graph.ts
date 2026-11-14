@@ -7,8 +7,17 @@ import type { RouteSummary } from './types';
 
 export type Cell = [number, number];
 export interface HazardZone { cell: Cell; radius: number }
+export type GraphPreference = 'fastest' | 'lowerSlope' | 'firmGround';
+export const THERMAL_INERTIA_CONSOLIDATED_TIU = 220;
+export const THERMAL_INERTIA_LOOSE_TIU = 200;
 type SearchEntry = { cell: number; cost: number };
-type Field = { cost: Float64Array; link: Int32Array };
+export type Field = {
+  cost: Float64Array;
+  link: Int32Array;
+  minutes: Float64Array;
+  oxygen: Float64Array;
+  energy: Float64Array;
+};
 const orthogonal = [[0, 1], [0, -1], [1, 0], [-1, 0]];
 const diagonal = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
 const maxGrade = Math.tan(scenario.maxSlopeDegrees * Math.PI / 180);
@@ -341,9 +350,33 @@ export function routeNeighborhood(
   };
 }
 
+export function footingCategory(meanThermalInertia: number | null, looseFraction: number | null): string | null {
+  if (meanThermalInertia === null) return null;
+  if (meanThermalInertia >= THERMAL_INERTIA_CONSOLIDATED_TIU && (looseFraction ?? 0) < 0.25) {
+    return 'Consolidated bedrock / duricrust';
+  }
+  if ((looseFraction ?? 0) >= 0.45 || meanThermalInertia < THERMAL_INERTIA_LOOSE_TIU) {
+    return 'Loose sand / dust sinkage exposure';
+  }
+  return 'Mixed regolith & bedrock';
+}
+
 export function routeMetrics(bundle: FieldBundle, cells: readonly Cell[]) {
   let consumption: Resources = zeroResources;
   let distance = 0, gain = 0, loss = 0, peakSlope = 0, weightedSlope = 0, steepEdges = 0;
+  const tiGrid = bundle.contextData?.thermalInertia;
+  let tiSum = 0, tiCount = 0, lowTiCount = 0;
+  if (tiGrid) {
+    for (const cell of cells) {
+      const idx = cellIndex(cell, bundle);
+      if (idx >= 0 && Number.isFinite(tiGrid[idx])) {
+        const ti = tiGrid[idx];
+        tiSum += ti;
+        tiCount++;
+        if (ti < THERMAL_INERTIA_LOOSE_TIU) lowTiCount++;
+      }
+    }
+  }
   for (let i = 1; i < cells.length; i++) {
     const cA = cells[i - 1], cB = cells[i];
     const iA = cellIndex(cA, bundle), iB = cellIndex(cB, bundle);
@@ -359,7 +392,20 @@ export function routeMetrics(bundle: FieldBundle, cells: readonly Cell[]) {
     weightedSlope += slope * step.distance;
     if (slope > 15) steepEdges++;
   }
-  return { consumption, distance, gain, loss, peakSlope, meanSlope: distance ? weightedSlope / distance : 0, steepEdges };
+  const meanThermalInertia = tiCount > 0 ? tiSum / tiCount : null;
+  const lowThermalFraction = tiCount > 0 ? lowTiCount / tiCount : null;
+  return {
+    consumption,
+    distance,
+    gain,
+    loss,
+    peakSlope,
+    meanSlope: distance ? weightedSlope / distance : 0,
+    steepEdges,
+    meanThermalInertia,
+    lowThermalFraction,
+    footingLabel: footingCategory(meanThermalInertia, lowThermalFraction),
+  };
 }
 
 function findPath(field: Field, from: number, to: number, reversed: boolean) {
@@ -373,11 +419,18 @@ function findPath(field: Field, from: number, to: number, reversed: boolean) {
   return [];
 }
 
-export function createTraverseGraph(bundle: FieldBundle, hazards: readonly HazardZone[], evacuationOrigin: number, lowerSlope = false) {
+export function createTraverseGraph(
+  bundle: FieldBundle,
+  hazards: readonly HazardZone[],
+  evacuationOrigin: number,
+  preference: boolean | GraphPreference = false,
+) {
+  const mode: GraphPreference = preference === true ? 'lowerSlope' : preference === false ? 'fastest' : preference;
   const mask = effectiveMask(bundle, hazards);
   const { width, height, baseIndex } = bundle.manifest;
   const offsets = scenario.connectivity === 8 ? [...orthogonal, ...diagonal] : orthogonal;
   const fields = new Map<number, Field>();
+  const tiGrid = bundle.contextData?.thermalInertia;
 
   function neighbors(index: number, reversed: boolean) {
     const [row, col] = indexToGrid(index, width);
@@ -387,19 +440,42 @@ export function createTraverseGraph(bundle: FieldBundle, hazards: readonly Hazar
       const canExitBlockedOrigin = reversed && next === evacuationOrigin && mask[next] === 2 && bundle.mask[next] === 1;
       if (mask[next] !== 1 && !canExitBlockedOrigin) return [];
       if (dr && dc && (mask[r * width + col] !== 1 || mask[row * width + c] !== 1)) return [];
-      const step = reversed ? stepMetrics(bundle, next, index) : stepMetrics(bundle, index, next);
+      const fromCell = reversed ? next : index;
+      const toCell = reversed ? index : next;
+      const step = stepMetrics(bundle, fromCell, toCell);
       if (!Number.isFinite(step.grade) || Math.abs(step.grade) > maxGrade) return [];
-      const penalty = lowerSlope ? step.minutes * (Math.abs(step.grade) / maxGrade) ** 2 * 10 : 0;
-      return [{ cell: next, cost: step.minutes + penalty }];
+      const stepRes = travelResources(step.minutes, step.grade);
+      let penalty = 0;
+      if (mode === 'lowerSlope') {
+        penalty = step.minutes * (Math.abs(step.grade) / maxGrade) ** 2 * 10;
+      } else if (mode === 'firmGround' && tiGrid) {
+        const tiFrom = tiGrid[fromCell];
+        const tiTo = tiGrid[toCell];
+        const cellTi = Number.isFinite(tiTo) && Number.isFinite(tiFrom)
+          ? (tiTo + tiFrom) * 0.5
+          : Number.isFinite(tiTo) ? tiTo : tiFrom;
+        if (Number.isFinite(cellTi) && cellTi < THERMAL_INERTIA_CONSOLIDATED_TIU) {
+          penalty = step.minutes * ((THERMAL_INERTIA_CONSOLIDATED_TIU - cellTi) / 80) * 1.5;
+        }
+      }
+      return [{ cell: next, cost: step.minutes + penalty, res: stepRes }];
     });
   }
 
   function search(source: number, reversed: boolean): Field {
-    const cost = new Float64Array(mask.length).fill(Infinity), link = new Int32Array(mask.length).fill(-1);
+    const len = mask.length;
+    const cost = new Float64Array(len).fill(Infinity);
+    const link = new Int32Array(len).fill(-1);
+    const minutes = new Float64Array(len).fill(Infinity);
+    const oxygen = new Float64Array(len).fill(Infinity);
+    const energy = new Float64Array(len).fill(Infinity);
     const evacuation = !reversed && source === evacuationOrigin && mask[source] === 2 && bundle.mask[source] === 1;
-    if (mask[source] !== 1 && !evacuation) return { cost, link };
+    if (mask[source] !== 1 && !evacuation) return { cost, link, minutes, oxygen, energy };
     const queue = new SearchQueue();
     cost[source] = 0;
+    minutes[source] = 0;
+    oxygen[source] = 0;
+    energy[source] = 0;
     queue.push({ cell: source, cost: 0 });
     for (let next = queue.pop(); next; next = queue.pop()) {
       if (next.cost !== cost[next.cell] || (reversed && mask[next.cell] !== 1)) continue;
@@ -408,20 +484,28 @@ export function createTraverseGraph(bundle: FieldBundle, hazards: readonly Hazar
         if (candidate >= cost[edge.cell]) continue;
         cost[edge.cell] = candidate;
         link[edge.cell] = next.cell;
+        minutes[edge.cell] = minutes[next.cell] + edge.res.minutes;
+        oxygen[edge.cell] = oxygen[next.cell] + edge.res.oxygen;
+        energy[edge.cell] = energy[next.cell] + edge.res.energy;
         queue.push({ cell: edge.cell, cost: candidate });
       }
     }
-    return { cost, link };
+    return { cost, link, minutes, oxygen, energy };
+  }
+
+  function searchField(source: number, reversed: boolean): Field {
+    const key = reversed ? -1 : source;
+    let field = fields.get(key);
+    if (!field) {
+      field = search(source, reversed);
+      fields.set(key, field);
+    }
+    return field;
   }
 
   function route(from: number, to: number): RouteSummary {
     const reversed = to === baseIndex;
-    const key = reversed ? -1 : from;
-    let field = fields.get(key);
-    if (!field) {
-      field = search(reversed ? to : from, reversed);
-      fields.set(key, field);
-    }
+    const field = searchField(reversed ? to : from, reversed);
     const path = findPath(field, from, to, reversed);
     if (!path.length) {
       const missing = ![1, 2].includes(mask[from]) || ![1, 2].includes(mask[to]) || (mask[to] !== 2 && mask.includes(0));
@@ -450,5 +534,5 @@ export function createTraverseGraph(bundle: FieldBundle, hazards: readonly Hazar
     return Math.max(...grades.map(g => Math.atan(Math.abs(g)) * 180 / Math.PI));
   }
 
-  return { route, localSlope };
+  return { route, localSlope, searchField, mask };
 }

@@ -1,8 +1,20 @@
 import type { ContextData, DatasetManifest } from '../data/loader';
 import scenario from '../config/mission-scenario.json';
-import { budget, reserve } from './consumables';
+import { budget, reserve, scienceResources } from './consumables';
+import type { FrontierSummary } from './frontier';
 import type { MissionExecution } from './lifecycle-store';
 import type { MissionPlan } from './multi-leg-planner';
+
+export const ASSUMED_ONE_WAY_LIGHT_MINUTES = 14 + 20 / 60;
+
+export function stationaryRoundTripWaitCost(oneWayLightMinutes = ASSUMED_ONE_WAY_LIGHT_MINUTES) {
+  return scienceResources(oneWayLightMinutes * 2);
+}
+
+export interface ArchiveFrontierSnapshot {
+  initial?: FrontierSummary | null;
+  current?: FrontierSummary | null;
+}
 
 export function missionClock(minutes: number) {
   if (!Number.isFinite(minutes)) return 'Unknown';
@@ -20,6 +32,7 @@ export function createArchive(
   execution?: MissionExecution,
   contextData?: ContextData | null,
   plannedCapacity?: number,
+  frontierSnapshot?: ArchiveFrontierSnapshot,
 ) {
   const {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files, contextLayers, mapDisplay} = source;
   const environmentalContext = {
@@ -41,6 +54,27 @@ export function createArchive(
       subCellSurfaceRoughness: 'Unavailable — 20 m CTX DTM does not resolve sub-20 m boulder hazards or soil cohesion.',
     },
   };
+  const roundTripBurn = stationaryRoundTripWaitCost();
+  const earthSyncPacket = {
+    schema: 'seshat-earth-sync-v1',
+    basis: 'SCENARIO_ASSUMPTION',
+    assumedOneWayLightMinutes: Number(ASSUMED_ONE_WAY_LIGHT_MINUTES.toFixed(2)),
+    roundTripBlackoutMinutes: Number((ASSUMED_ONE_WAY_LIGHT_MINUTES * 2).toFixed(2)),
+    stationaryWaitBurnAvoided: {
+      minutes: Number(roundTripBurn.minutes.toFixed(1)),
+      oxygen: Number(roundTripBurn.oxygen.toFixed(1)),
+      energy: Number(roundTripBurn.energy.toFixed(1)),
+    },
+    eventsLogged: execution?.events.length ?? 0,
+    decisionsLogged: execution?.decisions.length ?? 0,
+    triageBranchesEvaluated: (execution?.triageBranches ?? []).map(branch => ({
+      id: branch.id,
+      label: branch.label,
+      approvable: branch.approvable,
+      stops: branch.plan.stops.map(s => s.id),
+    })),
+    frontierSnapshot: frontierSnapshot ?? null,
+  };
   return {
     schemaVersion: 2,
     scenario,
@@ -50,6 +84,7 @@ export function createArchive(
     source: {sourceId, sourceUrl, sourceFileSha256, status, optical, crsWkt, cellWidthMeters, cellHeightMeters, files, contextLayers,
       mapDisplay: mapDisplay && {projection: mapDisplay.projection, credits: mapDisplay.credits, jezeroSourceSha256: mapDisplay.jezeroSourceSha256}},
     environmentalContext,
+    earthSyncPacket,
     baseline: plan,
     execution,
   };
@@ -109,6 +144,12 @@ export function archiveMarkdown(archive: ReturnType<typeof createArchive>) {
     lines.push(
       ...execution.events.map(event => `- ${missionClock(event.minute)} · ${event.channel} · ${event.category} · ${event.description || 'Event recorded'} · (${event.cell.join(', ')})`),
       ...execution.decisions.map(decision => `- ${missionClock(decision.minute)} · ${decision.kind}${decision.stopAction ? ` (${decision.stopAction})` : ''} · ${missionSequence(decision.plan)}`),
+      '', '## Earth–Mars asynchronous sync packet',
+      `- Scenario assumption: ${archive.earthSyncPacket.assumedOneWayLightMinutes} min one-way light time (${archive.earthSyncPacket.roundTripBlackoutMinutes} min round-trip comms blackout).`,
+      `- Stationary life-support burn avoided by onboard triage: ${archive.earthSyncPacket.stationaryWaitBurnAvoided.minutes} min / ${archive.earthSyncPacket.stationaryWaitBurnAvoided.oxygen} L O₂ / ${archive.earthSyncPacket.stationaryWaitBurnAvoided.energy} Wh.`,
+      ...(archive.earthSyncPacket.frontierSnapshot?.current
+        ? [`- Reachable science frontier at export: ${archive.earthSyncPacket.frontierSnapshot.current.fullScienceKm2.toFixed(2)} km² full-science · ${archive.earthSyncPacket.frontierSnapshot.current.totalReachableKm2.toFixed(2)} km² transit-safe.`]
+        : []),
       '', '### Unavailable / non-realtime context',
       ...Object.entries(archive.environmentalContext.unavailableFields).map(([k, v]) => `- ${k}: ${v}`),
       '', 'The JSON archive includes grid geometry, preserved field observations, stop progress, and complete event measurements.');
