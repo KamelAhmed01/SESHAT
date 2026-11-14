@@ -94,3 +94,25 @@ Route (app)
 
   12 passed (27.1s)
 ```
+
+## PASS: Live Vercel & Custom Domain (`https://seshat.kmls.dev`) Probe
+
+Deployment ID: `dpl_FMMWfB3AJWk55driqCC7esc6xT6x`
+Production URLs:
+- `https://seshat.kmls.dev/` (TLS certificate `cert_rehRqWjTdv0KKTl8LqVW87Wt`, Cloudflare DNS-only grey cloud)
+- `https://seshat-jezero.vercel.app/`
+
+```text
+HTTP/2 200
+content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://trek.nasa.gov; font-src 'self'; connect-src 'self'; worker-src 'self' blob:
+content-type: text/html; charset=utf-8
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+server: Vercel
+strict-transport-security: max-age=31536000
+x-content-type-options: nosniff
+x-frame-options: DENY
+```
+- `GET https://seshat.kmls.dev/data/manifest.json` -> `HTTP/2 200` (`61763` bytes)
+- `GET https://seshat.kmls.dev/data/thermal-inertia.bin` -> `HTTP/2 200` (`193600` bytes)
+
