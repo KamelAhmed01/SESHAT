@@ -2,6 +2,8 @@
 
 **Mars surface science traverse planner & opportunity workbench.**
 
+**Live deployment:** [https://seshat.kmls.dev/](https://seshat.kmls.dev/) · [https://seshat-jezero.vercel.app/](https://seshat-jezero.vercel.app/)
+
 SESHAT is an evidence-traceable planetary surface science planning prototype built for the NASA Space Apps Challenge. Using real MRO Context Camera (CTX) elevation models, controlled orbital imagery, and documented Mars 2020 Perseverance sample sites on Jezero Crater's western fan, it models multi-stop traverse itineraries, reserve margins across three pace regimes (`0.8×`, `1.0×`, `1.2×`), event-driven replanning, and dynamic reachability contraction under departure delay.
 
 - **Route Planner (`/`)** opens on all 25 Jezero terrain chunks. Add science stops in the 2D or 3D view, check the round trip and reserves, and report field changes. Qualifying detours update the path and explain the next action.
