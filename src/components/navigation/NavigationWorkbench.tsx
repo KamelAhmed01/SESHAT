@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { Collapsible } from '@astryxdesign/core/Collapsible';
 import { Link } from '@astryxdesign/core/Link';
@@ -83,12 +83,14 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
   const neighborhood = manifest.mapDisplay?.neighborhood;
   const hasNeighborhood = Boolean(neighborhood && bundle.contextData?.neighborhoodMask && bundle.contextData.neighborhoodElevation);
   const panel = useRef<HTMLElement>(null);
+  const mapSurface = useRef<HTMLElement>(null);
   const [delay, setDelay] = useState(0);
   const base = useMemo(() => landingCell(bundle), [bundle]);
   const catalog = manifest.scienceTargets ?? [];
   const [stops, setStops] = useState<ScienceTarget[]>([]);
   const [query, setQuery] = useState('');
-  const [mapPoint, setMapPoint] = useState<MapPointInspection | null>(null);
+  const [mapPoint, setMapPoint] = useState<{inspection: MapPointInspection; x: number; y: number; above: boolean} | null>(null);
+  const closePoint = useCallback(() => setMapPoint(null), []);
   const [preference, setPreference] = useState<RoutePreference>('fastest');
   const [session, setSession] = useState<Session | null>(null);
   const [notice, setNotice] = useState('');
@@ -105,7 +107,7 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
   const [frontier, setFrontier] = useState(false);
   const [is3D, set3D] = useState(false);
   const [historyRevision, setHistoryRevision] = useState<Revision | null>(null);
-  const [eventOpen, setEventOpen] = useState(false);
+  const [eventForm, setEventForm] = useState<{kind: 'MISSION_DELAY' | 'NEW_TERRAIN_HAZARD'; cell: Cell | null} | null>(null);
   const storageKey = `seshat-navigation:${manifest.sourceFileSha256}:${manifest.baseIndex}`;
   const execution = session?.execution;
   const completed = execution?.status === 'COMPLETED';
@@ -156,10 +158,12 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
     speedFactor: execution?.speedFactor, preference: execution?.active.routePreference ?? preference,
   }) : null, [bundle, frontier, centralPosition, position, execution, preference]);
   const coverage = membership && summarizeFrontier(membership, manifest.cellWidthMeters, manifest.cellHeightMeters);
-  const point = mapPoint?.cell;
+  const inspection = mapPoint?.inspection;
+  const point = inspection?.cell;
   const pointIndex = point ? cellIndex(point, bundle) : -1;
   const pointInCoverage = point && (pointIndex >= 0 || isNeighborhoodCell(bundle, point));
   const pointEligible = point && pointIndex !== manifest.baseIndex && hasModeledTerrain(bundle, point);
+  const draftStop = point && stops.find(stop => sameCell(targetCell(stop), point));
   const shownStops = catalog.filter(stop => !stops.some(prior => prior.id === stop.id) &&
     stop.name.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -170,6 +174,20 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
   function fitRoute(cells?: Cell[]) {
     set3D(false);
     setFit(previous => ({key: previous.key + 1, cells}));
+  }
+
+  function inspectPoint(next: MapPointInspection) {
+    const bounds = mapSurface.current?.getBoundingClientRect();
+    if (!bounds || !next.screenPoint) return;
+    const [x, y] = next.screenPoint;
+    setMapPoint({inspection: next, x: x - bounds.left, y: y - bounds.top, above: y - bounds.top > bounds.height / 2});
+  }
+
+  function removeStop(id: string) {
+    setStops(stops.filter(stop => stop.id !== id));
+    setSelectedLeg(null);
+    setNotice('');
+    setMapPoint(null);
   }
 
   function addStop(stop: ScienceTarget) {
@@ -190,6 +208,7 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
     setQuery('');
     setNotice('');
     setSelectedLeg(stops.length);
+    setMapPoint(null);
     fitRoute();
   }
 
@@ -232,7 +251,7 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
     }
     setSelectedBranch(null);
     setHistoryRevision(null);
-    setEventOpen(false);
+    setEventForm(null);
   }
 
   function choosePlan(plan: MissionPlan, choice: 'approved' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') {
@@ -264,7 +283,7 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
   const mapMission = {
     planned: mapPlan?.legs ?? [], previousSpans: comparing?.previous,
     traveled: execution?.travels, hazards: execution?.hazards,
-    position: execution?.position, selected: pointEligible ? mapPoint?.cell : null,
+    position: execution?.position, selected: pointEligible ? point : null,
     focusedLeg: legIndex, onSelectLeg: focusLeg, preview: reviewing,
   };
 
@@ -316,20 +335,6 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
           <Collapsible defaultIsOpen={false} trigger="Choose by grid coordinates">
             <CoordinatePicker onChoose={cell => addStop(catalog.find(stop => sameCell(targetCell(stop), cell)) ?? scenarioPoint(cell))} />
           </Collapsible>
-        </section>}
-
-        {mapPoint && <section className="nav-section" aria-label="Selected map point">
-          <h2>{pointIndex === manifest.baseIndex ? 'Landing site' : pointEligible ? 'Selected point' : pointInCoverage ? 'Terrain data unavailable here' : 'Outside modeled terrain'}</h2>
-          <p className="nav-muted">{pointEligible || pointIndex === manifest.baseIndex
-            ? `${mapPoint.label}${mapPoint.elevationMeters == null ? '' : ` · ${Math.round(mapPoint.elevationMeters)} m elevation`}`
-            : 'Choose a point with terrain data to add a route stop.'}</p>
-          <div className="nav-actions">
-            {!execution && pointEligible && <Button label="Add this point" size="sm" onClick={() => {
-              const cell = mapPoint.cell!;
-              addStop(catalog.find(stop => sameCell(targetCell(stop), cell)) ?? scenarioPoint(cell, pointIndex >= 0 ? `Point (${cell.join(', ')})` : mapPoint.label));
-            }} />}
-            <Button label="Clear selection" size="sm" variant="ghost" onClick={() => setMapPoint(null)} />
-          </div>
         </section>}
 
         {completed && <section className="nav-section">
@@ -394,8 +399,9 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
               <Button label={nextLeg.targetId === landingId ? 'Mark return to landing site' : `Mark arrival at ${stopName(nextLeg.to)}`} onClick={() => advance('arrive')} />
             </div>
           </>}
-          <Button label={eventOpen ? 'Close event form' : 'Report a change'} size="sm" variant="secondary" onClick={() => setEventOpen(value => !value)} />
-          {eventOpen && <MissionEventRecorder manualOnly position={position} selected={pointEligible ? mapPoint?.cell ?? null : null}
+          <Button label={eventForm ? 'Close event form' : 'Report a change'} size="sm" variant="secondary" onClick={() =>
+            setEventForm(current => current ? null : {kind: 'MISSION_DELAY', cell: null})} />
+          {eventForm && <MissionEventRecorder key={`${eventForm.kind}:${eventForm.cell?.join(',') ?? ''}`} manualOnly initialCategory={eventForm.kind} position={position} selected={eventForm.cell}
             remaining={active?.stops ?? []} nextEvent={execution.events.length + 1} onRecord={submitEvent} />}
         </section>}
 
@@ -423,7 +429,9 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
                 <Button label={leg.targetId === landingId ? 'Return to Landing Site' : leg.to} size="sm" variant="ghost" onClick={() => focusLeg(index)} />
                 <div className="nav-muted nav-step-copy">{leg.route.status === 'READY' ? `${distanceText(leg.terrain.distance)} · ${Math.round(leg.arrival - leg.departure)} min` : 'Route unavailable'}</div>
               </div>
-              {!execution && stops[index] && <div className="nav-actions nav-edit-stop">
+              {!execution && stops[index] && <details className="nav-edit-stop">
+                <summary>Edit stop</summary>
+                <div className="nav-actions">
                 <NumberInput label="Fieldwork (min)" size="sm" isIntegerOnly min={0} max={scenario.timeBudgetMinutes}
                   value={stops[index].activity.minutes} onChange={minutes => {
                     if (!Number.isFinite(minutes) || minutes < 0 || minutes > scenario.timeBudgetMinutes) return;
@@ -431,11 +439,9 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
                   }} />
                 <Button label="Earlier" size="sm" variant="ghost" isDisabled={!index} onClick={() => moveStop(index, -1)} />
                 <Button label="Later" size="sm" variant="ghost" isDisabled={index === stops.length - 1} onClick={() => moveStop(index, 1)} />
-                <Button label="Remove" size="sm" variant="ghost" onClick={() => {
-                  setStops(stops.filter((_, i) => i !== index));
-                  setSelectedLeg(null);
-                }} />
-              </div>}
+                  <Button label="Remove" size="sm" variant="ghost" onClick={() => removeStop(stops[index].id)} />
+                </div>
+              </details>}
             </li>)}
           </ol>
           {viewedLeg?.route.status === 'READY' && <Collapsible defaultIsOpen={false} trigger="Terrain along this leg">
@@ -506,9 +512,10 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
         </section>}
       </aside>
 
-      <section className="nav-map field-map" aria-label="Jezero route map">
+      <section ref={mapSurface} className="nav-map field-map" aria-label="Jezero route map">
         {reviewing && <p className="nav-map-preview">Proposed route</p>}
-        <LeafletGrid bundle={bundle} selectedCell={null} onCellSelect={() => undefined} onInspectPoint={setMapPoint} neighborhoodOverview
+        <LeafletGrid bundle={bundle} selectedCell={null} onCellSelect={() => undefined} onInspectPoint={inspectPoint}
+          onMapMove={closePoint} neighborhoodOverview
           elapsedMinutes={execution?.spent.minutes ?? 0} missionBudgetMinutes={scenario.timeBudgetMinutes} reserveMinutes={scenario.reserveMinutes}
           showOptical={optical} showElevation={elevation} showGeology={geology} showThermal={thermal}
           show3D={is3D} onToggle3D={() => set3D(false)} showFrontier={frontier && centralPosition} liveFrontier={membership}
@@ -517,7 +524,10 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
           <Button label="Layers" size="sm" variant="secondary" aria-expanded={layerPanel} onClick={() => showLayerPanel(value => !value)} />
           <Button label="Fit route" size="sm" variant="secondary" isDisabled={!mapPlan} onClick={() => fitRoute()} />
           <Button label="Back to Jezero" size="sm" variant="secondary" onClick={() => {set3D(false); setResetKey(key => key + 1);}} />
-          <Button label={is3D ? 'Back to 2D' : '3D terrain'} size="sm" variant="secondary" onClick={() => set3D(value => !value)} />
+          <Button label={is3D ? 'Back to 2D' : '3D terrain'} size="sm" variant="secondary" onClick={() => {
+            setMapPoint(null);
+            set3D(value => !value);
+          }} />
         </div>
         {layerPanel && <div className="nav-layer-panel" aria-label="Map layers">
           <Selector label="Base map" size="sm" value={optical ? 'orbital' : 'terrain'} onChange={value => setOptical(value === 'orbital')}
@@ -532,9 +542,81 @@ export function NavigationWorkbench({ bundle }: { bundle: FieldBundle }) {
             ? `${coverage.fullScienceKm2.toFixed(1)} km² for science and return · ${coverage.totalReachableKm2.toFixed(1)} km² including transit only (slower modeled pace)`
             : 'Return frontier coverage unavailable at this position.'}</p>}
         </div>}
+        {mapPoint && inspection && <PointActions key={`${mapPoint.x},${mapPoint.y},${inspection.label}`}
+          x={mapPoint.x} y={mapPoint.y} above={mapPoint.above} point={inspection}
+          title={pointIndex === manifest.baseIndex ? 'Landing site' : pointEligible
+            ? inspection.label.replace(/ · Cell \(-?\d+, -?\d+\)$/, '').replace(/^Modeled 20 m cell \(.+\)$/, 'Terrain point')
+            : pointInCoverage ? 'Terrain data unavailable here' : 'Outside modeled terrain'}
+          onDismiss={closePoint}
+          onAdd={!execution && point && pointEligible && !draftStop && stops.length < stopLimit ? () => {
+            addStop(catalog.find(stop => sameCell(targetCell(stop), point)) ??
+              scenarioPoint(point, pointIndex >= 0 ? `Point (${point.join(', ')})` : inspection.label));
+          } : undefined}
+          onRemove={!execution && draftStop ? () => removeStop(draftStop.id) : undefined}
+          onReport={execution?.status === 'EXECUTING' && point && hasModeledTerrain(bundle, point) ? () => {
+            setEventForm({kind: 'NEW_TERRAIN_HAZARD', cell: point});
+            setMapPoint(null);
+            revealUpdate();
+            requestAnimationFrame(() => {
+              const form = panel.current?.querySelector('.mission-event');
+              form?.scrollIntoView({block: 'nearest'});
+              form?.querySelector<HTMLElement>('input')?.focus({preventScroll: true});
+            });
+          } : undefined} />}
         <p className="nav-credit">NASA / JPL · USGS</p>
       </section>
     </main>
+  );
+}
+
+function PointActions({x, y, above, point, title, onDismiss, onAdd, onRemove, onReport}: {
+  x: number; y: number; above: boolean; point: MapPointInspection; title: string;
+  onDismiss: () => void; onAdd?: () => void; onRemove?: () => void; onReport?: () => void;
+}) {
+  const popover = useRef<HTMLElement>(null);
+  const [copyStatus, setCopyStatus] = useState('');
+  const coordinates = point.cell ? point.cell.join(', ') : point.lat != null && point.lon != null
+    ? `${point.lat.toFixed(5)}°, ${point.lon.toFixed(5)}°` : null;
+  useEffect(() => {
+    const opener = document.activeElement;
+    popover.current?.focus({preventScroll: true});
+    function handleKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onDismiss();
+      if (opener instanceof HTMLElement || opener instanceof SVGElement) opener.focus({preventScroll: true});
+    }
+    function handlePointer(event: PointerEvent) {
+      if (event.target instanceof Node && !popover.current?.contains(event.target)) onDismiss();
+    }
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('pointerdown', handlePointer);
+    window.addEventListener('resize', onDismiss);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('pointerdown', handlePointer);
+      window.removeEventListener('resize', onDismiss);
+    };
+  }, [onDismiss]);
+  return (
+    <section ref={popover} tabIndex={-1} aria-label="Map point actions" className="nav-point-actions" data-above={above}
+      style={{'--point-x': `${x}px`, '--point-y': `${y}px`} as React.CSSProperties}>
+      <header>
+        <strong>{title}</strong>
+        <Button label="×" aria-label="Close point actions" size="sm" variant="ghost" onClick={onDismiss} />
+      </header>
+      <p className="nav-muted">{point.cell ? `Grid ${coordinates}` : coordinates}{point.elevationMeters != null && point.status === 'COVERED' && ` · ${Math.round(point.elevationMeters)} m elevation`}</p>
+      <div className="nav-point-buttons">
+        {onAdd && <Button label="Add stop" size="sm" variant="primary" onClick={onAdd} />}
+        {onRemove && <Button label="Remove stop" size="sm" variant="secondary" onClick={onRemove} />}
+        {onReport && <Button label="Report hazard here" size="sm" variant="primary" onClick={onReport} />}
+        {coordinates && <Button label="Copy coordinates" size="sm" variant="ghost" onClick={async () => {
+          try { await navigator.clipboard.writeText(coordinates); setCopyStatus('Coordinates copied'); }
+          catch { setCopyStatus('Copy unavailable. Select the coordinates above.'); }
+        }} />}
+      </div>
+      {copyStatus && <p role="status" className="nav-muted">{copyStatus}</p>}
+    </section>
   );
 }
 

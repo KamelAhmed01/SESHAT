@@ -53,7 +53,8 @@
   .nav-step-mark { text-align: center; font-size: .72rem; font-variant-numeric: tabular-nums; font-weight: 700; }
   .nav-step-copy { padding-inline: .45rem; }
   .nav-edit-stop { grid-column: 2; }
-  .nav-edit-stop > :first-child { min-inline-size: 7rem; max-inline-size: 9rem; }
+  .nav-edit-stop summary { inline-size: fit-content; padding: .15rem .45rem; font-size: .76rem; color: var(--token-text-secondary); cursor: pointer; }
+  .nav-edit-stop .nav-actions > :first-child { min-inline-size: 7rem; max-inline-size: 9rem; }
 
   .nav-note { border: 1px solid var(--token-border); padding: .65rem .8rem; border-radius: var(--token-radius-lg); background: var(--token-primary-container); margin-block: .65rem; }
   .nav-warning { background: var(--token-warning-container); }
@@ -68,6 +69,26 @@
   .nav-layer-panel p { margin: .35rem 0; }
   .nav-map .leaflet-bottom.leaflet-right { bottom: 1.35rem; }
   .nav-map .nav-credit { position: absolute; margin: 0; inset: auto .5rem .45rem auto; z-index: 510; background: var(--token-surface); padding: .2rem .4rem; border-radius: var(--token-radius-sm); font-size: .66rem; }
+  .nav-point-actions {
+    --point-width: min(15rem, calc(100% - 1.25rem));
+    position: absolute;
+    z-index: 540;
+    inset-inline-start: clamp(.625rem, calc(var(--point-x) + .65rem), calc(100% - var(--point-width) - .625rem));
+    inset-block-start: calc(var(--point-y) + .65rem);
+    inline-size: var(--point-width);
+    max-block-size: calc(50% - 1.25rem);
+    overflow: auto;
+    padding: .5rem .6rem .6rem;
+    border: 1px solid var(--token-border);
+    border-radius: var(--token-radius-lg);
+    background: var(--token-surface);
+    box-shadow: 0 6px 18px oklch(0 0 0 / .19);
+  }
+  .nav-point-actions[data-above=true] { inset-block: auto calc(100% - var(--point-y) + .65rem); }
+  .nav-point-actions header { display: flex; align-items: center; justify-content: space-between; gap: .3rem; }
+  .nav-point-actions strong { font-size: .84rem; line-height: 1.25; }
+  .nav-point-actions p { font-size: .74rem; margin: .15rem 0 .45rem; }
+  .nav-point-buttons { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem; }
 
   @media print {
     .nav-workbench { display: block; block-size: auto; }

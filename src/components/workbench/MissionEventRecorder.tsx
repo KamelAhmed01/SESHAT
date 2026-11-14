@@ -91,17 +91,18 @@ export function scenarioPoint(cell: Cell, name = 'Custom exploration point', id 
 
 export type EventSubmission = { details: EventDetails; channel: EventChannel; description: string };
 
-export function MissionEventRecorder({ position, selected, remaining, nextEvent, onRecord, manualOnly = false }: {
+export function MissionEventRecorder({ position, selected, remaining, nextEvent, onRecord, manualOnly = false, initialCategory = 'MISSION_DELAY' }: {
   position: Cell;
   selected: Cell | null;
   remaining: ScienceTarget[];
   nextEvent: number;
   manualOnly?: boolean;
+  initialCategory?: EventDetails['category'];
   onRecord: (entry: EventSubmission) => void;
 }) {
-  const [category, setCategory] = useState<EventDetails['category']>('MISSION_DELAY');
+  const [category, setCategory] = useState(initialCategory);
   const [channel, setChannel] = useState<EventChannel>('MANUAL_INPUT');
-  const [amount, setAmount] = useState<number>(defaultPrimaryAmount.MISSION_DELAY);
+  const [amount, setAmount] = useState<number>(defaultPrimaryAmount[initialCategory]);
   const [secondary, setSecondary] = useState<number>(0);
   const [discoveryName, setDiscoveryName] = useState('');
   const [targetId, setTargetId] = useState<string>('');

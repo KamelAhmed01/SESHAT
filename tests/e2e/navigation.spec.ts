@@ -11,9 +11,9 @@ test('the route map opens over both outer rings and preserves an outer stop in 3
   expect(reliefBox!.x).toBeGreaterThan(mapBox!.x);
   expect(reliefBox!.x + reliefBox!.width).toBeLessThan(mapBox!.x + mapBox!.width);
   await page.mouse.click(reliefBox!.x + reliefBox!.width * 0.85, reliefBox!.y + reliefBox!.height * 0.49);
-  const inspection = page.getByRole('region', {name: 'Selected map point'});
+  const inspection = page.getByRole('region', {name: 'Map point actions'});
   await expect(inspection).toContainText('Ring 2');
-  await inspection.getByRole('button', {name: 'Add this point'}).click();
+  await inspection.getByRole('button', {name: 'Add stop'}).click();
   await expect(page.getByRole('button', {name: 'Return to Landing Site'})).toBeVisible();
   await expect(page.getByText('Below the modeled return reserves')).toBeVisible();
   await expect(page.getByRole('button', {name: 'Start route'})).toBeDisabled();
@@ -23,6 +23,44 @@ test('the route map opens over both outer rings and preserves an outer stop in 3
   await expect(page.getByRole('button', {name: '25-Chunk Grid'})).toBeVisible();
   await page.getByRole('button', {name: 'Back to 2D', exact: true}).click();
   await expect(page.getByRole('button', {name: 'Return to Landing Site'})).toBeVisible();
+});
+
+test('right-click can add or remove a draft stop without adding a sidebar panel', async ({page}) => {
+  await page.goto('/');
+  const pin = page.getByRole('button', {name: 'Inspect Shuyak · Cape Nukshak'});
+  const actions = page.getByRole('region', {name: 'Map point actions'});
+  await pin.click({button: 'right'});
+  await expect(actions).toContainText('Shuyak');
+  await expect(page.getByRole('complementary', {name: 'Route panel'}).getByRole('region', {name: 'Map point actions'})).toHaveCount(0);
+  await actions.getByRole('button', {name: 'Add stop'}).click();
+  await expect(actions).toHaveCount(0);
+  await expect(page.getByRole('button', {name: 'Start route'})).toBeEnabled();
+
+  await pin.focus();
+  await page.keyboard.press('Shift+F10');
+  await expect(actions.getByRole('button', {name: 'Remove stop'})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(actions).toHaveCount(0);
+  await expect(pin).toBeFocused();
+  await pin.press('Enter');
+  await actions.getByRole('button', {name: 'Remove stop'}).click();
+  await expect(page.getByRole('button', {name: 'Start route'})).toHaveCount(0);
+});
+
+test('a map point prefills the hazard form during travel', async ({page}) => {
+  await page.goto('/');
+  await page.getByRole('button', {name: 'Add Shuyak', exact: true}).click();
+  await page.getByRole('button', {name: 'Start route', exact: true}).click();
+  await page.getByRole('button', {name: 'Inspect Shuyak · Cape Nukshak'}).press('Enter');
+  const actions = page.getByRole('region', {name: 'Map point actions'});
+  const coordinates = await actions.getByText(/^Grid /).textContent();
+  const grid = coordinates?.match(/Grid (-?\d+), (-?\d+)/);
+  expect(grid).toBeTruthy();
+  await actions.getByRole('button', {name: 'Report hazard here'}).click();
+  await expect(page.getByRole('combobox', {name: 'Event category'})).toContainText('New terrain hazard');
+  await expect(page.getByRole('textbox', {name: /Event row Y/})).toHaveValue(grid![1]);
+  await expect(page.getByRole('textbox', {name: /Event column X/})).toHaveValue(grid![2]);
+  await expect(page.getByRole('heading', {name: 'Head to Shuyak'})).toBeVisible();
 });
 
 test('a blocked stop stays visible until the user accepts a new itinerary', async ({page}) => {

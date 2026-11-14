@@ -29,6 +29,8 @@ import { targetMarkers } from '@/cartography/target-markers';
 import { MapLegend } from './MapLegend';
 import { Mars3DView } from './Mars3DView';
 
+const noOpportunities: readonly OpportunityEntry[] = [];
+
 export interface MapPointInspection {
   lat: number | null;
   lon: number | null;
@@ -39,12 +41,14 @@ export interface MapPointInspection {
   geologicUnit?: string | null;
   thermalInertia?: number | null;
   frontierStatus?: string | null;
+  screenPoint?: readonly [x: number, y: number];
 }
 
 interface Props {
   bundle: FieldBundle | null;
   onCellSelect: (row: number, col: number) => void;
   onInspectPoint?: (info: MapPointInspection) => void;
+  onMapMove?: () => void;
   selectedCell: [number, number] | null;
   elapsedMinutes: number;
   missionBudgetMinutes: number;
@@ -537,6 +541,7 @@ export function LeafletGrid({
   selectedCell,
   onCellSelect,
   onInspectPoint,
+  onMapMove,
   elapsedMinutes,
   missionBudgetMinutes,
   reserveMinutes,
@@ -550,7 +555,7 @@ export function LeafletGrid({
   onToggle3D,
   showFrontier = false,
   liveFrontier = null,
-  opportunities = [],
+  opportunities = noOpportunities,
   fitRequestKey = 0,
   resetViewRequestKey = 0,
   fitCells,
@@ -577,11 +582,13 @@ export function LeafletGrid({
   const onSelectRef = useRef(onCellSelect);
   const lastFitRequest = useRef(0);
   const onInspectRef = useRef(onInspectPoint);
+  const onMapMoveRef = useRef(onMapMove);
   const liveFrontierRef = useRef(liveFrontier);
   const initialFitDoneRef = useRef(false);
 
   useEffect(() => { onSelectRef.current = onCellSelect; }, [onCellSelect]);
   useEffect(() => { onInspectRef.current = onInspectPoint; }, [onInspectPoint]);
+  useEffect(() => { onMapMoveRef.current = onMapMove; }, [onMapMove]);
   useEffect(() => { liveFrontierRef.current = liveFrontier; }, [liveFrontier]);
 
   const useMarsGeo = Boolean(bundle && isMarsGeographic(bundle.manifest));
@@ -797,12 +804,11 @@ export function LeafletGrid({
         };
 
         map.on('zoomend moveend', updateScale);
+        map.on('movestart', () => onMapMoveRef.current?.());
         map.on('mousemove', e => {
           setCursorInfo(formatMarsCoord(e.latlng.lat, e.latlng.lng));
         });
-        map.on('click', e => {
-          const lat = e.latlng.lat;
-          const lon = e.latlng.lng;
+        const inspectTerrain = ({lat, lng: lon}: import('leaflet').LatLng, screenPoint: MapPointInspection['screenPoint']) => {
           const cell = marsLatLngToGrid(lat, lon, bundle.manifest);
           if (!cell) {
             // Check if click falls inside the 2-layer chunk neighborhood (Ring 1 or Ring 2)
@@ -819,6 +825,7 @@ export function LeafletGrid({
                 const supported = hasModeledTerrain(bundle, cellPoint);
                 const nbElev = supported ? elevationAtCell(bundle, cellPoint) : NaN;
                 onInspectRef.current?.({
+                  screenPoint,
                   lat,
                   lon,
                   cell: cellPoint,
@@ -833,6 +840,7 @@ export function LeafletGrid({
               }
             }
             onInspectRef.current?.({
+              screenPoint,
               lat,
               lon,
               cell: null,
@@ -851,6 +859,7 @@ export function LeafletGrid({
 
           if (bundle.mask[idx] !== 1) {
             onInspectRef.current?.({
+              screenPoint,
               lat,
               lon,
               cell,
@@ -864,6 +873,7 @@ export function LeafletGrid({
             return;
           }
           onInspectRef.current?.({
+            screenPoint,
             lat,
             lon,
             cell,
@@ -875,7 +885,20 @@ export function LeafletGrid({
             frontierStatus: frontierTierStatusLabel(liveFrontierRef.current?.[idx]),
           });
           if (!isMissionMap) onSelectRef.current(...cell);
-        });
+        };
+        const inspectMousePoint = (event: import('leaflet').LeafletMouseEvent) => {
+          inspectTerrain(event.latlng, [event.originalEvent.clientX, event.originalEvent.clientY]);
+        };
+        map.on('click', inspectMousePoint);
+        if (neighborhoodOverview) map.on('contextmenu', inspectMousePoint);
+        if (neighborhoodOverview) {
+          map.getContainer().addEventListener('keydown', event => {
+            if (event.target !== map.getContainer() || !(event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) return;
+            event.preventDefault();
+            const rect = map.getContainer().getBoundingClientRect();
+            inspectTerrain(map.getCenter(), [rect.left + rect.width / 2, rect.top + rect.height / 2]);
+          });
+        }
 
         mapRef.current = map;
         leafletRef.current = L;
@@ -1222,8 +1245,21 @@ export function LeafletGrid({
         if (end && !isReturn) {
           const marker = L.circleMarker(point(end), {
             radius: 6.5, color: '#ecf5eb', fillColor: '#10584e',
-            fillOpacity: 1, weight: 3, interactive: false,
+            fillOpacity: 1, weight: 3, interactive: neighborhoodOverview, bubblingMouseEvents: false,
           }).addTo(layer);
+          if (neighborhoodOverview) {
+            const openStopActions = (event: import('leaflet').LeafletMouseEvent) => {
+              const [lat, lon] = point(end);
+              const elevation = elevationAtCell(bundle, end);
+              onInspectRef.current?.({
+                lat: geo ? lat : null, lon: geo ? lon : null, cell: end, status: 'COVERED',
+                label: leg.to, elevationMeters: Number.isFinite(elevation) ? elevation : null,
+                screenPoint: [event.originalEvent.clientX, event.originalEvent.clientY],
+              });
+            };
+            marker.on('click', openStopActions);
+            marker.on('contextmenu', openStopActions);
+          }
           const label = document.createElement('span');
           label.textContent = `${index + 1}. ${leg.to.split(' · ')[0].replace(/ \(\d+, \d+\)$/, '')}`;
           const closeToPrevious = mission.planned.slice(0, index).some(previousLeg => {
@@ -1272,7 +1308,7 @@ export function LeafletGrid({
       }
     }
     return () => { layer.remove(); if (routeLayerRef.current === layer) routeLayerRef.current = null; };
-  }, [bundle, outboundRoute, returnRoute, mapRevision, mission]);
+  }, [bundle, outboundRoute, returnRoute, mapRevision, mission, neighborhoodOverview]);
 
   // Draw documented targets, base markers, and selected pin (always visible before stop selection)
   useEffect(() => {
@@ -1309,11 +1345,12 @@ export function LeafletGrid({
         direction: nearPrev ? 'bottom' : 'top',
         offset: [0, nearPrev ? 8 : -8],
       });
-      const inspectTarget = () => {
+      const inspectTarget = (screenPoint?: MapPointInspection['screenPoint']) => {
         const pinIdx = pt.row * bundle.manifest.width + pt.col;
         const unitIdx = bundle.contextData?.geologicUnitGrid?.[pinIdx] ?? 0;
         const unitObj = unitIdx > 0 ? bundle.contextData?.geologicUnits?.units.find(u => u.index === unitIdx) : undefined;
         onInspectRef.current?.({
+          screenPoint,
           lat: geo ? latLng[0] : null,
           lon: geo ? latLng[1] : null,
           cell: [pt.row, pt.col],
@@ -1329,7 +1366,14 @@ export function LeafletGrid({
         });
         if (!isMissionMap) onSelectRef.current(pt.row, pt.col);
       };
-      marker.on('click', inspectTarget);
+      const inspectMarker = (event: import('leaflet').LeafletMouseEvent) => {
+        const center = map.latLngToContainerPoint(marker.getLatLng());
+        const bounds = map.getContainer().getBoundingClientRect();
+        const original = event.originalEvent;
+        inspectTarget(original ? [original.clientX, original.clientY] : [bounds.left + center.x, bounds.top + center.y]);
+      };
+      marker.on('click', inspectMarker);
+      if (neighborhoodOverview) marker.on('contextmenu', inspectMarker);
       if (isMissionMap) {
         const pin = marker.getElement();
         pin?.setAttribute('role', 'button');
@@ -1337,10 +1381,12 @@ export function LeafletGrid({
         pin?.setAttribute('aria-label', `Inspect ${pt.title}`);
         pin?.addEventListener('keydown', (event: Event) => {
           const key = (event as KeyboardEvent).key;
-          if (key !== 'Enter' && key !== ' ') return;
+          if (key !== 'Enter' && key !== ' ' &&
+              !(neighborhoodOverview && (key === 'ContextMenu' || ((event as KeyboardEvent).shiftKey && key === 'F10')))) return;
           event.preventDefault();
           event.stopPropagation();
-          inspectTarget();
+          const rect = pin.getBoundingClientRect();
+          inspectTarget([rect.left + rect.width / 2, rect.top + rect.height / 2]);
         });
       }
     }
@@ -1362,7 +1408,7 @@ export function LeafletGrid({
         radius: 7.5, color: '#fde047', weight: 2.5, fillColor: '#e58e26', fillOpacity: 1,
       }).addTo(layer).bindTooltip('Selected scenario destination');
     }
-  }, [bundle, selectedCell, opportunities, mapRevision, isMissionMap]);
+  }, [bundle, selectedCell, opportunities, mapRevision, isMissionMap, neighborhoodOverview]);
 
   return (
     <div className="map-root-wrap">

@@ -812,6 +812,7 @@ export function Mars3DView({
         : `Ring ${Math.max(Math.abs(chunkRow), Math.abs(chunkCol))} · (${row}, ${col})`;
 
       onInspectPoint?.({
+        screenPoint: [clientX, clientY],
         lat,
         lon,
         cell: [row, col],
@@ -826,6 +827,7 @@ export function Mars3DView({
       const elev = bundle.elevationMeters[row * m.width + col];
       const [lat, lon] = isMarsGeographic(m) ? gridToMarsLatLng(row, col, m) : [null, null];
       onInspectPoint?.({
+        screenPoint: [clientX, clientY],
         lat,
         lon,
         cell: [row, col],
@@ -876,7 +878,7 @@ export function Mars3DView({
         onMouseUp={e => {
           const d = dragRef.current;
           dragRef.current = null;
-          if (d && !d.moved && e.button === 0) {
+          if (d && !d.moved && (e.button === 0 || (routePreview && e.button === 2))) {
             handleCanvasClick(e.clientX, e.clientY);
           }
         }}
