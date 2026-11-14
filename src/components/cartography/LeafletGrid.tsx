@@ -11,7 +11,6 @@ import {
   gridToMarsLatLng,
   gridToViewer,
   isMarsGeographic,
-  lonLatToAeqdMeters,
   marsLatLngToGrid,
   marsLatLngToGridFloat,
   marsSurfaceDistanceMeters,
@@ -23,6 +22,7 @@ import { landingId } from '@/engine/multi-leg-planner';
 import type { MissionLeg } from '@/engine/multi-leg-planner';
 import type { TravelRecord } from '@/engine/lifecycle-store';
 import type { Cell, HazardZone } from '@/engine/traverse-graph';
+import { elevationAtCell, hasModeledTerrain, isNeighborhoodCell } from '@/engine/traverse-graph';
 import type { RouteSummary } from '@/engine/types';
 import type { OpportunityEntry } from '@/engine/opportunity-ledger';
 import { targetMarkers } from '@/cartography/target-markers';
@@ -62,6 +62,8 @@ interface Props {
   opportunities?: readonly OpportunityEntry[];
   fitRequestKey?: number;
   resetViewRequestKey?: number;
+  fitCells?: readonly Cell[];
+  neighborhoodOverview?: boolean;
   mission?: {
     planned: readonly MissionLeg[];
     previous?: readonly MissionLeg[];
@@ -69,6 +71,10 @@ interface Props {
     hazards?: readonly HazardZone[];
     position?: Cell;
     selected?: Cell | null;
+    previousSpans?: readonly Cell[][];
+    focusedLeg?: number;
+    preview?: boolean;
+    onSelectLeg?: (index: number) => void;
   };
 }
 
@@ -547,6 +553,8 @@ export function LeafletGrid({
   opportunities = [],
   fitRequestKey = 0,
   resetViewRequestKey = 0,
+  fitCells,
+  neighborhoodOverview = false,
   mission,
 }: Props) {
   const isMissionMap = mission !== undefined;
@@ -799,40 +807,26 @@ export function LeafletGrid({
           if (!cell) {
             // Check if click falls inside the 2-layer chunk neighborhood (Ring 1 or Ring 2)
             const nbMeta = bundle.manifest.mapDisplay?.neighborhood;
-            if (nbMeta && bundle.manifest.analysisCenterPlanetocentricLat !== undefined && bundle.manifest.analysisCenterPositiveEastLon !== undefined) {
-              const [ax, ay] = lonLatToAeqdMeters(
-                lon,
-                lat,
-                bundle.manifest.analysisCenterPlanetocentricLat,
-                bundle.manifest.analysisCenterPositiveEastLon,
-                bundle.manifest.sourceBodyRadiusMeters ?? MARS_SPHERE_RADIUS_METERS,
-              );
-              const halfSpan = nbMeta.spanMeters / 2;
-              if (Math.abs(ax) <= halfSpan && Math.abs(ay) <= halfSpan) {
-                const nbCol = Math.min(nbMeta.width - 1, Math.max(0, Math.floor((ax + halfSpan) / nbMeta.cellWidthMeters)));
-                const nbRow = Math.min(nbMeta.height - 1, Math.max(0, Math.floor((halfSpan - ay) / nbMeta.cellHeightMeters)));
-                const nbIdx = nbRow * nbMeta.width + nbCol;
-                const nbElev =
-                  bundle.contextData?.neighborhoodElevation && Number.isFinite(bundle.contextData.neighborhoodElevation[nbIdx])
-                    ? bundle.contextData.neighborhoodElevation[nbIdx]
-                    : null;
-                const chunkSpan = 220 * bundle.manifest.cellWidthMeters;
-                const cCol = Math.round(ax / chunkSpan);
-                const cRow = Math.round(-ay / chunkSpan);
+            const extended = nbMeta && marsLatLngToGridFloat(lat, lon, bundle.manifest, true);
+            if (extended) {
+              const [row, col] = extended.map(Math.floor);
+              const cellPoint: Cell = [row, col];
+              if (isNeighborhoodCell(bundle, cellPoint)) {
+                const cCol = Math.floor(col / bundle.manifest.width);
+                const cRow = Math.floor(row / bundle.manifest.height);
                 const ring = Math.max(Math.abs(cRow), Math.abs(cCol));
                 const chDesc = nbMeta.chunks.find(c => c.rowOffset === cRow && c.colOffset === cCol);
-                const col = Math.round((ax + 2200) / bundle.manifest.cellWidthMeters);
-                const row = Math.round((2200 - ay) / bundle.manifest.cellHeightMeters);
-                const cellPoint: [number, number] = [row, col];
+                const supported = hasModeledTerrain(bundle, cellPoint);
+                const nbElev = supported ? elevationAtCell(bundle, cellPoint) : NaN;
                 onInspectRef.current?.({
                   lat,
                   lon,
                   cell: cellPoint,
-                  status: 'COVERED',
+                  status: supported ? 'COVERED' : 'NODATA',
                   label: chDesc
                     ? `${chDesc.label} · Cell (${row}, ${col})`
                     : `Ring ${ring} · Chunk (${cRow >= 0 ? `+${cRow}` : cRow}, ${cCol >= 0 ? `+${cCol}` : cCol})`,
-                  elevationMeters: nbElev,
+                  elevationMeters: Number.isFinite(nbElev) ? nbElev : null,
                 });
                 if (!isMissionMap) onSelectRef.current(...cellPoint);
                 return;
@@ -890,7 +884,9 @@ export function LeafletGrid({
           if (cancelled) return;
           map.invalidateSize();
           if (!initialFitDoneRef.current) {
-            map.fitBounds(gridBoundsLatLng, { padding: [24, 24], animate: false });
+            const bounds = neighborhoodOverview && nb
+              ? L.latLngBounds(nb.boundaryPolygonLatLng) : gridBoundsLatLng;
+            map.fitBounds(bounds, { padding: [24, 24], animate: false });
             initialFitDoneRef.current = true;
           }
           updateScale();
@@ -976,7 +972,7 @@ export function LeafletGrid({
       frontierRef.current = null;
       routeLayerRef.current = null;
     };
-  }, [bundle, isMissionMap]);
+  }, [bundle, isMissionMap, neighborhoodOverview]);
 
   // Swap surface layer without moving the camera or recreating the map
   useEffect(() => {
@@ -1137,11 +1133,13 @@ export function LeafletGrid({
     const map = mapRef.current, L = leafletRef.current;
     if (isMarsGeographic(bundle.manifest)) {
       const gb = gridGeographicBounds(bundle.manifest);
-      map.fitBounds(L.latLngBounds([gb.south, gb.west], [gb.north, gb.east]), { padding: [24, 24], animate: true });
+      const nb = neighborhoodOverview && bundle.manifest.mapDisplay?.neighborhood;
+      const bounds = nb ? L.latLngBounds(nb.boundaryPolygonLatLng) : L.latLngBounds([gb.south, gb.west], [gb.north, gb.east]);
+      map.fitBounds(bounds, { padding: [24, 24], animate: true });
     } else {
       map.fitBounds(L.latLngBounds([[0, 0], [bundle.manifest.height, bundle.manifest.width]]), { padding: [24, 24], animate: true });
     }
-  }, [resetViewRequestKey, bundle]);
+  }, [resetViewRequestKey, bundle, neighborhoodOverview]);
 
   // Explicit "Fit mission" viewport action
   useEffect(() => {
@@ -1153,19 +1151,22 @@ export function LeafletGrid({
         ? gridToMarsLatLng(c[0], c[1], bundle.manifest)
         : gridToViewer(c[0], c[1], bundle.manifest.height);
     const pts: [number, number][] = [];
-    if (mission?.position) pts.push(toPt(mission.position));
-    for (const leg of mission?.planned ?? []) {
+    if (fitCells?.length) pts.push(...fitCells.map(toPt));
+    if (!pts.length && mission?.position) pts.push(toPt(mission.position));
+    for (const leg of fitCells?.length ? [] : mission?.planned ?? []) {
       for (const c of leg.route.geometryGrid) pts.push(toPt(c));
     }
     for (const c of outboundRoute?.geometryGrid ?? []) pts.push(toPt(c));
     for (const c of returnRoute?.geometryGrid ?? []) pts.push(toPt(c));
     if (pts.length >= 2) {
-      map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15, animate: true });
+      map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15, animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches });
     } else if (isMarsGeographic(bundle.manifest)) {
       const gb = gridGeographicBounds(bundle.manifest);
-      map.fitBounds(L.latLngBounds([gb.south, gb.west], [gb.north, gb.east]), { padding: [24, 24], animate: true });
+      const nb = neighborhoodOverview && bundle.manifest.mapDisplay?.neighborhood;
+      const bounds = nb ? L.latLngBounds(nb.boundaryPolygonLatLng) : L.latLngBounds([gb.south, gb.west], [gb.north, gb.east]);
+      map.fitBounds(bounds, { padding: [24, 24], animate: true });
     }
-  }, [fitRequestKey, bundle, mission, outboundRoute, returnRoute]);
+  }, [fitRequestKey, fitCells, bundle, mission, outboundRoute, returnRoute, mapRevision, neighborhoodOverview]);
 
   // Draw route geometry, hazards, contingency waypoints, and astronaut position
   useEffect(() => {
@@ -1195,10 +1196,28 @@ export function LeafletGrid({
         color: '#94a3b8', weight: 4.5, interactive: false,
       }).addTo(layer));
       mission.previous?.forEach(leg => draw(leg.route, '#e1ddd3', '3 8'));
+      mission.previousSpans?.forEach(cells => {
+        L.polyline(cells.map(point), {
+          color: '#f5efe5', weight: 3, opacity: 0.7, dashArray: '4 6',
+        }).addTo(layer).bindTooltip('Previous path');
+      });
 
       for (const [index, leg] of mission.planned.entries()) {
         const isReturn = leg.targetId === landingId;
-        draw(leg.route, '#27c5ae', isReturn ? '7 5' : undefined, true);
+        if (mission.onSelectLeg && leg.route.status === 'READY' && leg.route.geometryGrid.length > 1) {
+          const focused = mission.focusedLeg === index;
+          const points = leg.route.geometryGrid.map(point);
+          L.polyline(points, {color: '#162e2b', weight: focused ? 8 : 5, interactive: false}).addTo(layer);
+          L.polyline(points, {
+            color: mission.preview ? '#f7d28c' : focused ? '#a0f5dc' : '#36c7ab', weight: focused ? 5 : 3,
+            opacity: focused ? 1 : 0.86, dashArray: isReturn ? '7 5' : undefined,
+          }).addTo(layer).bindTooltip(leg.to).on('click', event => {
+            L.DomEvent.stopPropagation(event);
+            mission.onSelectLeg?.(index);
+          });
+        } else {
+          draw(leg.route, '#27c5ae', isReturn ? '7 5' : undefined, true);
+        }
         const end = leg.route.geometryGrid.at(-1);
         if (end && !isReturn) {
           const marker = L.circleMarker(point(end), {
@@ -1211,6 +1230,7 @@ export function LeafletGrid({
             const previousEnd = previousLeg.route.geometryGrid.at(-1);
             return previousEnd && Math.hypot(previousEnd[0] - end[0], previousEnd[1] - end[1]) < 8;
           });
+          if (mission.onSelectLeg) label.textContent = `${index + 1}. ${leg.to.split(' · ')[0]} · ${Math.round(leg.arrival - leg.departure)} min`;
           marker.bindTooltip(label, {
             permanent: true,
             direction: closeToPrevious ? 'left' : 'right',
@@ -1368,6 +1388,7 @@ export function LeafletGrid({
           opportunities={opportunities}
           mission={mission}
           onExit3D={onToggle3D}
+          routePreview={Boolean(mission?.onSelectLeg)}
         />
       )}
       {!show3D && useMarsGeo && (scaleInfo || cursorInfo) && (
@@ -1391,7 +1412,7 @@ export function LeafletGrid({
         showFrontier={showFrontier}
         isMissionMap={isMissionMap}
         hasPlannedRoute={(mission?.planned?.length ?? 0) > 0 || outboundRoute?.status === 'READY'}
-        hasPreviousRoute={(mission?.previous?.length ?? 0) > 0 || returnRoute?.status === 'READY'}
+        hasPreviousRoute={(mission?.previousSpans?.length ?? 0) > 0 || (mission?.previous?.length ?? 0) > 0 || returnRoute?.status === 'READY'}
         hasHazards={(mission?.hazards?.length ?? 0) > 0}
       />
     </div>

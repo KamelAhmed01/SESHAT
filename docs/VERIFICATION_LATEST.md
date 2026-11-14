@@ -1,15 +1,15 @@
 # SESHAT release verification
 
-Run: 2026-11-14T05:51:43.049422+00:00
+Run: 2026-11-14T10:01:04.929207+00:00
 Mode: RELEASE
-Overall result: PASS; offline PASS does not imply release PASS.
+Overall result: FAIL; offline PASS does not imply release PASS.
 
 ## PASS: Python pipeline + security
 
 ```text
 
 ..............................                                           [100%]
-30 passed in 1.26s
+30 passed in 1.03s
 ```
 
 ## PASS: TypeScript scientific compile
@@ -21,18 +21,18 @@ Overall result: PASS; offline PASS does not imply release PASS.
 ## PASS: Node scientific oracles
 
 ```text
-  ✔ matches manifest geographicBounds and boundary polygon closely (0.93175ms)
-  ✔ returns null outside the 20 m AEQD grid (browse-only area) (0.405ms)
-  ✔ handles antimeridian wrapping and computes realistic spherical Mars distances (0.223583ms)
-✔ Mars geographic AEQD coordinate transforms (4.284ms)
-ℹ tests 48
+  ✔ handles antimeridian wrapping and computes realistic spherical Mars distances (0.133666ms)
+  ✔ includes the 2-layer chunk neighborhood (5x5 = 25 chunks, 22x22 km) with verified binary files (1.300625ms)
+  ✔ allows navigation stops and calculates terrain-aware routes into neighborhood chunks (189.595125ms)
+✔ Mars geographic AEQD coordinate transforms (193.581333ms)
+ℹ tests 50
 ℹ suites 2
-ℹ pass 48
+ℹ pass 50
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 797.839208
+ℹ duration_ms 552.200292
 ```
 
 ## PASS: Dependency lockfile presence
@@ -61,58 +61,45 @@ Overall result: PASS; offline PASS does not imply release PASS.
 
 ```
 
-## PASS: Next.js production static export
+## FAIL: Next.js production static export
 
 ```text
-  Collecting page data using 4 workers ...
-  Generating static pages using 4 workers (0/3) ...
-✓ Generating static pages using 4 workers (3/3) in 332ms
-  Finalizing page optimization ...
-
-Route (app)
-┌ ○ /
-└ ○ /_not-found
+  location: undefined
+}
 
 
-○  (Static)  prerendered as static content
+> seshat@0.1.0 build /Users/kamelahmed/Projects/SESHAT
+> next build
 
+▲ Next.js 16.4.6 (Turbopack)
+✓ Running next.config.ts took 31ms
+
+  Creating an optimized production build ...
+ ELIFECYCLE  Command failed with exit code 1.
 ```
 
-## PASS: Playwright real Next.js export
+## FAIL: Playwright real Next.js export
 
 ```text
-  ✓   3 tests/e2e/mars-map.spec.ts:4:3 › Seamless Mars tiled map & offline resilience › inspects a science pin with the keyboard before editing the itinerary (803ms)
-  ✓   4 tests/e2e/mars-map.spec.ts:14:3 › Seamless Mars tiled map & offline resilience › renders Mars scale bar, switches geology/thermal layers, zooms out to Mars, marks outside clicks browse-only, and returns to Jezero (3.4s)
-  ✓   5 tests/e2e/mars-map.spec.ts:69:3 › Seamless Mars tiled map & offline resilience › remains functional offline with trek.nasa.gov blocked and optional layer 404 (1.2s)
-  ✓   6 tests/e2e/mars-map.spec.ts:94:3 › Seamless Mars tiled map & offline resilience › shows no horizontal overflow on desktop or mobile viewports (936ms)
-  ✓   7 tests/e2e/mission-lifecycle.spec.ts:4:1 › Jezero baseline survives an event, approval, a reload and return (6.7s)
-  ✓   8 tests/e2e/mission-lifecycle.spec.ts:59:1 › real planning view fits the mobile viewport (811ms)
-  ✓   9 tests/e2e/mission-lifecycle.spec.ts:69:1 › QoL preset, Frontier overlay, single-mode trim, and Comms Delay triage sync packet work end-to-end (2.7s)
-  ✓  10 tests/e2e/production.spec.ts:3:1 › production static export loads the unified field workbench with sticky map and theme popup (1.2s)
-  ✓  11 tests/e2e/production.spec.ts:37:1 › the synthetic fixture is visibly disclosed inside the unified workbench (383ms)
-  ✓  12 tests/e2e/production.spec.ts:44:1 › mobile has no document-wide horizontal overflow (380ms)
+         |                        ^
+      12 |   expect(reliefBox!.x + reliefBox!.width).toBeLessThan(mapBox!.x + mapBox!.width);
+      13 |   await page.mouse.click(reliefBox!.x + reliefBox!.width * 0.85, reliefBox!.y + reliefBox!.height * 0.49);
+      14 |   const inspection = page.getByRole('region', {name: 'Selected map point'});
+        at /Users/kamelahmed/Projects/SESHAT/tests/e2e/navigation.spec.ts:11:24
 
-  12 passed (27.1s)
+    Error Context: test-results/navigation-the-route-map-o-6e235-eserves-an-outer-stop-in-3D/error-context.md
+
+  1 failed
+    tests/e2e/navigation.spec.ts:3:1 › the route map opens over both outer rings and preserves an outer stop in 3D
+  14 passed (26.1s)
+ ELIFECYCLE  Command failed with exit code 1.
 ```
 
-## PASS: Live Vercel & Custom Domain (`https://seshat.kmls.dev`) Probe
+## Follow-up on the final route implementation
 
-Deployment ID: `dpl_FMMWfB3AJWk55driqCC7esc6xT6x`
-Production URLs:
-- `https://seshat.kmls.dev/` (TLS certificate `cert_rehRqWjTdv0KKTl8LqVW87Wt`, Cloudflare DNS-only grey cloud)
-- `https://seshat-jezero.vercel.app/`
+- Default Turbopack build failed while processing Leaflet CSS. The Next panic log reports `binding to a port: Operation not permitted`. Playwright ran against the previous export within that strict check.
+- `pnpm exec next build --webpack` compiled and statically exported `/` and `/dev/`.
+- `pnpm test:e2e` on the fresh export passed 15/15. It covered entering Ring 2 from the map, routing back to the landing site, switching to the 25-chunk 3D view, applying a hazard detour, and asking the operator before skipping a blocked stop.
+- Desktop and mobile screenshots were taken on the fresh export. The release check above retains its FAIL status.
 
-```text
-HTTP/2 200
-content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://trek.nasa.gov; font-src 'self'; connect-src 'self'; worker-src 'self' blob:
-content-type: text/html; charset=utf-8
-permissions-policy: camera=(), microphone=(), geolocation=()
-referrer-policy: strict-origin-when-cross-origin
-server: Vercel
-strict-transport-security: max-age=31536000
-x-content-type-options: nosniff
-x-frame-options: DENY
-```
-- `GET https://seshat.kmls.dev/data/manifest.json` -> `HTTP/2 200` (`61763` bytes)
-- `GET https://seshat.kmls.dev/data/thermal-inertia.bin` -> `HTTP/2 200` (`193600` bytes)
-
+The previous live Vercel and TLS probe is recorded in [the earlier checkpoint](https://github.com/KamelAhmed01/SESHAT/blob/165aba9/docs/VERIFICATION_LATEST.md). This implementation was checked on localhost.

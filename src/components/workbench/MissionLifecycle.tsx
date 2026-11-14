@@ -1396,7 +1396,7 @@ export function MissionLifecycle({
                 </p>
                 <p>{Object.values(scenario.environmentalContext).join(' ')}</p>
                 <p>
-                  <Link href={isDemo ? '/' : '/?demo=1'}>
+                  <Link href={isDemo ? '/dev/' : '/dev/?demo=1'}>
                     {isDemo ? 'Switch to Jezero Mars dataset' : 'Synthetic test scene'}
                   </Link>
                 </p>

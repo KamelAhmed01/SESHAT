@@ -4,7 +4,7 @@ test('production static export loads the unified field workbench with sticky map
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
+  await page.goto('/dev/');
 
   await expect(page).toHaveTitle(/SESHAT/);
   await expect(page.getByRole('heading', { name: 'Plan a science traverse' })).toBeVisible();
@@ -35,7 +35,7 @@ test('production static export loads the unified field workbench with sticky map
 });
 
 test('the synthetic fixture is visibly disclosed inside the unified workbench', async ({ page }) => {
-  await page.goto('/?demo=1');
+  await page.goto('/dev/?demo=1');
   await expect(page.getByText('SYNTHETIC — NOT MARS')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Plan a science traverse' })).toBeVisible();
   await expect(page.locator('.cc-backdrop')).toHaveCount(0);
@@ -43,7 +43,7 @@ test('the synthetic fixture is visibly disclosed inside the unified workbench', 
 
 test('mobile has no document-wide horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?demo=1');
+  await page.goto('/dev/?demo=1');
   await expect(page.getByText('SYNTHETIC — NOT MARS')).toBeVisible();
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
   expect(width.scroll).toBeLessThanOrEqual(width.client + 1);

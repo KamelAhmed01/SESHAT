@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Seamless Mars tiled map & offline resilience', () => {
   test('inspects a science pin with the keyboard before editing the itinerary', async ({page}) => {
-    await page.goto('/');
+    await page.goto('/dev/');
     await page.getByRole('button', {name: 'Inspect Shuyak · Cape Nukshak'}).press('Enter');
     const inspection = page.getByLabel('Map point inspection', {exact: true});
     await expect(inspection).toContainText('Shuyak · Cape Nukshak');
@@ -19,7 +19,7 @@ test.describe('Seamless Mars tiled map & offline resilience', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/dev/');
     await expect(page.locator('.map-root.leaflet-container')).toBeVisible();
     await expect(page.locator('.cc-mars-scale-bar')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Jezero' })).toBeVisible();
@@ -75,7 +75,7 @@ test.describe('Seamless Mars tiled map & offline resilience', () => {
     await page.route('**/data/imagery/thermal-inertia-geo.webp', route => route.fulfill({ status: 404, body: 'missing' }));
     await page.route('**/data/thermal-inertia.bin', route => route.fulfill({ status: 404, body: 'missing' }));
 
-    await page.goto('/');
+    await page.goto('/dev/');
     await expect(page.locator('.map-root.leaflet-container')).toBeVisible();
     await expect(page.locator('.cc-mars-scale-bar')).toBeVisible();
 
@@ -94,7 +94,7 @@ test.describe('Seamless Mars tiled map & offline resilience', () => {
   test('shows no horizontal overflow on desktop or mobile viewports', async ({ page }) => {
     for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(vp);
-      await page.goto('/');
+      await page.goto('/dev/');
       await expect(page.locator('.map-root.leaflet-container')).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, `horizontal overflow at ${vp.width}x${vp.height}`).toBeLessThanOrEqual(1);

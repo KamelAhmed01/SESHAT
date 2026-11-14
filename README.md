@@ -4,9 +4,9 @@
 
 SESHAT is an evidence-traceable planetary surface science planning prototype built for the NASA Space Apps Challenge. Using real MRO Context Camera (CTX) elevation models, controlled orbital imagery, and documented Mars 2020 Perseverance sample sites on Jezero Crater's western fan, it models multi-stop traverse itineraries, reserve margins across three pace regimes (`0.8×`, `1.0×`, `1.2×`), event-driven replanning, and dynamic reachability contraction under departure delay.
 
-- **Primary Workbench (`/`)**: Command Center for multi-stop planning, execution simulation, field event recording, replan diff review, and JSON/Markdown archive export.
-- **Opportunity Frontier (`/?opportunities=1`)**: Interactive time-delay frontier and candidate reachability matrix showing `ROBUST`, `MARGINAL`, `INFEASIBLE`, and `UNKNOWN` classifications.
-- **Synthetic Test Scene (`/?demo=1`)**: Labeled synthetic acceptance fixture for deterministic UI and graph testing without claiming Mars telemetry.
+- **Route Planner (`/`)** opens on all 25 Jezero terrain chunks. Add science stops in the 2D or 3D view, check the round trip and reserves, and report field changes. Qualifying detours update the path and explain the next action.
+- **Dev Workbench (`/dev/`)** contains the existing planning and rehearsal tools, the opportunity frontier, evidence details and JSON/Markdown export.
+- **Synthetic Test Scene (`/dev/?demo=1`)** is the labeled acceptance fixture for deterministic UI and graph testing.
 
 The shared budget, reserve, speed, and terrain grade model parameters live in [`src/config/mission-scenario.json`](src/config/mission-scenario.json).
 

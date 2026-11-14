@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 test('Jezero baseline survives an event, approval, a reload and return', async ({page}) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/dev/');
   await expect(page.getByRole('heading', {name: 'Plan a science traverse'})).toBeVisible();
   await page.getByRole('button', {name: 'Add Shuyak · Cape Nukshak'}).click();
   await page.getByRole('button', {name: 'Add Hazeltop · Wildcat Ridge'}).click();
@@ -58,7 +58,7 @@ test('Jezero baseline survives an event, approval, a reload and return', async (
 
 test('real planning view fits the mobile viewport', async ({page}) => {
   await page.setViewportSize({width: 390, height: 844});
-  await page.goto('/');
+  await page.goto('/dev/');
   await page.getByRole('radio', {name: 'Single', exact: true}).click();
   await page.getByRole('button', {name: 'Add Swift Run · Skinner Ridge'}).click();
   await page.getByText('Route options', {exact:true}).click();
@@ -70,7 +70,7 @@ test('QoL preset, Frontier overlay, single-mode trim, and Comms Delay triage syn
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
 
-  await page.goto('/');
+  await page.goto('/dev/');
   await page.getByRole('button', {name: 'Load all sites'}).click();
   await expect(page.locator('button[aria-label^="Remove "]')).toHaveCount(3);
 

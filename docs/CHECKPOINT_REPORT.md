@@ -1,13 +1,15 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-14 08:56 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-14 10:04 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
 ## Verified locally
 
+- [x] Python science + security tests — passed
 - [x] TypeScript engine compile — passed
 - [x] Node scientific/unit oracles — passed
+- [x] Synthetic Chromium acceptance harness — passed
 - [x] Standalone Chromium acceptance screenshots exist — synthetic only, not a Next.js build
 
 ## Implemented in source, still requiring runtime/science evidence
@@ -28,7 +30,6 @@ Generated **2026-11-14 08:56 UTC** using `python -m tools.checkpoint --run-tests
 - [x] Local TIFF bytes present; validate catalog provenance, CRS and file identity
 - [x] Real/provisional bundle manifest present, still awaiting human review
 - [x] 3 published PDS sample-site coordinates in the routed bundle
-- [x] Latest recorded strict release check passed; see docs/VERIFICATION_RELEASE.md
 - [x] Version-pinned pnpm lockfile committed or available locally
 - [x] Astryx local dependencies present
 - [x] Custom Astryx theme source exists; compile and inspect both modes
@@ -37,10 +38,9 @@ Generated **2026-11-14 08:56 UTC** using `python -m tools.checkpoint --run-tests
 
 ## Missing / blocked / unverified
 
-- [ ] Python science + security tests — failed or unavailable
-- [ ] Synthetic Chromium acceptance harness — failed or unavailable
 - [ ] Archive a screenshot of the live challenge Resources listing for team signoff
 - [ ] Independent team signoff for at least two source-reported points (reviewed: 0)
+- [ ] Run strict release verification and inspect each result
 - [ ] Judge-ready live URL, TLS, Vercel deployment and fully local fallback verified on two laptops
 - [ ] Cross-device production app E2E, basic keyboard/accessibility QA and source-bearing screenshots
 - [ ] Official English demo link and independent human usability check
@@ -48,18 +48,17 @@ Generated **2026-11-14 08:56 UTC** using `python -m tools.checkpoint --run-tests
 
 ## Test execution evidence
 
-- Python science + security tests: FAIL; last output: `/usr/bin/python3: No module named pytest`
+- Python science + security tests: PASS; last output: `..............................                                           [100%]
+30 passed in 0.88s`
 - TypeScript engine compile: PASS; last output: ``
 - Node scientific/unit oracles: PASS; last output: `ℹ pass 50
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1614.918159`
-- Synthetic Chromium acceptance harness: FAIL; last output: `Traceback (most recent call last):
-  File "/home/ali13yassin/Documents/GitHub/SESHAT/tools/preview/test_preview.py", line 6, in <module>
-    from playwright.sync_api import sync_playwright
-ModuleNotFoundError: No module named 'playwright'`
+ℹ duration_ms 522.202834`
+- Synthetic Chromium acceptance harness: PASS; last output: `BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow
+CHECKPOINT: start frontier cells 27870 after +15min 24855`
 
 ## Immediate handoff order
 
@@ -70,3 +69,11 @@ ModuleNotFoundError: No module named 'playwright'`
 5. **Shams/Ali:** rehearse the inaccessible-stop revision and complete both submissions. See [the run sheet](MISSION_LIFECYCLE.md).
 
 Do not commit raw gigabyte archives, downloaded source secrets, npm `node_modules`, or unreviewed claimed source approval. Committing generated scientific bundles is allowed only after validation and a license/size review.
+
+## Navigation revamp evidence
+
+- Production static export: standard Turbopack build failed with a port restriction. The Webpack static build succeeded for `/` and `/dev/`.
+- Production browser acceptance: 15/15 Playwright cases passed on the fresh Webpack export. [25-chunk overview, 1440 × 900](../screenshots/navigation-implementation/overview-1440x900.png) · [Ring 2 route, 1280 × 720](../screenshots/navigation-implementation/ring-2-route-1280x720.png) · [Ring 2 in 3D, 1280 × 720](../screenshots/navigation-implementation/ring-2-3d-1280x720.png) · [Desktop reroute](../screenshots/navigation-implementation/reroute-1280x720.png) · [Mobile reroute](../screenshots/navigation-implementation/reroute-390x844.png).
+- Mars files: the checkout uses the existing terrain, neighborhood elevation and mask, imagery, and tiles. The engine tests read the committed neighborhood bundle. This checkpoint downloaded no additional Mars data.
+- Deployment: localhost only. The previous Vercel result applies to an earlier revision.
+- Official Resources: the repository source ledger records the prior audit. The current bundle remains `SOURCE_REVIEW_REQUIRED`, and the official Resources screenshot and independent source signoff remain pending in this checkpoint.

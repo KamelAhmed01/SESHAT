@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FieldBundle } from '@/data/loader';
-import { gridToMarsLatLng, indexToGrid, isMarsGeographic, lonLatToAeqdMeters } from '@/cartography/coordinates';
+import { gridToMarsLatLng, indexToGrid, isMarsGeographic } from '@/cartography/coordinates';
 import { landingId } from '@/engine/multi-leg-planner';
 import type { MissionLeg } from '@/engine/multi-leg-planner';
 import type { TravelRecord } from '@/engine/lifecycle-store';
 import type { Cell, HazardZone } from '@/engine/traverse-graph';
+import { elevationAtCell, hasModeledTerrain } from '@/engine/traverse-graph';
 import type { RouteSummary } from '@/engine/types';
 import type { OpportunityEntry } from '@/engine/opportunity-ledger';
 import type { MapPointInspection } from './LeafletGrid';
@@ -30,8 +31,11 @@ interface Mars3DViewProps {
     hazards?: readonly HazardZone[];
     position?: Cell;
     selected?: Cell | null;
+    previousSpans?: readonly Cell[][];
+    focusedLeg?: number;
   };
   onExit3D?: () => void;
+  routePreview?: boolean;
 }
 
 function elevToNormalizedT(elev: number, minZ: number, maxZ: number): number {
@@ -130,6 +134,7 @@ export function Mars3DView({
   showThermal = false,
   mission,
   onExit3D,
+  routePreview = false,
 }: Mars3DViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hasNeighborhood = Boolean(
@@ -145,8 +150,8 @@ export function Mars3DView({
   const [zoom, setZoom] = useState<number>(1.12);
   const [panX, setPanX] = useState<number>(0);
   const [panY, setPanY] = useState<number>(18);
-  const [exaggeration, setExaggeration] = useState<number>(3.5);
-  const [showChunkGrid, setShowChunkGrid] = useState<boolean>(true);
+  const [exaggeration, setExaggeration] = useState<number>(routePreview ? 1 : 3.5);
+  const [showChunkGrid, setShowChunkGrid] = useState(true);
   const [centerTexture, setCenterTexture] = useState<TextureData | null>(null);
   const [neighborhoodTexture, setNeighborhoodTexture] = useState<TextureData | null>(null);
 
@@ -633,13 +638,14 @@ export function Mars3DView({
       mission.traveled?.forEach(leg => {
         if (leg.cells.length > 1) drawRoute3D(leg.cells, '#38bdf8', 3.4, false);
       });
-      mission.planned.forEach(leg => {
+      mission.previousSpans?.forEach(cells => drawRoute3D(cells, '#f5efe5', 2.4, true));
+      mission.planned.forEach((leg, index) => {
         if (leg.route.geometryGrid.length > 1) {
           const isReturn = leg.targetId === landingId;
           drawRoute3D(
             leg.route.geometryGrid,
-            isReturn ? '#38bdf8' : '#f3a833',
-            3.2,
+            routePreview ? index === mission.focusedLeg ? '#a0f5dc' : '#36c7ab' : isReturn ? '#38bdf8' : '#f3a833',
+            routePreview && index === mission.focusedLeg ? 4.5 : 3.2,
             isReturn,
           );
         }
@@ -721,6 +727,9 @@ export function Mars3DView({
       }
     }
 
+    if (routePreview && mission?.position) {
+      draw3DPin(mission.position[0], mission.position[1], 'Current position', '#a0f5dc', 24, true);
+    }
     const activeSel = mission?.selected ?? selectedCell;
     if (activeSel) {
       draw3DPin(
@@ -748,6 +757,7 @@ export function Mars3DView({
     outboundRoute,
     returnRoute,
     selectedCell,
+    routePreview,
   ]);
 
   // Handle click on 3D surface to inspect/select nearest cell or chunk
@@ -785,12 +795,13 @@ export function Mars3DView({
     const chunksPerSide = m.mapDisplay?.neighborhood?.chunksPerSide ?? 5;
 
     if (mesh.useNb) {
-      const chunkCol = Math.min(chunksPerSide - 1, Math.floor(uFrac * chunksPerSide)) - 2;
-      const chunkRow = Math.min(chunksPerSide - 1, Math.floor(vFrac * chunksPerSide)) - 2;
-      const elev = mesh.zGrid[bestR * (N + 1) + bestC];
-
-      const col = Math.round((uFrac * chunksPerSide - 2) * m.width);
-      const row = Math.round((vFrac * chunksPerSide - 2) * m.height);
+      const outerRings = (chunksPerSide - 1) / 2;
+      const col = Math.min((outerRings + 1) * m.width - 1, Math.floor((uFrac * chunksPerSide - outerRings) * m.width));
+      const row = Math.min((outerRings + 1) * m.height - 1, Math.floor((vFrac * chunksPerSide - outerRings) * m.height));
+      const chunkCol = Math.floor(col / m.width);
+      const chunkRow = Math.floor(row / m.height);
+      const supported = hasModeledTerrain(bundle, [row, col]);
+      const elev = supported ? elevationAtCell(bundle, [row, col]) : NaN;
       const [lat, lon] = isMarsGeographic(m) ? gridToMarsLatLng(row, col, m) : [null, null];
 
       const chDesc = m.mapDisplay?.neighborhood?.chunks.find(
@@ -804,9 +815,9 @@ export function Mars3DView({
         lat,
         lon,
         cell: [row, col],
-        status: 'COVERED',
+        status: supported ? 'COVERED' : 'NODATA',
         label,
-        elevationMeters: elev,
+        elevationMeters: Number.isFinite(elev) ? elev : null,
       });
       onCellSelect(row, col);
     } else {
@@ -880,7 +891,7 @@ export function Mars3DView({
       />
 
       {/* Google Maps-style 3D Camera & Chunk Scope Controls */}
-      <div className="mars-3d-hud-top">
+      <div className={routePreview ? "mars-3d-hud-top mars-3d-navigation" : "mars-3d-hud-top"}>
         <div className="mars-3d-badge">
           <span className="mars-3d-badge-dot" />
           <span>
@@ -892,6 +903,7 @@ export function Mars3DView({
         </div>
 
         <div className="mars-3d-controls-row">
+
           {hasNeighborhood && (
             <div className="mars-3d-pill-group" role="group" aria-label="3D Chunk Scope">
               <button

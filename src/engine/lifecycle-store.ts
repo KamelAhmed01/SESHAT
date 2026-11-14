@@ -3,7 +3,7 @@ import { addResources, atSpeed, budget, reserve, scienceResources, subtractResou
 import type { Resources } from './consumables';
 import { canApprove, landingId, replanMission, stopLimit, targetCell, triageReplanBranches } from './multi-leg-planner';
 import type { MissionPlan, TriageBranch } from './multi-leg-planner';
-import { cellIndex, routeMetrics } from './traverse-graph';
+import { hasModeledTerrain, routeMetrics } from './traverse-graph';
 import type { Cell, HazardZone } from './traverse-graph';
 import { SPEED_FACTORS } from './types';
 import type { ScienceTarget } from './types';
@@ -359,11 +359,11 @@ function eventError(details: EventDetails, bundle: FieldBundle): string | null {
     case 'ENVIRONMENTAL_OR_TERRAIN_CHANGE':
       return details.speedFactor > 0 && details.speedFactor < 1 ? null : 'Enter a pace above 0% and below 100%.';
     case 'NEW_TERRAIN_HAZARD':
-      return bundle.mask[cellIndex(details.zone.cell, bundle)] === 1 && Number.isInteger(details.zone.radius) && details.zone.radius >= 0 && details.zone.radius <= 20
+      return hasModeledTerrain(bundle, details.zone.cell) && Number.isInteger(details.zone.radius) && details.zone.radius >= 0 && details.zone.radius <= 20
         ? null : 'Choose a covered map cell and a radius from 0 to 20 cells.';
     case 'NEW_SCIENTIFIC_DISCOVERY': {
       const cell = targetCell(details.target);
-      return cell && bundle.mask[cellIndex(cell, bundle)] === 1 && nonnegative(details.target.activity.minutes) && details.target.name.trim()
+      return cell && hasModeledTerrain(bundle, cell) && nonnegative(details.target.activity.minutes) && details.target.name.trim()
         ? null : 'Choose a covered science location and a valid activity duration.';
     }
     default:

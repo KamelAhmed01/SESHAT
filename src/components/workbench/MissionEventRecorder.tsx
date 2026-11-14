@@ -91,11 +91,12 @@ export function scenarioPoint(cell: Cell, name = 'Custom exploration point', id 
 
 export type EventSubmission = { details: EventDetails; channel: EventChannel; description: string };
 
-export function MissionEventRecorder({ position, selected, remaining, nextEvent, onRecord }: {
+export function MissionEventRecorder({ position, selected, remaining, nextEvent, onRecord, manualOnly = false }: {
   position: Cell;
   selected: Cell | null;
   remaining: ScienceTarget[];
   nextEvent: number;
+  manualOnly?: boolean;
   onRecord: (entry: EventSubmission) => void;
 }) {
   const [category, setCategory] = useState<EventDetails['category']>('MISSION_DELAY');
@@ -155,13 +156,17 @@ export function MissionEventRecorder({ position, selected, remaining, nextEvent,
                 activity: { ...target.activity, minutes: amount },
                 science: {
                   ...target.science,
-                  summary: description.trim() || 'Simulated geological field observation.',
+                  summary: description.trim() || (manualOnly ? 'User-reported field observation.' : 'Simulated geological field observation.'),
                 },
               },
             };
           },
         };
         try {
+          if (manualOnly && (category === 'NEW_TERRAIN_HAZARD' || category === 'NEW_SCIENTIFIC_DISCOVERY') &&
+              (!Number.isInteger(parsedRow) || !Number.isInteger(parsedCol))) {
+            throw new Error('Enter a whole row and column within the modeled terrain.');
+          }
           onRecord({ details: build[category](), channel, description: description.trim() });
           setDescription('');
           setDiscoveryName('');
@@ -172,14 +177,14 @@ export function MissionEventRecorder({ position, selected, remaining, nextEvent,
       }}
     >
       <VStack gap={2}>
-        <Selector
+        {!manualOnly && <Selector
           label="Input channel"
           size="sm"
           width="100%"
           options={channelOptions}
           value={channel}
           onChange={val => setChannel(val as EventChannel)}
-        />
+        />}
         <Selector
           label="Event category"
           size="sm"

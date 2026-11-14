@@ -123,7 +123,7 @@ export function gridToMarsLatLng(row: number, col: number, meta: MarsGeoMetadata
 }
 
 /** Invert planetocentric [lat, lng] into fractional [rowFloat, colFloat] inside the local AEQD grid, or null if outside. */
-export function marsLatLngToGridFloat(lat: number, lng: number, meta: MarsGeoMetadata): [number, number] | null {
+export function marsLatLngToGridFloat(lat: number, lng: number, meta: MarsGeoMetadata, allowOutside = false): [number, number] | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !isMarsGeographic(meta)) return null;
   if (lat < -90 || lat > 90) return null;
   const [x, y] = lonLatToAeqdMeters(
@@ -140,7 +140,7 @@ export function marsLatLngToGridFloat(lat: number, lng: number, meta: MarsGeoMet
   const dy = y - f;
   const colFloat = (e * dx - b * dy) / det;
   const rowFloat = (a * dy - d * dx) / det;
-  if (rowFloat < 0 || rowFloat >= meta.height || colFloat < 0 || colFloat >= meta.width) return null;
+  if (!allowOutside && (rowFloat < 0 || rowFloat >= meta.height || colFloat < 0 || colFloat >= meta.width)) return null;
   return [rowFloat, colFloat];
 }
 

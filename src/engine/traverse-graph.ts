@@ -61,6 +61,30 @@ export function cellIndex(cell: Cell, bundle: FieldBundle): number {
     ? row * width + col : -1;
 }
 
+function neighborhoodIndex(bundle: FieldBundle, [row, col]: Cell): number {
+  const neighborhood = bundle.manifest.mapDisplay?.neighborhood;
+  if (!neighborhood || !Number.isInteger(row) || !Number.isInteger(col)) return -1;
+  const {width, height, cellWidthMeters, cellHeightMeters} = bundle.manifest;
+  const x = (neighborhood.spanMeters - width * cellWidthMeters) / 2 + (col + 0.5) * cellWidthMeters;
+  const y = (neighborhood.spanMeters - height * cellHeightMeters) / 2 + (row + 0.5) * cellHeightMeters;
+  const nc = Math.floor(x / neighborhood.cellWidthMeters);
+  const nr = Math.floor(y / neighborhood.cellHeightMeters);
+  return nc >= 0 && nc < neighborhood.width && nr >= 0 && nr < neighborhood.height
+    ? nr * neighborhood.width + nc : -1;
+}
+
+export function isNeighborhoodCell(bundle: FieldBundle, cell: Cell): boolean {
+  return neighborhoodIndex(bundle, cell) >= 0;
+}
+
+export function hasModeledTerrain(bundle: FieldBundle, cell: Cell): boolean {
+  const index = cellIndex(cell, bundle);
+  if (index >= 0) return bundle.mask[index] === 1 && Number.isFinite(bundle.elevationMeters[index]);
+  const outer = neighborhoodIndex(bundle, cell);
+  return outer >= 0 && bundle.contextData?.neighborhoodMask?.[outer] === 1 &&
+    Number.isFinite(bundle.contextData.neighborhoodElevation?.[outer]);
+}
+
 function effectiveMask(bundle: FieldBundle, hazards: readonly HazardZone[]) {
   const mask = bundle.mask.slice(), { width, height } = bundle.manifest;
   for (const {cell: [row, col], radius} of hazards) {
@@ -90,35 +114,30 @@ export function stepMetrics(bundle: FieldBundle, from: number, to: number) {
 }
 
 export function elevationAtCell(bundle: FieldBundle, cell: Cell): number {
-  const [row, col] = cell;
+  if (!hasModeledTerrain(bundle, cell)) return NaN;
   const idx = cellIndex(cell, bundle);
-  if (idx !== -1 && Number.isFinite(bundle.elevationMeters[idx])) {
-    return bundle.elevationMeters[idx];
-  }
-  const nbElev = bundle.contextData?.neighborhoodElevation;
-  const nbMask = bundle.contextData?.neighborhoodMask;
-  if (nbElev) {
-    const u = Math.min(549, Math.max(0, 219.75 + col * 0.5));
-    const v = Math.min(549, Math.max(0, 219.75 + row * 0.5));
-    const r0 = Math.min(548, Math.floor(v));
-    const c0 = Math.min(548, Math.floor(u));
-    const dr = v - r0;
-    const dc = u - c0;
-    const i00 = r0 * 550 + c0;
-    if (nbMask && (nbMask[i00] !== 1 || nbMask[i00 + 1] !== 1 || nbMask[i00 + 550] !== 1 || nbMask[i00 + 551] !== 1)) {
-      const nr = Math.round(v), nc = Math.round(u);
-      if (nbMask[nr * 550 + nc] !== 1) return NaN;
-      const fallback = nbElev[nr * 550 + nc];
-      return Number.isFinite(fallback) ? fallback : NaN;
+  if (idx >= 0) return bundle.elevationMeters[idx];
+
+  const [row, col] = cell;
+  const {manifest, contextData} = bundle;
+  const nb = manifest.mapDisplay!.neighborhood!;
+  const elevations = contextData!.neighborhoodElevation!;
+  const mask = contextData!.neighborhoodMask!;
+  const u = ((nb.spanMeters - manifest.width * manifest.cellWidthMeters) / 2 +
+    (col + 0.5) * manifest.cellWidthMeters) / nb.cellWidthMeters - 0.5;
+  const v = ((nb.spanMeters - manifest.height * manifest.cellHeightMeters) / 2 +
+    (row + 0.5) * manifest.cellHeightMeters) / nb.cellHeightMeters - 0.5;
+  const r = Math.floor(v), c = Math.floor(u);
+  if (r >= 0 && c >= 0 && r + 1 < nb.height && c + 1 < nb.width) {
+    const i = r * nb.width + c;
+    const samples = [i, i + 1, i + nb.width, i + nb.width + 1];
+    if (samples.every(index => mask[index] === 1 && Number.isFinite(elevations[index]))) {
+      const [nw, ne, sw, se] = samples.map(index => elevations[index]);
+      const dr = v - r, dc = u - c;
+      return (1 - dr) * ((1 - dc) * nw + dc * ne) + dr * ((1 - dc) * sw + dc * se);
     }
-    const z00 = nbElev[i00], z01 = nbElev[i00 + 1], z10 = nbElev[i00 + 550], z11 = nbElev[i00 + 551];
-    if (Number.isFinite(z00) && Number.isFinite(z01) && Number.isFinite(z10) && Number.isFinite(z11)) {
-      return (1 - dr) * (1 - dc) * z00 + (1 - dr) * dc * z01 + dr * (1 - dc) * z10 + dr * dc * z11;
-    }
-    const val = nbElev[Math.round(v) * 550 + Math.round(u)];
-    if (Number.isFinite(val)) return val;
   }
-  return NaN;
+  return elevations[neighborhoodIndex(bundle, cell)];
 }
 
 export function cellStepMetrics(bundle: FieldBundle, fromCell: Cell, toCell: Cell) {
@@ -129,7 +148,7 @@ export function cellStepMetrics(bundle: FieldBundle, fromCell: Cell, toCell: Cel
   );
   const elevFrom = elevationAtCell(bundle, fromCell);
   const elevTo = elevationAtCell(bundle, toCell);
-  const rise = Number.isFinite(elevFrom) && Number.isFinite(elevTo) ? elevTo - elevFrom : 0;
+  const rise = elevTo - elevFrom;
   const grade = distance > 0 ? rise / distance : 0;
   const minutes = distance > 0
     ? (distance * (1 + scenario.uphillCoefficient * Math.max(grade, 0) +
@@ -145,209 +164,110 @@ export function routeNeighborhood(
   hazards: readonly HazardZone[] = [],
   lowerSlope = false,
 ): RouteSummary {
-  const nbElev = bundle.contextData?.neighborhoodElevation;
-  if (!nbElev) {
-    return {
-      status: 'MISSING_INPUT',
-      distanceMeters: null,
-      nominalTravelMinutes: null,
-      geometryGrid: [],
-      sampledElevationsMeters: [],
-      unknownReason: 'No supported route through known coverage',
-    };
+  const nb = bundle.manifest.mapDisplay?.neighborhood;
+  const failure = (missing: boolean): RouteSummary => ({
+    status: missing ? 'MISSING_INPUT' : 'NO_SUPPORTED_PATH', distanceMeters: null,
+    nominalTravelMinutes: null, geometryGrid: [], sampledElevationsMeters: [],
+    unknownReason: missing ? 'No supported route through known coverage' : 'Modeled terrain or event constraint blocks the route',
+  });
+  const startIdx = neighborhoodIndex(bundle, fromCell);
+  const goalIdx = neighborhoodIndex(bundle, toCell);
+  if (!nb || !hasModeledTerrain(bundle, fromCell) || !hasModeledTerrain(bundle, toCell) || startIdx < 0 || goalIdx < 0) {
+    return failure(true);
   }
 
-  const nbW = 550;
-  const nbH = 550;
-  const nbTotal = nbW * nbH;
-  const nbCellMeters = (bundle.manifest.cellWidthMeters || 20) * 2;
-  const baseMask = bundle.contextData?.neighborhoodMask;
-  const mask = baseMask ? baseMask.slice() : new Uint8Array(nbTotal).fill(1);
-
-  for (const { cell: [hr, hc], radius } of hazards) {
-    const hNr = 220 + hr * 0.5;
-    const hNc = 220 + hc * 0.5;
-    const hRad = Math.max(0.75, radius * 0.5);
-    const rMin = Math.max(0, Math.floor(hNr - hRad - 1));
-    const rMax = Math.min(nbH - 1, Math.ceil(hNr + hRad + 1));
-    const cMin = Math.max(0, Math.floor(hNc - hRad - 1));
-    const cMax = Math.min(nbW - 1, Math.ceil(hNc + hRad + 1));
-    for (let r = rMin; r <= rMax; r++) {
-      for (let c = cMin; c <= cMax; c++) {
-        if (Math.hypot(r - hNr, c - hNc) <= hRad && mask[r * nbW + c] === 1) {
-          mask[r * nbW + c] = 2;
-        }
-      }
+  const {width, height, cellWidthMeters, cellHeightMeters} = bundle.manifest;
+  const point = (index: number): Cell => {
+    if (index === startIdx) return fromCell;
+    if (index === goalIdx) return toCell;
+    return [Math.floor((Math.floor(index / nb.width) * nb.cellHeightMeters - (nb.spanMeters - height * cellHeightMeters) / 2) / cellHeightMeters),
+      Math.floor(((index % nb.width) * nb.cellWidthMeters - (nb.spanMeters - width * cellWidthMeters) / 2) / cellWidthMeters)];
+  };
+  const samePoint = (a: Cell, b: Cell) => a[0] === b[0] && a[1] === b[1];
+  const blocked = (cell: Cell) => hazards.some(zone => Math.hypot(cell[0] - zone.cell[0], cell[1] - zone.cell[1]) <= zone.radius);
+  if (blocked(toCell)) return failure(false);
+  let missingTerrain = false;
+  function traversable(cell: Cell) {
+    if (!hasModeledTerrain(bundle, cell)) {
+      missingTerrain = true;
+      return false;
     }
+    return !blocked(cell);
   }
 
-  const toNb = (r: number, c: number): [number, number] => [
-    Math.min(nbH - 1, Math.max(0, Math.floor(220 + r * 0.5))),
-    Math.min(nbW - 1, Math.max(0, Math.floor(220 + c * 0.5))),
-  ];
-
-  const [sr, sc] = toNb(fromCell[0], fromCell[1]);
-  const [tr, tc] = toNb(toCell[0], toCell[1]);
-  const startIdx = sr * nbW + sc;
-  const goalIdx = tr * nbW + tc;
-
-  const startValid = mask[startIdx] === 1 || (mask[startIdx] === 2 && (!baseMask || baseMask[startIdx] === 1));
-  if (!startValid || mask[goalIdx] !== 1) {
-    const missing = mask[startIdx] === 0 || mask[goalIdx] === 0;
-    return {
-      status: missing ? 'MISSING_INPUT' : 'NO_SUPPORTED_PATH',
-      distanceMeters: null,
-      nominalTravelMinutes: null,
-      geometryGrid: [],
-      sampledElevationsMeters: [],
-      unknownReason: missing ? 'No supported route through known coverage' : 'Modeled terrain or event constraint blocks the route',
-    };
+  function connection(from: Cell, to: Cell): { cells: Cell[]; cost: number } | null {
+    const cells: Cell[] = [];
+    const dr = to[0] - from[0], dc = to[1] - from[1];
+    const count = Math.max(Math.abs(dr), Math.abs(dc));
+    if (count === 0 || (scenario.connectivity !== 8 && dr && dc)) return null;
+    let prev = from;
+    let cost = 0;
+    for (let i = 1; i <= count; i++) {
+      const next: Cell = [Math.round(from[0] + dr * i / count), Math.round(from[1] + dc * i / count)];
+      if (!traversable(next)) return null;
+      if (prev[0] !== next[0] && prev[1] !== next[1] &&
+          (!traversable([prev[0], next[1]]) || !traversable([next[0], prev[1]]))) return null;
+      const step = cellStepMetrics(bundle, prev, next);
+      if (!Number.isFinite(step.grade) || Math.abs(step.grade) > maxGrade) return null;
+      const penalty = step.minutes * (Math.abs(step.grade) / maxGrade) ** 2 * (lowerSlope ? 14 : 6);
+      cost += step.minutes + penalty;
+      cells.push(next);
+      prev = next;
+    }
+    return { cells, cost };
   }
 
+  function ready(geometryGrid: Cell[]): RouteSummary {
+    const {distance, consumption} = routeMetrics(bundle, geometryGrid);
+    return {status: 'READY', distanceMeters: distance, nominalTravelMinutes: consumption.minutes,
+      geometryGrid, sampledElevationsMeters: geometryGrid.map(cell => elevationAtCell(bundle, cell))};
+  }
+
+  if (samePoint(fromCell, toCell)) return ready([fromCell]);
   if (startIdx === goalIdx) {
-    const geometryGrid: Cell[] =
-      fromCell[0] === toCell[0] && fromCell[1] === toCell[1]
-        ? [fromCell]
-        : [fromCell, toCell];
-    const sampledElevationsMeters = geometryGrid.map(c => elevationAtCell(bundle, c));
-    const { distance, consumption } = routeMetrics(bundle, geometryGrid);
-    return {
-      status: 'READY',
-      distanceMeters: distance,
-      nominalTravelMinutes: consumption.minutes,
-      geometryGrid,
-      sampledElevationsMeters,
-    };
+    const edge = connection(fromCell, toCell);
+    return edge ? ready([fromCell, ...edge.cells]) : failure(missingTerrain);
   }
 
-  const { width, height } = bundle.manifest;
-  const nodeElevation = (nr: number, nc: number, idx: number): number => {
-    if (nr >= 220 && nr < 330 && nc >= 220 && nc < 330) {
-      const r20 = (nr - 220) * 2;
-      const c20 = (nc - 220) * 2;
-      if (r20 >= 0 && r20 < height && c20 >= 0 && c20 < width) {
-        const zCenter = bundle.elevationMeters[r20 * width + c20];
-        if (Number.isFinite(zCenter)) return zCenter;
-      }
-    }
-    return nbElev[idx];
-  };
-
-  const heuristicMinutes = (nr: number, nc: number): number => {
-    const dx = Math.abs(nc - tc);
-    const dy = Math.abs(nr - tr);
-    const octileMeters = nbCellMeters * (Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy));
-    return octileMeters / scenario.referenceSpeedMetersPerSecond / 60;
-  };
-
+  const heuristic = ([row, col]: Cell) => Math.hypot((row - toCell[0]) * cellHeightMeters,
+    (col - toCell[1]) * cellWidthMeters) / scenario.referenceSpeedMetersPerSecond / 60;
   const offsets = scenario.connectivity === 8 ? [...orthogonal, ...diagonal] : orthogonal;
-  const slopeWeight = lowerSlope ? 14 : 6;
-  const gScore = new Float64Array(nbTotal).fill(Infinity);
-  const closed = new Uint8Array(nbTotal);
-  const link = new Int32Array(nbTotal).fill(-1);
+  const gScore = new Float64Array(nb.width * nb.height).fill(Infinity);
+  const link = new Int32Array(gScore.length).fill(-1);
   const queue = new SearchQueue();
-
   gScore[startIdx] = 0;
-  queue.push({ cell: startIdx, cost: heuristicMinutes(sr, sc) });
+  queue.push({cell: startIdx, cost: heuristic(fromCell)});
 
-  let found = false;
   for (let current = queue.pop(); current; current = queue.pop()) {
     const u = current.cell;
+    const from = point(u);
+    if (current.cost !== gScore[u] + heuristic(from)) continue;
     if (u === goalIdx) {
-      found = true;
-      break;
+      const path: number[] = [];
+      for (let index = u; index !== -1; index = link[index]) path.push(index);
+      path.reverse();
+      const cells = [fromCell];
+      for (let i = 1; i < path.length; i++) {
+        cells.push(...connection(point(path[i - 1]), point(path[i]))!.cells);
+      }
+      return ready(cells);
     }
-    if (closed[u]) continue;
-    closed[u] = 1;
-
-    const ur = Math.floor(u / nbW);
-    const uc = u % nbW;
-    const uElev = nodeElevation(ur, uc, u);
-    const uG = gScore[u];
-
+    const nr = Math.floor(u / nb.width), nc = u % nb.width;
     for (const [dr, dc] of offsets) {
-      const vr = ur + dr;
-      const vc = uc + dc;
-      if (vr < 0 || vr >= nbH || vc < 0 || vc >= nbW) continue;
-      const v = vr * nbW + vc;
-      if (closed[v] || mask[v] !== 1) continue;
-      if (dr !== 0 && dc !== 0 && (mask[ur * nbW + vc] !== 1 || mask[vr * nbW + uc] !== 1)) continue;
-
-      const vElev = nodeElevation(vr, vc, v);
-      const distance = dr !== 0 && dc !== 0 ? nbCellMeters * Math.SQRT2 : nbCellMeters;
-      const rise = vElev - uElev;
-      const grade = rise / distance;
-      if (!Number.isFinite(grade) || Math.abs(grade) > maxGrade) continue;
-
-      const minutes =
-        (distance *
-          (1 +
-            scenario.uphillCoefficient * Math.max(grade, 0) +
-            scenario.downhillCoefficient * Math.max(-grade, 0))) /
-        scenario.referenceSpeedMetersPerSecond /
-        60;
-      const penalty = minutes * (Math.abs(grade) / maxGrade) ** 2 * slopeWeight;
-      const candidateG = uG + minutes + penalty;
-
-      if (candidateG < gScore[v]) {
-        gScore[v] = candidateG;
-        link[v] = u;
-        queue.push({ cell: v, cost: candidateG + heuristicMinutes(vr, vc) });
-      }
+      const r = nr + dr, c = nc + dc;
+      if (r < 0 || r >= nb.height || c < 0 || c >= nb.width) continue;
+      const v = r * nb.width + c;
+      const to = point(v);
+      const edge = connection(from, to);
+      if (!edge) continue;
+      const cost = gScore[u] + edge.cost;
+      if (cost >= gScore[v]) continue;
+      gScore[v] = cost;
+      link[v] = u;
+      queue.push({cell: v, cost: cost + heuristic(to)});
     }
   }
-
-  if (!found) {
-    const missing = mask.includes(0);
-    return {
-      status: missing ? 'MISSING_INPUT' : 'NO_SUPPORTED_PATH',
-      distanceMeters: null,
-      nominalTravelMinutes: null,
-      geometryGrid: [],
-      sampledElevationsMeters: [],
-      unknownReason: missing ? 'No supported route through known coverage' : 'Modeled terrain or event constraint blocks the route',
-    };
-  }
-
-  const nbPath: number[] = [];
-  for (let cur = goalIdx; cur !== -1; cur = link[cur]) {
-    nbPath.push(cur);
-    if (cur === startIdx) break;
-  }
-  nbPath.reverse();
-
-  const coarseCells: Cell[] = nbPath.map((idx, i) => {
-    if (i === 0) return fromCell;
-    if (i === nbPath.length - 1) return toCell;
-    const nr = Math.floor(idx / nbW);
-    const nc = idx % nbW;
-    return [(nr - 220) * 2, (nc - 220) * 2];
-  });
-
-  const geometryGrid: Cell[] = [coarseCells[0]];
-  for (let i = 1; i < coarseCells.length; i++) {
-    const [pr, pc] = geometryGrid[geometryGrid.length - 1];
-    const [cr, cc] = coarseCells[i];
-    const steps = Math.max(Math.abs(cr - pr), Math.abs(cc - pc));
-    for (let s = 1; s <= steps; s++) {
-      const r = Math.round(pr + ((cr - pr) * s) / steps);
-      const c = Math.round(pc + ((cc - pc) * s) / steps);
-      const last = geometryGrid[geometryGrid.length - 1];
-      if (r !== last[0] || c !== last[1]) {
-        geometryGrid.push([r, c]);
-      }
-    }
-  }
-
-  const sampledElevationsMeters = geometryGrid.map(c => elevationAtCell(bundle, c));
-  const { distance, consumption } = routeMetrics(bundle, geometryGrid);
-  return {
-    status: 'READY',
-    distanceMeters: distance,
-    nominalTravelMinutes: consumption.minutes,
-    geometryGrid,
-    sampledElevationsMeters,
-  };
+  return failure(missingTerrain);
 }
 
 export function footingCategory(meanThermalInertia: number | null, looseFraction: number | null): string | null {

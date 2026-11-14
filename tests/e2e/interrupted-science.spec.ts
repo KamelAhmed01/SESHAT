@@ -5,7 +5,7 @@ test('interrupted science preserves observations, survives reload, compares fini
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
 
-  await page.goto('/');
+  await page.goto('/dev/');
   await expect(page.getByRole('heading', {name: 'Plan a science traverse'})).toBeVisible();
 
   await expect(page.getByRole('button', {name: 'Add Shuyak · Cape Nukshak'})).toBeVisible();
@@ -96,7 +96,7 @@ test('workbench has no horizontal overflow at 1440x900, 1280x720, 390x844, and 3
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
-    await page.goto('/');
+    await page.goto('/dev/');
     await expect(page.getByRole('heading', {name: 'Plan a science traverse'})).toBeVisible();
     await expect(page.getByRole('button', {name: 'Add Shuyak · Cape Nukshak'})).toBeVisible();
     const overflow = await page.evaluate(() => ({

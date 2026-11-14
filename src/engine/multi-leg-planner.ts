@@ -110,12 +110,17 @@ function createEvaluator(input: PlannerInput) {
 
   function itinerary(stops: ScienceTarget[]): MissionPlan {
     let currentCell = origin;
-    let label = (currentCell[0] === origin[0] && currentCell[1] === origin[1]) ? landingName : 'Astronaut position';
+    let label = originIndex === bundle.manifest.baseIndex ? landingName : 'Current position';
     let travel = zeroResources, science = zeroResources, clock: number | null = spent.minutes;
     const legs = [...stops.map(stop => ({id: stop.id, name: stop.name, cell: targetCell(stop), duration: stop.activity.minutes})),
       {id: landingId, name: landingName, cell: landingCell(bundle), duration: 0}].map(destination => {
       const targetPt = destination.cell ?? currentCell;
-      const {route, terrain} = segment(currentCell, targetPt);
+      const {route, terrain} = destination.cell
+        ? segment(currentCell, targetPt)
+        : {route: {
+            status: 'MISSING_INPUT' as const, distanceMeters: null, nominalTravelMinutes: null,
+            geometryGrid: [], sampledElevationsMeters: [], unknownReason: 'No supported stop location',
+          }, terrain: routeMetrics(bundle, [])};
       const activity = scienceResources(destination.duration), moving = atSpeed(terrain.consumption, speedPenalty);
       const departure: number = clock ?? NaN;
       const arrival = route.status === 'READY' ? departure + moving.minutes : NaN;
@@ -185,6 +190,12 @@ function abbreviated(stops: ScienceTarget[]) {
     const original = stop.activity.minutes;
     return {...stop, activity: {...stop.activity, minutes: Math.min(original, Math.max(10, Math.floor(original * 0.7)))}};
   });
+}
+
+/** Evaluate the exact visit order and activity times with the same directed planner. */
+export function planInVisitOrder(input: PlannerInput): MissionPlan {
+  const evaluate = createEvaluator(input);
+  return evaluate.withWaypoints(evaluate.itinerary([...input.stops]));
 }
 
 export function previewMission(input: PlannerInput) {

@@ -113,7 +113,8 @@ describe('Mars geographic AEQD coordinate transforms', () => {
   });
 
   it('allows navigation stops and calculates terrain-aware routes into neighborhood chunks', () => {
-    const { routeNeighborhood } = require('../../.build/src/engine/traverse-graph.js');
+    const { cellStepMetrics, hasModeledTerrain, routeNeighborhood } = require('../../.build/src/engine/traverse-graph.js');
+    const scenario = require('../../.build/src/config/mission-scenario.json');
     const origin = [86, 24]; // Landing site
     const targetInRing1 = [86, 280]; // East in Chunk (0, +1)
     const centerElevBuf = fs.readFileSync(path.join(process.cwd(), 'public/data/elevation.bin'));
@@ -137,6 +138,30 @@ describe('Mars geographic AEQD coordinate transforms', () => {
     assert.ok(route.distanceMeters > 5000);
     assert.ok(route.geometryGrid.length > 200);
     assert.ok(route.nominalTravelMinutes > 40);
+
+    // Ring 2 is reachable by the route search even when the scenario budget is too short for the round trip.
+    const outer = [86, 460];
+    const [lat, lon] = gridToMarsLatLng(...outer, manifest);
+    assert.deepEqual(marsLatLngToGridFloat(lat, lon, manifest, true).map(Math.floor), outer);
+    for (const [from, to] of [[origin, outer], [outer, origin]]) {
+      const leg = routeNeighborhood(realBundle, from, to);
+      assert.equal(leg.status, 'READY');
+      assert.deepEqual(leg.geometryGrid.at(0), from);
+      assert.deepEqual(leg.geometryGrid.at(-1), to);
+      assert.ok(leg.geometryGrid.every(cell => hasModeledTerrain(realBundle, cell)));
+      let geodesicMeters = 0, minutes = 0;
+      for (let i = 1; i < leg.geometryGrid.length; i++) {
+        const [start, end] = leg.geometryGrid.slice(i - 1, i + 1);
+        const step = cellStepMetrics(realBundle, start, end);
+        assert.ok(step.minutes > 0 && Math.atan(Math.abs(step.grade)) * 180 / Math.PI <= scenario.maxSlopeDegrees);
+        minutes += step.minutes;
+        geodesicMeters += marsSurfaceDistanceMeters(...gridToMarsLatLng(...start, manifest), ...gridToMarsLatLng(...end, manifest));
+      }
+      assert.ok(Math.abs(leg.nominalTravelMinutes - minutes) < 1e-8);
+      assert.ok(Math.abs(leg.distanceMeters - geodesicMeters) < 0.1);
+    }
+    assert.equal(routeNeighborhood(realBundle, origin, [86, 660]).status, 'MISSING_INPUT');
+    assert.equal(routeNeighborhood({...realBundle, contextData: {neighborhoodElevation: nbElev}}, origin, outer).status, 'MISSING_INPUT');
 
     // Verify terrain-aware avoidance: place a steep peak/ridge on the direct line in Chunk (0, +1)
     // around 20m cell (86, 250) -> nbRow = 263, nbCol = 345

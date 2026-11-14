@@ -13,16 +13,17 @@ import { Text } from '@astryxdesign/core/Text';
 import { loadScientificBundle } from '@/data/loader';
 import type { BundleResult } from '@/data/loader';
 import { MissionLifecycle } from './MissionLifecycle';
+import { NavigationWorkbench } from '@/components/navigation/NavigationWorkbench';
 import { ThemeControlPopup } from './ThemeControlPopup';
 
 /**
  * Unified entry loader for SESHAT: resolves either the verified/review-pending
  * Jezero Mars dataset (`/data`) or the explicitly disclosed synthetic acceptance
- * scene (`/?demo=1` -> `/demo`) and mounts the single `.field-workbench` UI.
+ * scene (`/dev/?demo=1` -> `/demo`) and mounts the requested workbench.
  */
-export function MissionWorkbench() {
+export function MissionWorkbench({ navigation = false }: { navigation?: boolean }) {
   const search = useSearchParams();
-  const demoMode = search.get('demo') === '1';
+  const demoMode = !navigation && search.get('demo') === '1';
   const [reloadKey, setReloadKey] = useState(0);
   const requestKey = `${demoMode ? 'demo' : 'data'}:${reloadKey}`;
   const [loaded, setLoaded] = useState<{ key: string; result: BundleResult } | null>(null);
@@ -60,6 +61,7 @@ export function MissionWorkbench() {
   }
 
   if (data.state === 'VERIFIED' || data.state === 'SOURCE_REVIEW_REQUIRED' || data.state === 'DEMO') {
+    if (navigation) return <NavigationWorkbench bundle={data.bundle} />;
     return <MissionLifecycle bundle={data.bundle} dataState={data.state} />;
   }
 
@@ -97,9 +99,9 @@ export function MissionWorkbench() {
                 onClick={() => setReloadKey(k => k + 1)}
               />
               {!demoMode ? (
-                <Link href="/?demo=1">Open synthetic test scene</Link>
+                <Link href="/dev/?demo=1">Open synthetic test scene</Link>
               ) : (
-                <Link href="/">Return to Mars dataset</Link>
+                <Link href="/dev/">Return to Mars dataset</Link>
               )}
             </HStack>
           </VStack>
