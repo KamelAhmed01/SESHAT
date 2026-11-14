@@ -41,3 +41,9 @@ AI tools help draft implementation, tests and documentation. **All route-model a
 
 - Traced the single image and pan limit to the Leaflet viewer and checked the extent of the downloaded CTX raster against its Mars CRS. Used AI assistance to specify a geographic display, a coverage gate and an offline tile fallback while keeping the scientific grid independent.
 - Checked both official WMTS capability documents, adjacent image requests at levels 6 and 12, and the 42 Viking tiles at levels 0–2. Updated the [mission plan](MISSION_LIFECYCLE.md#6-seamless-mars-map) and prepared an execution prompt. The tiles and viewer changes are planned work.
+
+## Seamless Mars tiled map & geographic viewer (Checkpoint 1) — 2026-11-14
+
+- Task: Replace the local image-bounded Mars map with a seamless planetocentric Plate Carrée (`L.CRS.EPSG4326`, spherical `R = 3,396,190 m`) Leaflet viewer carrying bundled Viking MDIM 2.1 (levels 0–2 global + Jezero corridor levels 3–7), 6 m MRO CTX Jezero mosaic pyramid (levels 8–12 full, 13 western fan), Plate Carrée AEQD-reprojected relief/orbital/geology/thermal overlays, PDS MEDA pressure context metadata, and `Browse only · outside modeled terrain` click gating.
+- Concrete limits: Source review status remains `SOURCE_REVIEW_REQUIRED` (`coordinateFrameVerified: false`, `challengeResourceQualified: false`); remote Mars Trek tiles above bundled levels require connectivity while Jezero routing and core workflow operate offline; live Vercel deployment left for post-review.
+- Verifiers: `.venv/bin/python -m pytest -q pipeline/tests tests/security` (30 passed), `pnpm run check:engine:offline` (42 passed), `pnpm verify` (Python/Node/lint/typecheck/Next static export + 8 Playwright E2E passed; [release report](VERIFICATION_RELEASE.md)), and `python -m tools.checkpoint --run-tests` ([checkpoint report](CHECKPOINT_REPORT.md)).

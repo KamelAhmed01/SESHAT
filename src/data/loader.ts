@@ -2,6 +2,103 @@
 import type { ScienceTarget } from '../engine/types';
 
 export interface FileRecord { bytes: number; sha256: string; dtype: string }
+
+export interface MapDisplayManifest {
+  projection: string;
+  marsRadiusMeters: number;
+  geographicBounds: [number, number, number, number];
+  boundaryPolygonLatLng: [number, number][];
+  terrainGeoPath: string;
+  terrainGeoSha256?: string;
+  orbitalGeoPath?: string | null;
+  orbitalGeoSha256?: string | null;
+  vikingTileTemplate: string;
+  localVikingTemplate: string;
+  localVikingTiles: string[];
+  jezeroTileTemplate: string;
+  jezeroFullMaxZoom: number;
+  jezeroFanZoom: number;
+  jezeroTileBounds: [number, number, number, number];
+  jezeroTiles: string[];
+  credits: string[];
+}
+
+export interface GeologicUnitEntry {
+  index: number;
+  symbol: string;
+  name: string;
+  description: string;
+  characteristics: string;
+  interpretation: string;
+  color: string;
+}
+
+export interface GeologicUnitsMeta {
+  sourceTitle: string;
+  sourceUrl: string;
+  licenseNote: string;
+  width: number;
+  height: number;
+  unknownCells: number;
+  units: GeologicUnitEntry[];
+  targetUnits: Record<string, string>;
+}
+
+export interface MedaContextMeta {
+  instrument: string;
+  sourceUrl: string;
+  units: string;
+  note: string;
+  sols: { sol: number; file: string; validRecords: number; minPa: number; medianPa: number; maxPa: number }[];
+  unavailableFields: Record<string, string>;
+}
+
+export interface ContextLayersManifest {
+  thermalInertia?: {
+    binaryPath: string;
+    binaryBytes: number;
+    binarySha256: string;
+    geoImagePath: string;
+    geoImageSha256: string;
+    units: string;
+    nativeSpacingMeters: number;
+    resampledToMeters: number;
+    validCells: number;
+    minValue: number | null;
+    maxValue: number | null;
+    credit: string;
+    sourceUrl: string;
+  } | null;
+  geologicUnits?: {
+    binaryPath: string;
+    binaryBytes: number;
+    binarySha256: string;
+    jsonPath: string;
+    jsonSha256: string;
+    geoImagePath: string;
+    geoImageSha256: string;
+    unitCount: number;
+    unknownCells: number;
+    credit: string;
+    sourceUrl: string;
+  } | null;
+  medaPressure?: {
+    jsonPath: string;
+    jsonSha256: string;
+    sols: number[];
+    credit: string;
+    sourceUrl: string;
+  } | null;
+}
+
+export interface ContextData {
+  thermalInertia?: Float32Array;
+  geologicUnitGrid?: Uint8Array;
+  geologicUnits?: GeologicUnitsMeta;
+  meda?: MedaContextMeta;
+  optionalFailures: string[];
+}
+
 export interface DatasetManifest {
   schemaVersion: '1.0.0';
   status: 'SOURCE_REVIEW_REQUIRED' | 'VERIFIED' | 'DEMO_SYNTHETIC';
@@ -14,6 +111,12 @@ export interface DatasetManifest {
   cellWidthMeters: number;
   cellHeightMeters: number;
   crsWkt: string;
+  rasterTransform?: readonly number[];
+  planetaryBody?: string;
+  sourceBodyRadiusMeters?: number;
+  analysisProjection?: string;
+  analysisCenterPlanetocentricLat?: number;
+  analysisCenterPositiveEastLon?: number;
   coordinateFrameVerified: boolean;
   challengeResourceQualified?: boolean;
   files: Record<string, FileRecord>;
@@ -23,7 +126,10 @@ export interface DatasetManifest {
   notice?: string;
   historicalLandingCell?: [number, number];
   sourceFileSha256?: string;
+  mapDisplay?: MapDisplayManifest;
+  contextLayers?: ContextLayersManifest;
 }
+
 export interface FieldBundle {
   manifest: DatasetManifest;
   assetRoot: '/data' | '/demo';
@@ -33,7 +139,9 @@ export interface FieldBundle {
   returnNext: Int32Array;
   elevationMeters: Float32Array;
   mask: Uint8Array;
+  contextData?: ContextData;
 }
+
 export type BundleResult =
   | { state: 'NO_DATA'; message: string }
   | { state: 'CORRUPT'; message: string }
@@ -45,6 +153,7 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', buffer);
   return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+
 function readNumeric(buffer: ArrayBuffer, kind: 'f64' | 'f32' | 'i32' | 'u8') {
   const b = new DataView(buffer);
   const size = kind === 'f64' ? 8 : kind === 'u8' ? 1 : 4;
@@ -55,10 +164,12 @@ function readNumeric(buffer: ArrayBuffer, kind: 'f64' | 'f32' | 'i32' | 'u8') {
   if (kind === 'i32') return Int32Array.from({ length: count }, (_, i) => b.getInt32(i * size, true));
   return new Uint8Array(buffer);
 }
+
 function isSafeAssetPath(path: string): boolean {
   return /^imagery\/[a-zA-Z0-9][\w./-]*\.(webp|png|jpg)$/.test(path) &&
     !path.split('/').includes('..') && !path.includes('//');
 }
+
 function validateTargets(targets: unknown, m: DatasetManifest): asserts targets is ScienceTarget[] {
   if (targets === undefined) return;
   if (!Array.isArray(targets) || targets.length > 20) throw new Error('Invalid science target catalog');
@@ -78,6 +189,7 @@ function validateTargets(targets: unknown, m: DatasetManifest): asserts targets 
       throw new Error('Synthetic fixture cannot declare verified point');
   }
 }
+
 /** Fetch with small backoff so single-threaded local static servers never drop concurrent asset reads. */
 async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   let lastError: unknown;
@@ -92,6 +204,69 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
     await new Promise(resolve => setTimeout(resolve, 60 * (attempt + 1)));
   }
   throw lastError instanceof Error ? lastError : new Error(`Failed to fetch ${url}`);
+}
+
+async function fetchOptionalContext(root: '/data' | '/demo', m: DatasetManifest): Promise<ContextData> {
+  const optionalFailures: string[] = [];
+  const context: ContextData = { optionalFailures };
+  const layers = m.contextLayers;
+  if (!layers) return context;
+
+  const tasks: Promise<void>[] = [];
+
+  if (layers.thermalInertia) {
+    const meta = layers.thermalInertia;
+    tasks.push((async () => {
+      try {
+        const res = await fetchWithRetry(`${root}/${meta.binaryPath}`, 1);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength !== meta.binaryBytes || await sha256Hex(buf) !== meta.binarySha256) {
+          throw new Error('hash mismatch');
+        }
+        context.thermalInertia = readNumeric(buf, 'f32') as Float32Array;
+      } catch {
+        optionalFailures.push('thermalInertia');
+      }
+    })());
+  }
+
+  if (layers.geologicUnits) {
+    const meta = layers.geologicUnits;
+    tasks.push((async () => {
+      try {
+        const [binRes, jsonRes] = await Promise.all([
+          fetchWithRetry(`${root}/${meta.binaryPath}`, 1),
+          fetchWithRetry(`${root}/${meta.jsonPath}`, 1),
+        ]);
+        if (!binRes.ok || !jsonRes.ok) throw new Error('HTTP error');
+        const [binBuf, jsonText] = await Promise.all([binRes.arrayBuffer(), jsonRes.text()]);
+        if (binBuf.byteLength !== meta.binaryBytes || await sha256Hex(binBuf) !== meta.binarySha256) {
+          throw new Error('binary hash mismatch');
+        }
+        context.geologicUnitGrid = new Uint8Array(binBuf);
+        context.geologicUnits = JSON.parse(jsonText) as GeologicUnitsMeta;
+      } catch {
+        optionalFailures.push('geologicUnits');
+      }
+    })());
+  }
+
+  if (layers.medaPressure) {
+    const meta = layers.medaPressure;
+    tasks.push((async () => {
+      try {
+        const res = await fetchWithRetry(`${root}/${meta.jsonPath}`, 1);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        context.meda = JSON.parse(await res.text()) as MedaContextMeta;
+      } catch {
+        optionalFailures.push('medaPressure');
+      }
+    })());
+  }
+
+  await Promise.all(tasks);
+  return context;
 }
 
 /** `/demo` is opt-in only, including for static exports. `/data` remains the science gate. */
@@ -145,28 +320,48 @@ export async function loadScientificBundle(root: '/data' | '/demo' = '/data'): P
     const batchOne = await Promise.all(specs.slice(0, 3).map(loadSpec));
     const batchTwo = await Promise.all(specs.slice(3).map(loadSpec));
     const arrays = [...batchOne, ...batchTwo];
-    // Image integrity is checked *before* the browser attempts to render the layer.
+
+    // Terrain relief integrity is required for core map presentation.
     const imageResponse = await fetchWithRetry(`${root}/${m.imagery.path}`);
     if (!imageResponse.ok) throw new Error('Missing shaded relief imagery');
     const imageBytes = await imageResponse.arrayBuffer();
     if (imageBytes.byteLength !== m.imagery.bytes || await sha256Hex(imageBytes) !== m.imagery.sha256)
       throw new Error('Imagery SHA-256 mismatch');
+
+    const optionalFailures: string[] = [];
+    // Optional orbital layer: keep CTX terrain and routing usable if an optional asset returns 404 or fails offline.
     if (m.optical) {
       if (!isSafeAssetPath(m.optical.path) || !/^[0-9a-f]{64}$/.test(m.optical.sha256) ||
-          !(m.optical.bytes > 0) || !m.optical.sourceUrl.startsWith('https://'))
+          !(m.optical.bytes > 0) || !m.optical.sourceUrl.startsWith('https://')) {
         throw new Error('Invalid orbital layer manifest');
-      const opticalResponse = await fetchWithRetry(`${root}/${m.optical.path}`);
-      if (!opticalResponse.ok) throw new Error('Missing orbital imagery');
-      const opticalBytes = await opticalResponse.arrayBuffer();
-      if (opticalBytes.byteLength !== m.optical.bytes || await sha256Hex(opticalBytes) !== m.optical.sha256)
-        throw new Error('Orbital imagery SHA-256 mismatch');
+      }
+      try {
+        const opticalResponse = await fetchWithRetry(`${root}/${m.optical.path}`, 1);
+        if (!opticalResponse.ok) {
+          m.optical = undefined;
+          optionalFailures.push('optical');
+        } else {
+          const opticalBytes = await opticalResponse.arrayBuffer();
+          if (opticalBytes.byteLength !== m.optical.bytes || await sha256Hex(opticalBytes) !== m.optical.sha256)
+            throw new Error('Orbital imagery SHA-256 mismatch');
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('SHA-256 mismatch')) throw err;
+        m.optical = undefined;
+        optionalFailures.push('optical');
+      }
     }
+
+    const contextData = await fetchOptionalContext(root, m);
+    contextData.optionalFailures.push(...optionalFailures);
+
     const [o, r, p, n, z, k] = arrays;
     const bundle: FieldBundle = {
       manifest: m, assetRoot: root,
       outboundMinutes: o as Float64Array, returnMinutes: r as Float64Array,
       outboundParents: p as Int32Array, returnNext: n as Int32Array,
       elevationMeters: z as Float32Array, mask: k as Uint8Array,
+      contextData,
     };
     if (bundle.mask[m.baseIndex] !== 1 || bundle.outboundMinutes[m.baseIndex] !== 0 || bundle.returnMinutes[m.baseIndex] !== 0)
       throw new Error('Base index / distance invariant failed');

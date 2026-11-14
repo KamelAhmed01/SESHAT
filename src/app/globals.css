@@ -532,6 +532,13 @@
     border-radius: 16px;
   }
 
+  .map-root-wrap {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
   .map-root {
     position: absolute;
     inset: 0;
@@ -578,9 +585,40 @@
 
   .cc-map-controls-top {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    justify-content: flex-end;
+    gap: 6px;
     pointer-events: auto;
+  }
+
+  .cc-map-action-btn {
+    font: 10px ui-monospace, monospace;
+    color: #e7ddd3;
+    background: rgba(24, 21, 18, 0.88);
+    border: 1px solid #4a433c;
+    border-radius: 7px;
+    padding: 5px 8px;
+    line-height: 1.1;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .cc-map-action-btn:hover {
+    background: #332e2a;
+    border-color: #6b5d50;
+  }
+
+  .cc-map-action-btn[aria-pressed="true"] {
+    color: #14110f;
+    background: var(--s-accent-bright);
+    border-color: var(--s-accent-bright);
+    font-weight: 600;
+  }
+
+  .cc-map-action-btn:focus-visible {
+    outline: 2px solid var(--s-accent-bright);
+    outline-offset: 2px;
   }
 
   .map-north {
@@ -646,7 +684,7 @@
     z-index: 560;
     left: 18px;
     right: 68px;
-    bottom: 42px;
+    bottom: 76px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -699,6 +737,109 @@
     background: rgba(20, 17, 15, 0.82);
     color: #c9bfb4;
     font: 10px ui-monospace, monospace;
+  }
+
+  .cc-mars-scale-bar {
+    position: absolute;
+    left: 16px;
+    bottom: 38px;
+    z-index: 545;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 9px;
+    border-radius: 7px;
+    background: rgba(20, 17, 15, 0.84);
+    border: 1px solid #3f3831;
+    color: #e6ddd2;
+    font: 10px ui-monospace, monospace;
+    pointer-events: none;
+    max-width: calc(100% - 88px);
+  }
+
+  .cc-scale-graphic {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cc-scale-line {
+    display: inline-block;
+    height: 5px;
+    border: 1.5px solid #f3a833;
+    border-top: 0;
+    background: rgba(243, 168, 51, 0.25);
+    flex-shrink: 0;
+  }
+
+  .cc-scale-graphic strong {
+    font-size: 10px;
+    color: #f8e5cf;
+  }
+
+  .cc-scale-graphic small {
+    font-size: 9px;
+    color: #bfb5aa;
+  }
+
+  .cc-cursor-coord {
+    font-size: 9px;
+    color: #d6ccc0;
+    border-left: 1px solid #443d36;
+    padding-left: 8px;
+  }
+
+  .cc-point-inspector {
+    position: absolute;
+    left: 16px;
+    top: 72px;
+    z-index: 565;
+    max-width: min(320px, calc(100% - 32px));
+    background: rgba(20, 17, 15, 0.94);
+    border: 1px solid #574c42;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--s-text);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+  }
+
+  .cc-point-inspector-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .cc-point-inspector-badge {
+    font: 600 10px ui-monospace, monospace;
+    letter-spacing: 0.03em;
+    color: var(--s-accent-bright);
+  }
+
+  .cc-point-inspector-badge[data-status="OUTSIDE_GRID"],
+  .cc-point-inspector-badge[data-status="NODATA"] {
+    color: #fca5a5;
+  }
+
+  .cc-point-inspector-meta {
+    font: 10px ui-monospace, monospace;
+    color: #cfc5ba;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
+  .cc-point-inspector-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
   }
 
   /* Bottom-Left Camera View Card */
@@ -2311,14 +2452,38 @@
 
     .map-stage,
     .cc-map-card {
-      min-height: 360px;
+      min-height: 390px;
       height: auto;
+    }
+
+    .cc-map-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+    }
+
+    .cc-map-controls-top {
+      justify-content: flex-start;
+    }
+
+    .cc-mars-scale-bar {
+      left: 10px;
+      bottom: 36px;
+      max-width: calc(100% - 62px);
+    }
+
+    .cc-point-inspector {
+      left: 10px;
+      right: 10px;
+      top: auto;
+      bottom: 72px;
+      max-width: none;
     }
 
     .cc-map-hud {
       left: 10px;
       right: 10px;
-      bottom: 38px;
+      bottom: 72px;
       justify-content: flex-start;
     }
 

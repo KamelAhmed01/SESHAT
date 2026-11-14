@@ -16,7 +16,9 @@ def test_vercel_headers_present_and_narrow():
     assert "default-src 'self'" in policy
     assert "object-src 'none'" in policy
     assert "frame-ancestors 'none'" in policy
-    assert 'http:' not in policy and 'https:' not in policy
+    tokens = {tok.rstrip(';') for tok in policy.split()}
+    assert 'http:' not in tokens and 'https:' not in tokens
+    assert 'https://trek.nasa.gov' in tokens
     assert "'unsafe-eval'" not in policy
 
 

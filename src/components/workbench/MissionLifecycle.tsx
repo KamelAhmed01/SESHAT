@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useEffect, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
+import type { MapPointInspection } from '@/components/cartography/LeafletGrid';
 import { ElevationProfile } from '@/components/visualizations/ElevationProfile';
 import type { FieldBundle } from '@/data/loader';
 import { addResources, subtractResources, zeroResources } from '@/engine/consumables';
@@ -254,6 +255,11 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   const [cameraMode, setCameraMode] = useState<'surface' | 'profile'>('surface');
   const [cameraZoom, setCameraZoom] = useState(1);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [showGeology, setShowGeology] = useState(false);
+  const [showThermal, setShowThermal] = useState(false);
+  const [fitRequestKey, setFitRequestKey] = useState(0);
+  const [resetViewRequestKey, setResetViewRequestKey] = useState(0);
+  const [inspectedPoint, setInspectedPoint] = useState<MapPointInspection | null>(null);
 
   const {manifest} = bundle;
   const origin = useMemo(() => landingCell(bundle), [bundle]);
@@ -470,13 +476,51 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                 <div className="map-topline cc-map-header">
                   <div className="cc-map-title-group">
                     <span className="map-title">Topographic map</span>
-                    <span className="cc-map-sub">{manifest.width}×{manifest.height} · 20 m local Mars AEQD</span>
+                    <span className="cc-map-sub">
+                      {manifest.mapDisplay?.projection === 'MARS_PLANETOCENTRIC_PLATE_CARREE'
+                        ? `${manifest.width}×${manifest.height} modeled 20 m AEQD · Global Mars Viking + 6 m CTX`
+                        : `${manifest.width}×${manifest.height} · 20 m local Mars AEQD`}
+                    </span>
                   </div>
                   <div className="cc-map-controls-top">
+                    <button
+                      type="button"
+                      className="cc-map-action-btn"
+                      onClick={() => setResetViewRequestKey(k => k + 1)}
+                    >
+                      Back to Jezero
+                    </button>
+                    <button
+                      type="button"
+                      className="cc-map-action-btn"
+                      onClick={() => setFitRequestKey(k => k + 1)}
+                    >
+                      Fit mission
+                    </button>
                     {manifest.optical && <div className="map-layer-switch" role="group" aria-label="Surface layer">
                       <button type="button" aria-pressed={!optical} onClick={() => setOptical(false)}>Terrain</button>
                       <button type="button" aria-pressed={optical} onClick={() => setOptical(true)}>Orbital</button>
                     </div>}
+                    {manifest.contextLayers?.geologicUnits?.geoImagePath && (
+                      <button
+                        type="button"
+                        className="cc-map-action-btn"
+                        aria-pressed={showGeology}
+                        onClick={() => setShowGeology(v => !v)}
+                      >
+                        Geology
+                      </button>
+                    )}
+                    {manifest.contextLayers?.thermalInertia?.geoImagePath && (
+                      <button
+                        type="button"
+                        className="cc-map-action-btn"
+                        aria-pressed={showThermal}
+                        onClick={() => setShowThermal(v => !v)}
+                      >
+                        Thermal
+                      </button>
+                    )}
                     <span className="map-north" aria-hidden="true">↑ N</span>
                     <button
                       type="button"
@@ -493,12 +537,68 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                   bundle={bundle}
                   selectedCell={null}
                   onCellSelect={selectCell}
+                  onInspectPoint={info => {
+                    setInspectedPoint(info);
+                    if (info.status === 'OUTSIDE_GRID') {
+                      setNotice('Browse only · outside modeled terrain. Select a target inside the 20 m Jezero grid.');
+                    } else if (info.status === 'NODATA') {
+                      setNotice('Terrain data unavailable at that cell.');
+                    }
+                  }}
                   elapsedMinutes={0}
                   missionBudgetMinutes={scenario.timeBudgetMinutes}
                   reserveMinutes={scenario.reserveMinutes}
                   showOptical={optical}
+                  showGeology={showGeology}
+                  showThermal={showThermal}
+                  fitRequestKey={fitRequestKey}
+                  resetViewRequestKey={resetViewRequestKey}
                   mission={overlay}
                 />
+
+                {inspectedPoint && (
+                  <div className="cc-point-inspector" role="status" aria-label="Map point inspection">
+                    <div className="cc-point-inspector-head">
+                      <span className="cc-point-inspector-badge" data-status={inspectedPoint.status}>
+                        {inspectedPoint.status === 'OUTSIDE_GRID'
+                          ? 'Browse only · outside modeled terrain'
+                          : inspectedPoint.status === 'NODATA'
+                            ? 'Terrain data unavailable'
+                            : inspectedPoint.label}
+                      </span>
+                      <button
+                        type="button"
+                        className="cc-map-action-btn"
+                        onClick={() => setInspectedPoint(null)}
+                        aria-label="Close map point inspection"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="cc-point-inspector-meta">
+                      {inspectedPoint.lat !== null && inspectedPoint.lon !== null && (
+                        <span>
+                          {`${Math.abs(inspectedPoint.lat).toFixed(4)}°${inspectedPoint.lat >= 0 ? 'N' : 'S'}, ${(((inspectedPoint.lon % 360) + 360) % 360).toFixed(4)}°E`}
+                        </span>
+                      )}
+                      {inspectedPoint.cell && (
+                        <span>Cell ({inspectedPoint.cell[0]}, {inspectedPoint.cell[1]})</span>
+                      )}
+                      {inspectedPoint.elevationMeters !== undefined && inspectedPoint.elevationMeters !== null && (
+                        <span>Elev {inspectedPoint.elevationMeters.toFixed(1)} m</span>
+                      )}
+                      {inspectedPoint.geologicUnit && (
+                        <span>Unit: {inspectedPoint.geologicUnit}</span>
+                      )}
+                      {inspectedPoint.thermalInertia !== undefined && inspectedPoint.thermalInertia !== null && (
+                        <span>TI {inspectedPoint.thermalInertia.toFixed(0)} J m⁻² K⁻¹ s⁻¹/²</span>
+                      )}
+                    </div>
+                    {inspectedPoint.status === 'OUTSIDE_GRID' && (
+                      <span>Outside the 20 m Mars AEQD routing terrain; pan or click &quot;Back to Jezero&quot; to select stops inside modeled terrain.</span>
+                    )}
+                  </div>
+                )}
 
                 <div className="cc-map-hud">
                   <div className="cc-hud-cta">

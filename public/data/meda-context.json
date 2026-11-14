@@ -1,0 +1,38 @@
+{
+  "instrument": "NASA PDS Mars 2020 MEDA Pressure Sensor (PS)",
+  "sourceUrl": "https://pds-atmospheres.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/",
+  "units": "Pa",
+  "note": "Historical Jezero pressure records for selected sols; not real-time weather.",
+  "sols": [
+    {
+      "sol": 490,
+      "file": "WE__0490___________DER_PS__________________P01.CSV",
+      "validRecords": 34551,
+      "minPa": 776.81,
+      "medianPa": 798.67,
+      "maxPa": 817.19
+    },
+    {
+      "sol": 509,
+      "file": "WE__0509___________DER_PS__________________P01.CSV",
+      "validRecords": 32196,
+      "minPa": 767.25,
+      "medianPa": 791.76,
+      "maxPa": 803.65
+    },
+    {
+      "sol": 575,
+      "file": "WE__0575___________DER_PS__________________P01.CSV",
+      "validRecords": 25719,
+      "minPa": 707.53,
+      "medianPa": 746.52,
+      "maxPa": 768.44
+    }
+  ],
+  "unavailableFields": {
+    "boulderRoughness": "Unavailable (20 m CTX DEM does not resolve sub-meter boulders or regolith cohesion)",
+    "localWind": "Unavailable (MEDA PS context includes pressure only; wind forecast excluded)",
+    "solarIllumination": "Unavailable (dynamic solar elevation/shadow model excluded from static bundle)",
+    "radiationDose": "Unavailable (active particle/RAD forecast excluded from static bundle)"
+  }
+}

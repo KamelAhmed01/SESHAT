@@ -2,7 +2,21 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { FieldBundle } from '@/data/loader';
-import { gridToViewer, viewerToGrid } from '@/cartography/coordinates';
+import {
+  MARS_SPHERE_RADIUS_METERS,
+  aeqdMetersToLonLat,
+  gridBoundaryLatLngs,
+  gridGeographicBounds,
+  gridPointToMarsLatLng,
+  gridToMarsLatLng,
+  gridToViewer,
+  isMarsGeographic,
+  marsLatLngToGrid,
+  marsLatLngToGridFloat,
+  marsSurfaceDistanceMeters,
+  normalizeMarsEastLon,
+  viewerToGrid,
+} from '@/cartography/coordinates';
 import { frontierMembership } from '@/engine/frontier';
 import { landingId } from '@/engine/multi-leg-planner';
 import type { MissionLeg } from '@/engine/multi-leg-planner';
@@ -12,9 +26,21 @@ import type { RouteSummary } from '@/engine/types';
 import type { OpportunityEntry } from '@/engine/opportunity-ledger';
 import { targetMarkers } from '@/cartography/target-markers';
 
+export interface MapPointInspection {
+  lat: number | null;
+  lon: number | null;
+  cell: Cell | null;
+  status: 'COVERED' | 'NODATA' | 'OUTSIDE_GRID';
+  label: string;
+  elevationMeters?: number | null;
+  geologicUnit?: string | null;
+  thermalInertia?: number | null;
+}
+
 interface Props {
   bundle: FieldBundle | null;
   onCellSelect: (row: number, col: number) => void;
+  onInspectPoint?: (info: MapPointInspection) => void;
   selectedCell: [number, number] | null;
   elapsedMinutes: number;
   missionBudgetMinutes: number;
@@ -22,7 +48,11 @@ interface Props {
   outboundRoute?: RouteSummary | null;
   returnRoute?: RouteSummary | null;
   showOptical?: boolean;
+  showGeology?: boolean;
+  showThermal?: boolean;
   opportunities?: readonly OpportunityEntry[];
+  fitRequestKey?: number;
+  resetViewRequestKey?: number;
   mission?: {
     planned: readonly MissionLeg[];
     previous?: readonly MissionLeg[];
@@ -33,10 +63,92 @@ interface Props {
   };
 }
 
-function contourOverlayPng(bundle: FieldBundle): string {
+const EMPTY_TILE_URI = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function formatMarsCoord(lat: number, lon: number): string {
+  const eastLon = normalizeMarsEastLon(lon);
+  return `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}, ${eastLon.toFixed(4)}°E`;
+}
+
+function niceScaleMeters(rawMeters: number): number {
+  if (!Number.isFinite(rawMeters) || rawMeters <= 0) return 500;
+  const pow = 10 ** Math.floor(Math.log10(rawMeters));
+  const scaled = rawMeters / pow;
+  const mult = scaled >= 5 ? 5 : scaled >= 2 ? 2 : 1;
+  return mult * pow;
+}
+
+function contourOverlayPng(bundle: FieldBundle, geoBounds?: { south: number; west: number; north: number; east: number }): string {
   const { width: w, height: h } = bundle.manifest;
-  const scale = 4;
   const canvas = document.createElement('canvas');
+  const scale = 4;
+  if (geoBounds && isMarsGeographic(bundle.manifest)) {
+    const gw = 360;
+    const gh = 360;
+    canvas.width = gw;
+    canvas.height = gh;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    const z = bundle.elevationMeters;
+    const mask = bundle.mask;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (let i = 0; i < w * h; i++) {
+      if (mask[i] === 1 && Number.isFinite(z[i])) {
+        if (z[i] < minZ) minZ = z[i];
+        if (z[i] > maxZ) maxZ = z[i];
+      }
+    }
+    if (!Number.isFinite(minZ) || maxZ - minZ < 1) return '';
+    const rawStep = (maxZ - minZ) / 14;
+    const step = Math.max(5, Math.round(rawStep / 5) * 5);
+    const startLevel = Math.ceil(minZ / step) * step;
+    const toPx = (rowF: number, colF: number): [number, number] => {
+      const [lat, lon] = gridPointToMarsLatLng(rowF, colF, bundle.manifest);
+      const px = ((lon - geoBounds.west) / (geoBounds.east - geoBounds.west)) * gw;
+      const py = ((geoBounds.north - lat) / (geoBounds.north - geoBounds.south)) * gh;
+      return [px, py];
+    };
+    let levelIndex = 0;
+    for (let level = startLevel; level < maxZ; level += step, levelIndex++) {
+      const isMajor = levelIndex % 4 === 0;
+      ctx.beginPath();
+      ctx.strokeStyle = isMajor ? 'rgba(243, 168, 51, 0.34)' : 'rgba(245, 240, 235, 0.16)';
+      ctx.lineWidth = isMajor ? 1.25 : 0.8;
+      for (let r = 0; r < h - 1; r++) {
+        for (let c = 0; c < w - 1; c++) {
+          const i0 = r * w + c;
+          const i1 = i0 + 1;
+          const i2 = i0 + w + 1;
+          const i3 = i0 + w;
+          if (mask[i0] !== 1 || mask[i1] !== 1 || mask[i2] !== 1 || mask[i3] !== 1) continue;
+          const v0 = z[i0], v1 = z[i1], v2 = z[i2], v3 = z[i3];
+          if (!Number.isFinite(v0) || !Number.isFinite(v1) || !Number.isFinite(v2) || !Number.isFinite(v3)) continue;
+          const b0 = v0 >= level ? 1 : 0;
+          const b1 = v1 >= level ? 1 : 0;
+          const b2 = v2 >= level ? 1 : 0;
+          const b3 = v3 >= level ? 1 : 0;
+          if (b0 === b1 && b1 === b2 && b2 === b3) continue;
+          const pts: [number, number][] = [];
+          if (b0 !== b1) pts.push(toPx(r + 0.5, c + 0.5 + (level - v0) / (v1 - v0)));
+          if (b1 !== b2) pts.push(toPx(r + 0.5 + (level - v1) / (v2 - v1), c + 1.5));
+          if (b2 !== b3) pts.push(toPx(r + 1.5, c + 1.5 - (level - v2) / (v3 - v2)));
+          if (b3 !== b0) pts.push(toPx(r + 1.5 - (level - v3) / (v0 - v3), c + 0.5));
+          if (pts.length >= 2) {
+            ctx.moveTo(pts[0][0], pts[0][1]);
+            ctx.lineTo(pts[1][0], pts[1][1]);
+            if (pts.length === 4) {
+              ctx.moveTo(pts[2][0], pts[2][1]);
+              ctx.lineTo(pts[3][0], pts[3][1]);
+            }
+          }
+        }
+      }
+      ctx.stroke();
+    }
+    return canvas.toDataURL('image/png');
+  }
+
   canvas.width = w * scale;
   canvas.height = h * scale;
   const ctx = canvas.getContext('2d');
@@ -106,14 +218,57 @@ function contourOverlayPng(bundle: FieldBundle): string {
   return canvas.toDataURL('image/png');
 }
 
-function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reserve: number): string {
+function frontierPng(
+  bundle: FieldBundle,
+  elapsed: number,
+  budget: number,
+  reserve: number,
+  geoBounds?: { south: number; west: number; north: number; east: number },
+): string {
   const m = bundle.manifest;
+  const membership = frontierMembership(bundle.outboundMinutes, bundle.returnMinutes, bundle.mask, elapsed, budget, reserve);
   const canvas = document.createElement('canvas');
-  canvas.width = m.width; canvas.height = m.height;
+
+  if (geoBounds && isMarsGeographic(m)) {
+    const gw = 240;
+    const gh = 240;
+    canvas.width = gw;
+    canvas.height = gh;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas unavailable');
+    const image = ctx.createImageData(gw, gh);
+    for (let py = 0; py < gh; py++) {
+      const lat = geoBounds.north - ((py + 0.5) / gh) * (geoBounds.north - geoBounds.south);
+      for (let px = 0; px < gw; px++) {
+        const lon = geoBounds.west + ((px + 0.5) / gw) * (geoBounds.east - geoBounds.west);
+        const pt = marsLatLngToGridFloat(lat, lon, m);
+        const off = (py * gw + px) * 4;
+        if (!pt) continue;
+        const r = Math.floor(pt[0]);
+        const c = Math.floor(pt[1]);
+        const idx = r * m.width + c;
+        if (membership[idx] === 1) {
+          image.data[off] = 229;
+          image.data[off + 1] = 178;
+          image.data[off + 2] = 92;
+          image.data[off + 3] = 56;
+        } else if (bundle.mask[idx] !== 1) {
+          image.data[off] = 15;
+          image.data[off + 1] = 23;
+          image.data[off + 2] = 42;
+          image.data[off + 3] = 95;
+        }
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    return canvas.toDataURL('image/png');
+  }
+
+  canvas.width = m.width;
+  canvas.height = m.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas unavailable');
   const image = ctx.createImageData(m.width, m.height);
-  const membership = frontierMembership(bundle.outboundMinutes, bundle.returnMinutes, bundle.mask, elapsed, budget, reserve);
   for (let i = 0; i < m.width * m.height; i++) {
     const included = membership[i] === 1;
     const off = i * 4;
@@ -124,177 +279,668 @@ function frontierPng(bundle: FieldBundle, elapsed: number, budget: number, reser
   return canvas.toDataURL('image/png');
 }
 
-export function LeafletGrid({ bundle, selectedCell, onCellSelect,
-  elapsedMinutes, missionBudgetMinutes, reserveMinutes, outboundRoute, returnRoute,
-  showOptical = false, opportunities = [], mission }: Props) {
+function marsGeodesicCircleLatLngs(
+  centerCell: Cell,
+  radiusCells: number,
+  manifest: FieldBundle['manifest'],
+): [number, number][] {
+  const [a, b, c, d, e, f] = manifest.rasterTransform!;
+  const r0 = centerCell[0] + 0.5;
+  const c0 = centerCell[1] + 0.5;
+  const cx = a * c0 + b * r0 + c;
+  const cy = d * c0 + e * r0 + f;
+  const radiusMeters = (radiusCells + 0.5) * manifest.cellWidthMeters;
+  const lat0 = manifest.analysisCenterPlanetocentricLat!;
+  const lon0 = manifest.analysisCenterPositiveEastLon!;
+  const sphereR = manifest.sourceBodyRadiusMeters ?? MARS_SPHERE_RADIUS_METERS;
+  const pts: [number, number][] = [];
+  for (let k = 0; k < 32; k++) {
+    const theta = (k / 32) * 2 * Math.PI;
+    const [lon, lat] = aeqdMetersToLonLat(
+      cx + radiusMeters * Math.cos(theta),
+      cy + radiusMeters * Math.sin(theta),
+      lat0,
+      lon0,
+      sphereR,
+    );
+    pts.push([lat, lon]);
+  }
+  return pts;
+}
+
+export function LeafletGrid({
+  bundle,
+  selectedCell,
+  onCellSelect,
+  onInspectPoint,
+  elapsedMinutes,
+  missionBudgetMinutes,
+  reserveMinutes,
+  outboundRoute,
+  returnRoute,
+  showOptical = false,
+  showGeology = false,
+  showThermal = false,
+  opportunities = [],
+  fitRequestKey = 0,
+  resetViewRequestKey = 0,
+  mission,
+}: Props) {
   const isMissionMap = mission !== undefined;
   const element = useRef<HTMLDivElement>(null);
   const [mapRevision, setMapRevision] = useState(0);
+  const [scaleInfo, setScaleInfo] = useState<{ label: string; widthPx: number; zoomLabel: string } | null>(null);
+  const [cursorInfo, setCursorInfo] = useState<string>('');
   const mapRef = useRef<import('leaflet').Map | null>(null);
   const leafletRef = useRef<typeof import('leaflet') | null>(null);
   const backgroundOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const contourOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
+  const geologyOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
+  const thermalOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const selectionLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
   const frontierRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const routeLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
   const onSelectRef = useRef(onCellSelect);
+  const onInspectRef = useRef(onInspectPoint);
+  const initialFitDoneRef = useRef(false);
+
   useEffect(() => { onSelectRef.current = onCellSelect; }, [onCellSelect]);
+  useEffect(() => { onInspectRef.current = onInspectPoint; }, [onInspectPoint]);
+
+  const useMarsGeo = Boolean(bundle && isMarsGeographic(bundle.manifest));
 
   useEffect(() => {
     if (!element.current) return;
     let cancelled = false;
+    initialFitDoneRef.current = false;
+
     (async () => {
       const L = await import('leaflet');
       if (cancelled || !element.current || mapRef.current) return;
-      const h = bundle?.manifest.height ?? 120;
-      const w = bundle?.manifest.width ?? 160;
-      const bounds = L.latLngBounds([[0, 0], [h, w]]);
-      const map = L.map(element.current, {
-        crs: L.CRS.Simple,
-        zoomControl: false, attributionControl: false,
-        zoomSnap: 0.25, zoomDelta: 0.5, minZoom: -5,
-        maxZoom: 4, maxBoundsViscosity: 0.7,
-      });
-      L.control.zoom({position: 'bottomright'}).addTo(map);
-      map.fitBounds(bounds, { padding: [26, 26], animate: false });
-      map.setMaxBounds(bounds.pad(0.35));
-      L.rectangle(bounds, { color: '#453e38', weight: 1, fillColor: '#181512', fillOpacity: 0.04, dashArray: '4 6' }).addTo(map);
-      if (bundle) {
-        const overlay = L.imageOverlay(bundle.assetRoot + '/' + bundle.manifest.imagery.path, bounds, { opacity: 0.88 });
-        overlay.addTo(map);
-        backgroundOverlayRef.current = overlay;
-        overlay.getElement()?.setAttribute('alt', 'DEM-derived shaded relief; not orbital photography');
 
-        const contourUrl = contourOverlayPng(bundle);
-        if (contourUrl) {
-          contourOverlayRef.current = L.imageOverlay(contourUrl, bounds, { opacity: 0.9, interactive: false }).addTo(map);
+      if (bundle && isMarsGeographic(bundle.manifest)) {
+        const radius = bundle.manifest.sourceBodyRadiusMeters ?? MARS_SPHERE_RADIUS_METERS;
+        const geoBounds = gridGeographicBounds(bundle.manifest);
+        const gridBoundsLatLng = L.latLngBounds(
+          [geoBounds.south, geoBounds.west],
+          [geoBounds.north, geoBounds.east],
+        );
+
+        const marsCrs = L.extend({}, L.CRS.EPSG4326, {
+          code: 'MARS:4326',
+          R: radius,
+          distance(a: import('leaflet').LatLng, b: import('leaflet').LatLng) {
+            return marsSurfaceDistanceMeters(a.lat, a.lng, b.lat, b.lng, radius);
+          },
+        });
+
+        const centerLat = bundle.manifest.analysisCenterPlanetocentricLat ?? 18.452;
+        const centerLon = bundle.manifest.analysisCenterPositiveEastLon ?? 77.414;
+
+        const map = L.map(element.current, {
+          crs: marsCrs,
+          center: [centerLat, centerLon],
+          zoom: isMissionMap ? 13 : 12,
+          zoomControl: false,
+          attributionControl: false,
+          zoomSnap: 0.5,
+          zoomDelta: 1,
+          minZoom: 0,
+          maxZoom: 15,
+          maxBounds: [[-90, -540], [90, 540]],
+          maxBoundsViscosity: 0.8,
+        });
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        const mapDisplay = bundle.manifest.mapDisplay;
+        const localVikingSet = new Set(mapDisplay?.localVikingTiles ?? []);
+        const jezeroSet = new Set(mapDisplay?.jezeroTiles ?? []);
+
+        const MarsTileLayer = L.TileLayer.extend({
+          initialize(
+            this: import('leaflet').TileLayer & { _mode: string },
+            mode: string,
+            options: import('leaflet').TileLayerOptions,
+          ) {
+            this._mode = mode;
+            const proto = L.TileLayer.prototype as unknown as {
+              initialize: (url: string, opts: import('leaflet').TileLayerOptions) => void;
+            };
+            proto.initialize.call(this, '', options);
+          },
+          getTileUrl(this: import('leaflet').TileLayer & { _mode: string }, coords: import('leaflet').Coords) {
+            const z = coords.z;
+            const rows = 1 << z;
+            if (z < 0 || coords.y < 0 || coords.y >= rows) return EMPTY_TILE_URI;
+            const cols = 1 << (z + 1);
+            const wrappedX = ((coords.x % cols) + cols) % cols;
+            const key = `${z}/${coords.y}/${wrappedX}`;
+
+            if (this._mode === 'viking-base') {
+              return localVikingSet.has(key) ? `${bundle.assetRoot}/tiles/viking/${key}.jpg` : EMPTY_TILE_URI;
+            }
+            if (this._mode === 'viking-detail') {
+              if (localVikingSet.has(key)) return `${bundle.assetRoot}/tiles/viking/${key}.jpg`;
+              const tmpl = mapDisplay?.vikingTileTemplate
+                ?? 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg';
+              return tmpl.replace('{z}', String(z)).replace('{y}', String(coords.y)).replace('{x}', String(wrappedX));
+            }
+            if (this._mode === 'jezero-full' || this._mode === 'jezero-fan') {
+              return jezeroSet.has(key) ? `${bundle.assetRoot}/tiles/jezero/${key}.webp` : EMPTY_TILE_URI;
+            }
+            return EMPTY_TILE_URI;
+          },
+        });
+
+        const addResilientTileLayer = (mode: string, options: import('leaflet').TileLayerOptions) => {
+          const LayerCtor = MarsTileLayer as unknown as new (m: string, o: import('leaflet').TileLayerOptions) => import('leaflet').TileLayer;
+          const layer = new LayerCtor(mode, options);
+          layer.on('tileerror', (evt: import('leaflet').TileErrorEvent) => {
+            if (evt.tile) evt.tile.style.display = 'none';
+          });
+          return layer.addTo(map);
+        };
+
+        // Planet-wide Viking MDIM 2.1 local base (levels 0-2), scaled seamlessly up to maxZoom
+        addResilientTileLayer('viking-base', {
+          minZoom: 0,
+          maxNativeZoom: 2,
+          maxZoom: 15,
+          tileSize: 256,
+          zIndex: 10,
+        });
+
+        // Mars Trek regional Viking levels 3-7 (local Jezero corridor first, online fallback when reachable)
+        addResilientTileLayer('viking-detail', {
+          minZoom: 3,
+          maxNativeZoom: 7,
+          maxZoom: 15,
+          tileSize: 256,
+          crossOrigin: true,
+          zIndex: 20,
+        });
+
+        // Wider Jezero 6 m MRO CTX mosaic pyramid (levels 8-12 full extent, level 13 western fan)
+        if (jezeroSet.size > 0) {
+          addResilientTileLayer('jezero-full', {
+            minZoom: 8,
+            maxNativeZoom: 12,
+            maxZoom: 15,
+            tileSize: 256,
+            zIndex: 30,
+          });
+          addResilientTileLayer('jezero-fan', {
+            minZoom: 13,
+            maxNativeZoom: 13,
+            maxZoom: 15,
+            tileSize: 256,
+            zIndex: 35,
+          });
         }
+
+        // Exact AEQD 20 m modeled area outline (always visible as crisp boundary even at Mars overview)
+        L.polygon(gridBoundaryLatLngs(bundle.manifest, 28), {
+          color: '#f3a833',
+          weight: 1.6,
+          dashArray: '5 4',
+          fill: false,
+          interactive: false,
+        }).addTo(map);
+
+        // Modeled 20 m analysis display raster (AEQD reprojected to Mars Plate Carree)
+        const initialBgPath = mapDisplay?.terrainGeoPath ?? bundle.manifest.imagery.path;
+        const bgOverlay = L.imageOverlay(`${bundle.assetRoot}/${initialBgPath}`, gridBoundsLatLng, {
+          opacity: 0.9,
+          zIndex: 45,
+        }).addTo(map);
+        bgOverlay.getElement()?.setAttribute('alt', 'DEM-derived shaded relief aligned to Mars AEQD; not orbital photography');
+        backgroundOverlayRef.current = bgOverlay;
+
+        const contourUrl = contourOverlayPng(bundle, geoBounds);
+        if (contourUrl) {
+          contourOverlayRef.current = L.imageOverlay(contourUrl, gridBoundsLatLng, {
+            opacity: 0.85,
+            interactive: false,
+            zIndex: 48,
+          }).addTo(map);
+        }
+
+        const selection = L.layerGroup().addTo(map);
+        selectionLayerRef.current = selection;
+
+        const updateScale = () => {
+          const z = map.getZoom();
+          const size = map.getSize();
+          if (!size.x || !size.y) return;
+          const y = Math.round(size.y * 0.5);
+          const p1 = map.containerPointToLatLng([Math.round(size.x * 0.5 - 50), y]);
+          const p2 = map.containerPointToLatLng([Math.round(size.x * 0.5 + 50), y]);
+          const meters100Px = marsSurfaceDistanceMeters(p1.lat, p1.lng, p2.lat, p2.lng, radius);
+          const targetMeters = niceScaleMeters(meters100Px);
+          const widthPx = Math.max(28, Math.min(130, Math.round((targetMeters / Math.max(0.01, meters100Px)) * 100)));
+          const label = targetMeters >= 1000 ? `${(targetMeters / 1000).toFixed(targetMeters >= 10000 ? 0 : 1).replace(/\.0$/, '')} km` : `${Math.round(targetMeters)} m`;
+          const zoomLabel = z >= 12 ? 'Western fan · 6 m CTX' : z >= 8 ? 'Jezero regional · CTX' : z >= 3 ? 'Mars regional · Viking' : 'Mars global · Viking MDIM 2.1';
+          setScaleInfo({ label, widthPx, zoomLabel });
+        };
+
+        map.on('zoomend moveend', updateScale);
+        map.on('mousemove', e => {
+          setCursorInfo(formatMarsCoord(e.latlng.lat, e.latlng.lng));
+        });
+        map.on('click', e => {
+          const lat = e.latlng.lat;
+          const lon = e.latlng.lng;
+          const cell = marsLatLngToGrid(lat, lon, bundle.manifest);
+          if (!cell) {
+            onInspectRef.current?.({
+              lat,
+              lon,
+              cell: null,
+              status: 'OUTSIDE_GRID',
+              label: 'Browse only · outside modeled terrain',
+            });
+            return;
+          }
+          const idx = cell[0] * bundle.manifest.width + cell[1];
+          const elev = Number.isFinite(bundle.elevationMeters[idx]) ? bundle.elevationMeters[idx] : null;
+          const tiVal = bundle.contextData?.thermalInertia && Number.isFinite(bundle.contextData.thermalInertia[idx])
+            ? bundle.contextData.thermalInertia[idx] : null;
+          const unitIdx = bundle.contextData?.geologicUnitGrid?.[idx] ?? 0;
+          const unitObj = unitIdx > 0 ? bundle.contextData?.geologicUnits?.units.find(u => u.index === unitIdx) : undefined;
+          const unitLabel = unitObj ? `${unitObj.symbol} · ${unitObj.name}` : 'Unknown / unmapped';
+
+          if (bundle.mask[idx] !== 1) {
+            onInspectRef.current?.({
+              lat,
+              lon,
+              cell,
+              status: 'NODATA',
+              label: 'Terrain data unavailable',
+              elevationMeters: elev,
+              geologicUnit: unitLabel,
+              thermalInertia: tiVal,
+            });
+            if (!isMissionMap) onSelectRef.current(...cell);
+            return;
+          }
+          onInspectRef.current?.({
+            lat,
+            lon,
+            cell,
+            status: 'COVERED',
+            label: `Modeled 20 m cell (${cell[0]}, ${cell[1]})`,
+            elevationMeters: elev,
+            geologicUnit: unitLabel,
+            thermalInertia: tiVal,
+          });
+          onSelectRef.current(...cell);
+        });
+
+        mapRef.current = map;
+        leafletRef.current = L;
+        setMapRevision(revision => revision + 1);
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          map.invalidateSize();
+          if (!initialFitDoneRef.current) {
+            map.fitBounds(gridBoundsLatLng, { padding: [24, 24], animate: false });
+            initialFitDoneRef.current = true;
+          }
+          updateScale();
+        });
       } else {
-        // The grid is a UI wiring scaffold ONLY, not a depiction of Martian terrain.
-        for (let x = 0; x <= w; x += 20) L.polyline([[0, x], [h, x]], { color: '#3c3732', weight: 0.6, opacity: 0.5, interactive: false }).addTo(map);
-        for (let y = 0; y <= h; y += 20) L.polyline([[y, 0], [y, w]], { color: '#3c3732', weight: 0.6, opacity: 0.5, interactive: false }).addTo(map);
+        // Synthetic / local CRS.Simple viewer
+        const h = bundle?.manifest.height ?? 120;
+        const w = bundle?.manifest.width ?? 160;
+        const bounds = L.latLngBounds([[0, 0], [h, w]]);
+        const map = L.map(element.current, {
+          crs: L.CRS.Simple,
+          zoomControl: false,
+          attributionControl: false,
+          zoomSnap: 0.25,
+          zoomDelta: 0.5,
+          minZoom: -5,
+          maxZoom: 4,
+          maxBoundsViscosity: 0.7,
+        });
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        map.fitBounds(bounds, { padding: [26, 26], animate: false });
+        map.setMaxBounds(bounds.pad(0.35));
+        L.rectangle(bounds, { color: '#453e38', weight: 1, fillColor: '#181512', fillOpacity: 0.04, dashArray: '4 6' }).addTo(map);
+        if (bundle) {
+          const overlay = L.imageOverlay(bundle.assetRoot + '/' + bundle.manifest.imagery.path, bounds, { opacity: 0.88 });
+          overlay.addTo(map);
+          backgroundOverlayRef.current = overlay;
+          overlay.getElement()?.setAttribute('alt', 'DEM-derived shaded relief; not orbital photography');
+
+          const contourUrl = contourOverlayPng(bundle);
+          if (contourUrl) {
+            contourOverlayRef.current = L.imageOverlay(contourUrl, bounds, { opacity: 0.9, interactive: false }).addTo(map);
+          }
+        } else {
+          for (let x = 0; x <= w; x += 20) L.polyline([[0, x], [h, x]], { color: '#3c3732', weight: 0.6, opacity: 0.5, interactive: false }).addTo(map);
+          for (let y = 0; y <= h; y += 20) L.polyline([[y, 0], [y, w]], { color: '#3c3732', weight: 0.6, opacity: 0.5, interactive: false }).addTo(map);
+        }
+        const selection = L.layerGroup().addTo(map);
+        selectionLayerRef.current = selection;
+        map.on('click', e => {
+          if (!bundle) return;
+          const cell = viewerToGrid(e.latlng.lat, e.latlng.lng, w, h);
+          if (cell) {
+            const idx = cell[0] * w + cell[1];
+            onInspectRef.current?.({
+              lat: null,
+              lon: null,
+              cell,
+              status: bundle.mask[idx] === 1 ? 'COVERED' : 'NODATA',
+              label: bundle.mask[idx] === 1 ? `Synthetic cell (${cell[0]}, ${cell[1]})` : 'Terrain data unavailable',
+            });
+            onSelectRef.current(...cell);
+          } else {
+            onInspectRef.current?.({
+              lat: null,
+              lon: null,
+              cell: null,
+              status: 'OUTSIDE_GRID',
+              label: 'Browse only · outside modeled terrain',
+            });
+          }
+        });
+        mapRef.current = map;
+        leafletRef.current = L;
+        setMapRevision(revision => revision + 1);
+        requestAnimationFrame(() => { if (!cancelled) map.invalidateSize(); });
       }
-      const selection = L.layerGroup().addTo(map);
-      selectionLayerRef.current = selection;
-      map.on('click', e => {
-        if (!bundle) return;
-        const cell = viewerToGrid(e.latlng.lat, e.latlng.lng, w, h);
-        if (cell) onSelectRef.current(...cell);
-      });
-      mapRef.current = map; leafletRef.current = L;
-      setMapRevision(revision => revision + 1);
-      // Leaflet initializes when the shell has already established its dimensions.
-      requestAnimationFrame(() => { if (!cancelled) map.invalidateSize(); });
     })();
+
     return () => {
       cancelled = true;
-      mapRef.current?.remove(); mapRef.current = null;
+      mapRef.current?.remove();
+      mapRef.current = null;
       selectionLayerRef.current = null;
       backgroundOverlayRef.current = null;
       contourOverlayRef.current = null;
+      geologyOverlayRef.current = null;
+      thermalOverlayRef.current = null;
       frontierRef.current = null;
       routeLayerRef.current = null;
     };
   }, [bundle, isMissionMap]);
 
+  // Swap surface layer without moving the camera or recreating the map
   useEffect(() => {
     if (!bundle || !backgroundOverlayRef.current) return;
+    if (isMarsGeographic(bundle.manifest)) {
+      const md = bundle.manifest.mapDisplay;
+      const path = showOptical && bundle.manifest.optical
+        ? (md?.orbitalGeoPath ?? bundle.manifest.optical.path)
+        : (md?.terrainGeoPath ?? bundle.manifest.imagery.path);
+      backgroundOverlayRef.current.setUrl(`${bundle.assetRoot}/${path}`);
+      backgroundOverlayRef.current.getElement()?.setAttribute('alt',
+        showOptical && bundle.manifest.optical ? 'Orbital imagery aligned to Mars AEQD; source review required' : 'DEM-derived shaded relief aligned to Mars AEQD; not photography');
+      return;
+    }
     const path = showOptical && bundle.manifest.optical ? bundle.manifest.optical.path : bundle.manifest.imagery.path;
     backgroundOverlayRef.current.setUrl(`${bundle.assetRoot}/${path}`);
     backgroundOverlayRef.current.getElement()?.setAttribute('alt',
       showOptical && bundle.manifest.optical ? 'Orbital imagery aligned to terrain grid; source review required' : 'DEM-derived shaded relief; not photography');
   }, [bundle, showOptical, mapRevision]);
 
+  // Toggle optional Geologic Units and Thermal Inertia overlays (Geographic Mars mode)
+  useEffect(() => {
+    const map = mapRef.current, L = leafletRef.current;
+    if (!map || !L || !bundle || !isMarsGeographic(bundle.manifest)) return;
+    const b = gridGeographicBounds(bundle.manifest);
+    const latLngBounds = L.latLngBounds([b.south, b.west], [b.north, b.east]);
+
+    geologyOverlayRef.current?.remove();
+    geologyOverlayRef.current = null;
+    if (showGeology && bundle.manifest.contextLayers?.geologicUnits?.geoImagePath) {
+      geologyOverlayRef.current = L.imageOverlay(
+        `${bundle.assetRoot}/${bundle.manifest.contextLayers.geologicUnits.geoImagePath}`,
+        latLngBounds,
+        { opacity: 0.65, interactive: false, zIndex: 49 },
+      ).addTo(map);
+    }
+
+    thermalOverlayRef.current?.remove();
+    thermalOverlayRef.current = null;
+    if (showThermal && bundle.manifest.contextLayers?.thermalInertia?.geoImagePath) {
+      thermalOverlayRef.current = L.imageOverlay(
+        `${bundle.assetRoot}/${bundle.manifest.contextLayers.thermalInertia.geoImagePath}`,
+        latLngBounds,
+        { opacity: 0.68, interactive: false, zIndex: 50 },
+      ).addTo(map);
+    }
+  }, [bundle, showGeology, showThermal, mapRevision]);
+
+  // Frontier overlay for Opportunity Navigator mode (`!isMissionMap`)
   useEffect(() => {
     if (!bundle || !mapRef.current || !leafletRef.current || isMissionMap) return;
     const L = leafletRef.current;
     frontierRef.current?.remove();
     const h = bundle.manifest.height, w = bundle.manifest.width;
+    if (isMarsGeographic(bundle.manifest)) {
+      const geoBounds = gridGeographicBounds(bundle.manifest);
+      const image = frontierPng(bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, geoBounds);
+      frontierRef.current = L.imageOverlay(image, [[geoBounds.south, geoBounds.west], [geoBounds.north, geoBounds.east]], {
+        interactive: false,
+        opacity: 1,
+        zIndex: 52,
+      }).addTo(mapRef.current);
+      return;
+    }
     const image = frontierPng(bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes);
     frontierRef.current = L.imageOverlay(image, [[0, 0], [h, w]], { interactive: false, opacity: 1 }).addTo(mapRef.current);
   }, [bundle, elapsedMinutes, missionBudgetMinutes, reserveMinutes, mapRevision, isMissionMap]);
 
+  // Explicit "Back to Jezero" viewport action
+  useEffect(() => {
+    if (!resetViewRequestKey || !mapRef.current || !leafletRef.current || !bundle) return;
+    const map = mapRef.current, L = leafletRef.current;
+    if (isMarsGeographic(bundle.manifest)) {
+      const gb = gridGeographicBounds(bundle.manifest);
+      map.fitBounds(L.latLngBounds([gb.south, gb.west], [gb.north, gb.east]), { padding: [24, 24], animate: true });
+    } else {
+      map.fitBounds(L.latLngBounds([[0, 0], [bundle.manifest.height, bundle.manifest.width]]), { padding: [24, 24], animate: true });
+    }
+  }, [resetViewRequestKey, bundle]);
+
+  // Explicit "Fit mission" viewport action
+  useEffect(() => {
+    if (!fitRequestKey || !mapRef.current || !leafletRef.current || !bundle) return;
+    const map = mapRef.current, L = leafletRef.current;
+    const toPt = (c: Cell): [number, number] =>
+      isMarsGeographic(bundle.manifest)
+        ? gridToMarsLatLng(c[0], c[1], bundle.manifest)
+        : gridToViewer(c[0], c[1], bundle.manifest.height);
+    const pts: [number, number][] = [];
+    if (mission?.position) pts.push(toPt(mission.position));
+    for (const leg of mission?.planned ?? []) {
+      for (const c of leg.route.geometryGrid) pts.push(toPt(c));
+    }
+    for (const c of outboundRoute?.geometryGrid ?? []) pts.push(toPt(c));
+    for (const c of returnRoute?.geometryGrid ?? []) pts.push(toPt(c));
+    if (pts.length >= 2) {
+      map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15, animate: true });
+    } else if (isMarsGeographic(bundle.manifest)) {
+      const gb = gridGeographicBounds(bundle.manifest);
+      map.fitBounds(L.latLngBounds([gb.south, gb.west], [gb.north, gb.east]), { padding: [24, 24], animate: true });
+    }
+  }, [fitRequestKey, bundle, mission, outboundRoute, returnRoute]);
+
+  // Draw route geometry, hazards, contingency waypoints, and astronaut position
   useEffect(() => {
     const map = mapRef.current, L = leafletRef.current;
     if (!map || !L || !bundle) return;
     routeLayerRef.current?.remove();
     const layer = L.layerGroup().addTo(map);
     routeLayerRef.current = layer;
+    const geo = isMarsGeographic(bundle.manifest);
+    const point = ([r, c]: Cell): [number, number] =>
+      geo ? gridToMarsLatLng(r, c, bundle.manifest) : gridToViewer(r, c, bundle.manifest.height);
+
     const draw = (route: RouteSummary | null | undefined, color: string, dashArray?: string, glow?: boolean) => {
       if (route?.status !== 'READY' || route.geometryGrid.length < 2) return;
-      const pts = route.geometryGrid.map(([r, c]) => gridToViewer(r, c, bundle.manifest.height));
+      const pts = route.geometryGrid.map(point);
       if (glow) {
         L.polyline(pts, { color, weight: 7, opacity: 0.16, interactive: false }).addTo(layer);
       }
       L.polyline(pts, { color, weight: 3, opacity: 0.96, interactive: false, dashArray }).addTo(layer);
     };
+
     draw(outboundRoute, '#f3a833', undefined, true);
     draw(returnRoute, '#34d399', '6 7', false);
+
     if (mission) {
-      const point = ([r, c]: Cell) => gridToViewer(r, c, bundle.manifest.height);
-      mission.traveled?.forEach(record => L.polyline(record.cells.map(point),
-        {color: '#94a3b8', weight: 4.5, interactive: false}).addTo(layer));
+      mission.traveled?.forEach(record => L.polyline(record.cells.map(point), {
+        color: '#94a3b8', weight: 4.5, interactive: false,
+      }).addTo(layer));
       mission.previous?.forEach(leg => draw(leg.route, '#fde047', '3 8'));
+
       for (const [index, leg] of mission.planned.entries()) {
         const isReturn = leg.targetId === landingId;
         draw(leg.route, isReturn ? '#34d399' : '#f3a833', isReturn ? '7 5' : undefined, !isReturn);
         const end = leg.route.geometryGrid.at(-1);
         if (end && !isReturn) {
-          const marker = L.circleMarker(point(end), {radius: 6.5, color: '#f3a833', fillColor: '#181512',
-            fillOpacity: 1, weight: 3, interactive: false}).addTo(layer);
+          const marker = L.circleMarker(point(end), {
+            radius: 6.5, color: '#f3a833', fillColor: '#181512',
+            fillOpacity: 1, weight: 3, interactive: false,
+          }).addTo(layer);
           const label = document.createElement('span');
           label.textContent = `${index + 1}. ${leg.to} (${end[0]}, ${end[1]})`;
           const closeToPrevious = mission.planned.slice(0, index).some(previousLeg => {
             const previousEnd = previousLeg.route.geometryGrid.at(-1);
             return previousEnd && Math.hypot(previousEnd[0] - end[0], previousEnd[1] - end[1]) < 8;
           });
-          marker.bindTooltip(label, {permanent: true, direction: closeToPrevious ? 'left' : 'right', offset: [closeToPrevious ? -9 : 9, 0], className: 'mission-map-label'});
+          marker.bindTooltip(label, {
+            permanent: true,
+            direction: closeToPrevious ? 'left' : 'right',
+            offset: [closeToPrevious ? -9 : 9, closeToPrevious ? 10 : -8],
+            className: 'mission-map-label',
+          });
         }
         for (const waypoint of leg.waypoints) {
-          L.circleMarker(point(waypoint.cell), {radius: 4, color: '#a7f3d0', fillColor: '#064e3b', fillOpacity: 1,
-            interactive: false}).addTo(layer);
+          L.circleMarker(point(waypoint.cell), {
+            radius: 4, color: '#a7f3d0', fillColor: '#064e3b', fillOpacity: 1,
+            interactive: false,
+          }).addTo(layer);
         }
       }
-      mission.hazards?.forEach(zone => L.circle(point(zone.cell), {radius: zone.radius + 0.5, color: '#ef4444',
-        fillOpacity: .22, dashArray: '4 4', interactive: false}).addTo(layer));
-      if (mission.position) L.circleMarker(point(mission.position), {radius: 8, color: '#fef3c7', fillColor: '#10b981',
-        fillOpacity: 1, weight: 3, interactive: false}).addTo(layer);
-      if (mission.selected) L.circleMarker(point(mission.selected), {radius: 8, color: '#fde047', fillOpacity: 0,
-        interactive: false}).addTo(layer);
+
+      mission.hazards?.forEach(zone => {
+        if (geo) {
+          L.polygon(marsGeodesicCircleLatLngs(zone.cell, zone.radius, bundle.manifest), {
+            color: '#ef4444', weight: 2, fillOpacity: 0.24, dashArray: '4 4', interactive: false,
+          }).addTo(layer);
+        } else {
+          L.circle(point(zone.cell), {
+            radius: zone.radius + 0.5, color: '#ef4444',
+            fillOpacity: 0.22, dashArray: '4 4', interactive: false,
+          }).addTo(layer);
+        }
+      });
+
+      if (mission.position) {
+        L.circleMarker(point(mission.position), {
+          radius: 8, color: '#fef3c7', fillColor: '#10b981',
+          fillOpacity: 1, weight: 3, interactive: false,
+        }).addTo(layer).bindTooltip(`Astronaut (${mission.position[0]}, ${mission.position[1]})`);
+      }
+      if (mission.selected) {
+        L.circleMarker(point(mission.selected), {
+          radius: 8.5, color: '#fde047', weight: 2.5, fillOpacity: 0, interactive: false,
+        }).addTo(layer);
+      }
     }
     return () => { layer.remove(); if (routeLayerRef.current === layer) routeLayerRef.current = null; };
   }, [bundle, outboundRoute, returnRoute, mapRevision, mission]);
 
+  // Draw documented targets, base markers, and selected pin (always visible before stop selection)
   useEffect(() => {
     const map = mapRef.current, L = leafletRef.current, layer = selectionLayerRef.current;
     if (!map || !L || !layer || !bundle) return;
     layer.clearLayers();
+    const geo = isMarsGeographic(bundle.manifest);
+    const point = ([r, c]: Cell): [number, number] =>
+      geo ? gridToMarsLatLng(r, c, bundle.manifest) : gridToViewer(r, c, bundle.manifest.height);
+
     const markerColors = { ROBUST: '#10b981', MARGINAL: '#f59e0b', INFEASIBLE: '#ef4444', UNKNOWN: '#9ca3af' };
-    for (const point of targetMarkers(opportunities, bundle.manifest.height, bundle.manifest.width)) {
-      const marker = L.circleMarker([point.viewerLatitude, point.viewerLongitude], {
-        radius: 5, color: '#14110f', weight: 1.5, fillColor: markerColors[point.state], fillOpacity: 0.98,
+    const docTargets = opportunities.length > 0
+      ? targetMarkers(opportunities, bundle.manifest.height, bundle.manifest.width)
+      : (bundle.manifest.scienceTargets ?? []).flatMap(t => {
+        const { gridRow: row, gridCol: col, confidence } = t.location;
+        if (confidence === 'APPROXIMATE_REGION' || row === null || col === null) return [];
+        const [vLat, vLon] = gridToViewer(row, col, bundle.manifest.height);
+        return [{ id: t.id, title: t.name, row, col, viewerLatitude: vLat, viewerLongitude: vLon, state: 'ROBUST' as const }];
+      });
+
+    for (const [idx, pt] of docTargets.entries()) {
+      const latLng: [number, number] = geo ? gridToMarsLatLng(pt.row, pt.col, bundle.manifest) : [pt.viewerLatitude, pt.viewerLongitude];
+      const marker = L.circleMarker(latLng, {
+        radius: 5.5, color: '#14110f', weight: 1.5, fillColor: markerColors[pt.state], fillOpacity: 0.98,
       }).addTo(layer);
-      // Leaflet accepts an HTMLElement; textContent prevents untrusted geology titles becoming HTML.
       const tooltip = document.createElement('span');
-      tooltip.textContent = `${point.title} · ${point.state.toLowerCase()} (research scenario)`;
-      marker.bindTooltip(tooltip);
-      marker.on('click', () => onSelectRef.current(point.row, point.col));
+      tooltip.textContent = opportunities.length > 0
+        ? `${pt.title} · ${pt.state.toLowerCase()} (research scenario)`
+        : `${pt.title} (${pt.row}, ${pt.col})`;
+      // Offset close adjacent tooltips (e.g. Swift Run & Hazeltop are 1 cell apart)
+      const nearPrev = docTargets.slice(0, idx).some(prev => Math.hypot(prev.row - pt.row, prev.col - pt.col) < 8);
+      marker.bindTooltip(tooltip, {
+        direction: nearPrev ? 'bottom' : 'top',
+        offset: [0, nearPrev ? 8 : -8],
+      });
+      marker.on('click', () => {
+        onInspectRef.current?.({
+          lat: geo ? latLng[0] : null,
+          lon: geo ? latLng[1] : null,
+          cell: [pt.row, pt.col],
+          status: 'COVERED',
+          label: pt.title,
+        });
+        onSelectRef.current(pt.row, pt.col);
+      });
     }
+
     const [br, bc] = [Math.floor(bundle.manifest.baseIndex / bundle.manifest.width), bundle.manifest.baseIndex % bundle.manifest.width];
-    L.circleMarker(gridToViewer(br, bc, bundle.manifest.height), {
+    L.circleMarker(point([br, bc]), {
       radius: 6.5, color: '#f3a833', weight: 3, fillColor: '#181512', fillOpacity: 1,
     }).addTo(layer).bindTooltip(`Scenario landing site (${br}, ${bc})`);
+
     const historic = bundle.manifest.historicalLandingCell;
-    if (historic) L.circleMarker(gridToViewer(...historic, bundle.manifest.height), {
-      radius: 5, color: '#cbd5e1', fillOpacity: .2, interactive: true,
-    }).addTo(layer).bindTooltip('Historical Perseverance landing · Octavia E. Butler');
+    if (historic) {
+      L.circleMarker(point(historic), {
+        radius: 5, color: '#cbd5e1', fillOpacity: 0.2, interactive: true,
+      }).addTo(layer).bindTooltip('Historical Perseverance landing · Octavia E. Butler');
+    }
 
     if (selectedCell) {
-      L.circleMarker(gridToViewer(selectedCell[0], selectedCell[1], bundle.manifest.height), {
+      L.circleMarker(point(selectedCell), {
         radius: 7.5, color: '#fde047', weight: 2.5, fillColor: '#e58e26', fillOpacity: 1,
       }).addTo(layer).bindTooltip('Selected scenario destination');
     }
   }, [bundle, selectedCell, opportunities, mapRevision]);
 
-  return <div className="map-root" ref={element} role="application" aria-label="Mars local-grid map viewer; select a cell only after scientific data is loaded" />;
+  return (
+    <div className="map-root-wrap">
+      <div
+        className="map-root"
+        ref={element}
+        role="application"
+        aria-label="Mars seamless terrain map viewer; pan across Jezero crater or zoom out to global Mars"
+      />
+      {useMarsGeo && (scaleInfo || cursorInfo) && (
+        <div className="cc-mars-scale-bar" aria-live="off">
+          {scaleInfo && (
+            <div className="cc-scale-graphic" title="Spherical Mars distance scale (R = 3,396,190 m)">
+              <span className="cc-scale-line" style={{ width: `${scaleInfo.widthPx}px` }} />
+              <strong>{scaleInfo.label}</strong>
+              <small>{scaleInfo.zoomLabel}</small>
+            </div>
+          )}
+          {cursorInfo && <span className="cc-cursor-coord">{cursorInfo}</span>}
+        </div>
+      )}
+    </div>
+  );
 }

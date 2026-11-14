@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { MissionLifecycle } from './MissionLifecycle';
 import { Button } from '@astryxdesign/core/Button';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
+import type { MapPointInspection } from '@/components/cartography/LeafletGrid';
 import { loadScientificBundle } from '@/data/loader';
 import type { BundleResult } from '@/data/loader';
 import type { MissionScenario, ScienceTarget } from '@/engine/types';
@@ -45,6 +46,10 @@ export function MissionWorkbench() {
   const demoMode = search.get('demo') === '1';
   const opportunityMode = search.get('opportunities') === '1';
   const [showOptical, setShowOptical] = useState(false);
+  const [showGeology, setShowGeology] = useState(false);
+  const [showThermal, setShowThermal] = useState(false);
+  const [resetViewRequestKey, setResetViewRequestKey] = useState(0);
+  const [inspectedPoint, setInspectedPoint] = useState<MapPointInspection | null>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const closeDrawerRef = useRef<HTMLButtonElement>(null);
 
@@ -227,16 +232,72 @@ export function MissionWorkbench() {
       </aside>
 
       <section className="map-stage cc-card" aria-label="Planetary terrain map">
-        <div className="map-topline"><span className="map-title">Jezero / analysis area</span>
-          {bundle?.manifest.optical && <div className="map-layer-switch" role="group" aria-label="Surface layer">
-            <button type="button" aria-pressed={!showOptical} onClick={() => setShowOptical(false)}>Terrain</button>
-            <button type="button" aria-pressed={showOptical} onClick={() => setShowOptical(true)}>Orbital</button>
-          </div>}
+        <div className="map-topline cc-map-header">
+          <span className="map-title">Jezero / analysis area</span>
+          <div className="cc-map-controls-top">
+            <button
+              type="button"
+              className="cc-map-action-btn"
+              onClick={() => setResetViewRequestKey(k => k + 1)}
+            >
+              Back to Jezero
+            </button>
+            {bundle?.manifest.optical && <div className="map-layer-switch" role="group" aria-label="Surface layer">
+              <button type="button" aria-pressed={!showOptical} onClick={() => setShowOptical(false)}>Terrain</button>
+              <button type="button" aria-pressed={showOptical} onClick={() => setShowOptical(true)}>Orbital</button>
+            </div>}
+            {bundle?.manifest.contextLayers?.geologicUnits?.geoImagePath && (
+              <button
+                type="button"
+                className="cc-map-action-btn"
+                aria-pressed={showGeology}
+                onClick={() => setShowGeology(v => !v)}
+              >
+                Geology
+              </button>
+            )}
+            {bundle?.manifest.contextLayers?.thermalInertia?.geoImagePath && (
+              <button
+                type="button"
+                className="cc-map-action-btn"
+                aria-pressed={showThermal}
+                onClick={() => setShowThermal(v => !v)}
+              >
+                Thermal
+              </button>
+            )}
+          </div>
         </div>
         <LeafletGrid bundle={bundle} elapsedMinutes={elapsed} missionBudgetMinutes={INITIAL_BUDGET} reserveMinutes={RESERVE}
           selectedCell={selected} onCellSelect={(r,c) => { if (isReady) setSelected([r,c]); }}
+          onInspectPoint={setInspectedPoint}
           outboundRoute={outbound} returnRoute={returnRoute} showOptical={showOptical}
+          showGeology={showGeology} showThermal={showThermal} resetViewRequestKey={resetViewRequestKey}
           opportunities={ledger?.entries}/>
+        {inspectedPoint && inspectedPoint.status !== 'COVERED' && (
+          <div className="cc-point-inspector" role="status" aria-label="Map point inspection">
+            <div className="cc-point-inspector-head">
+              <span className="cc-point-inspector-badge" data-status={inspectedPoint.status}>
+                {inspectedPoint.status === 'OUTSIDE_GRID'
+                  ? 'Browse only · outside modeled terrain'
+                  : 'Terrain data unavailable'}
+              </span>
+              <button
+                type="button"
+                className="cc-map-action-btn"
+                onClick={() => setInspectedPoint(null)}
+                aria-label="Close map point inspection"
+              >
+                ✕
+              </button>
+            </div>
+            {inspectedPoint.lat !== null && inspectedPoint.lon !== null && (
+              <div className="cc-point-inspector-meta">
+                <span>{`${Math.abs(inspectedPoint.lat).toFixed(4)}°${inspectedPoint.lat >= 0 ? 'N' : 'S'}, ${(((inspectedPoint.lon % 360) + 360) % 360).toFixed(4)}°E`}</span>
+              </div>
+            )}
+          </div>
+        )}
         {ledger && ledger.entries.length > 0 && <div className="map-mobile-opportunity">
           <strong>{ledger.currentFeasible} / {ledger.entries.length} opportunities</strong>
           <span>{ledger.lost > 0 ? `${ledger.lost} lost after +${elapsed} min` : 'Under the current assumptions'}</span>
