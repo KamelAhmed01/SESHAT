@@ -1,10 +1,8 @@
 /**
- * SESHAT Astryx theme, inherited from Meta's Neutral design system.
- * This uses the documented runtime `defineTheme` path until the team runs
- * `pnpm exec astryx theme build` against the installed version on a connected
- * machine. It is intentionally NOT claimed as a precompiled artifact.
- *
- * The map, data visualization and scientific states remain SESHAT-owned.
+ * SESHAT Astryx theme, extending Meta's Neutral design system and compiled via
+ * `pnpm exec astryx theme build src/themes/seshat/seshatTheme.ts --out src/themes/seshat/seshat.css`.
+ * Runtime seed/preset/scale overrides in `src/app/globals.css` layer on top via the
+ * computed Single Source of Truth bridge.
  */
 import { defineTheme } from '@astryxdesign/core/theme';
 import { neutralTheme } from '@astryxdesign/theme-neutral/built';
@@ -13,30 +11,30 @@ export const seshatTheme = defineTheme({
   name: 'seshat',
   extends: neutralTheme,
   tokens: {
-    '--color-background-body': ['#f2eee8', '#110f0d'],
-    '--color-background-surface': ['#fbf7f0', '#181512'],
-    '--color-background-card': ['#f9f3eb', '#221f1c'],
-    '--color-background-popover': ['#fbf7f0', '#221f1c'],
-    '--color-background-muted': ['#ebe5dd', '#2c2824'],
-    '--color-text-primary': ['#202e30', '#f5f0eb'],
-    '--color-text-secondary': ['#526467', '#a89f96'],
-    '--color-accent': ['#c26d18', '#e58e26'],
-    '--color-accent-muted': ['#c26d181c', '#e58e2629'],
-    '--color-text-accent': ['#9c530b', '#f3a833'],
-    '--color-on-accent': ['#fffaf2', '#14110f'],
-    '--color-border': ['#c8c9c2', '#332e2a'],
-    '--color-border-emphasized': ['#9eaaa6', '#574e47'],
-    '--color-text-success': ['#107c41', '#10b981'],
-    '--color-text-warning': ['#b45309', '#f59e0b'],
-    '--color-text-error': ['#b91c1c', '#ef4444'],
-    '--color-icon-accent': ['#c26d18', '#f3a833'],
-    '--radius-inner': '6px',
-    '--radius-element': '10px',
-    '--radius-container': '16px',
+    '--color-background-body': ['#f7f5ee', '#141210'],
+    '--color-background-surface': ['#efefe7', '#1c1916'],
+    '--color-background-card': ['#fcfbf7', '#231f1b'],
+    '--color-background-popover': ['#fcfbf7', '#292420'],
+    '--color-background-muted': ['#e6e4da', '#2e2924'],
+    '--color-text-primary': ['#292d29', '#ede8df'],
+    '--color-text-secondary': ['#5c655e', '#b5ada1'],
+    '--color-accent': ['#10584e', '#4ab3a3'],
+    '--color-accent-muted': ['#e0ece6', '#183631'],
+    '--color-text-accent': ['#10584e', '#65cbbd'],
+    '--color-on-accent': ['#ffffff', '#0b1815'],
+    '--color-border': ['#d9ddd3', '#3b3530'],
+    '--color-border-emphasized': ['#aab3a9', '#61584f'],
+    '--color-text-success': ['#10584e', '#4ab3a3'],
+    '--color-text-warning': ['#9c530b', '#f3a833'],
+    '--color-text-error': ['#9d452e', '#f87171'],
+    '--color-icon-accent': ['#10584e', '#4ab3a3'],
+    '--radius-inner': '4px',
+    '--radius-element': '6px',
+    '--radius-container': '10px',
   },
   components: {
     button: {
-      base: { fontWeight: '600', letterSpacing: '0.015em' },
+      base: { fontWeight: '600', letterSpacing: '0.01em' },
     },
   },
 });

@@ -6,5 +6,5 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
   { files: ['tests/unit/**/*.cjs'], rules: { '@typescript-eslint/no-require-imports': 'off' } },
-  globalIgnores(['.next/**', 'out/**', '.build/**', 'next-env.d.ts', '.venv/**', 'test-results/**', 'playwright-report/**']),
+  globalIgnores(['.next/**', 'out/**', '.build/**', 'next-env.d.ts', '.venv/**', 'test-results/**', 'playwright-report/**', 'src/themes/seshat/seshat.d.ts']),
 ]);
