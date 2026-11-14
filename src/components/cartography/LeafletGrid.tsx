@@ -11,6 +11,7 @@ import {
   gridToMarsLatLng,
   gridToViewer,
   isMarsGeographic,
+  lonLatToAeqdMeters,
   marsLatLngToGrid,
   marsLatLngToGridFloat,
   marsSurfaceDistanceMeters,
@@ -26,6 +27,7 @@ import type { RouteSummary } from '@/engine/types';
 import type { OpportunityEntry } from '@/engine/opportunity-ledger';
 import { targetMarkers } from '@/cartography/target-markers';
 import { MapLegend } from './MapLegend';
+import { Mars3DView } from './Mars3DView';
 
 export interface MapPointInspection {
   lat: number | null;
@@ -53,6 +55,8 @@ interface Props {
   showElevation?: boolean;
   showGeology?: boolean;
   showThermal?: boolean;
+  show3D?: boolean;
+  onToggle3D?: () => void;
   showFrontier?: boolean;
   liveFrontier?: Uint8Array | null;
   opportunities?: readonly OpportunityEntry[];
@@ -83,35 +87,58 @@ function niceScaleMeters(rawMeters: number): number {
   return mult * pow;
 }
 
+function elevToNormalizedT(elev: number, minZ: number, maxZ: number): number {
+  const span = Math.max(1e-6, maxZ - minZ);
+  if (span > 400 && minZ < -2560 && maxZ > -2350) {
+    const zFloor = -2555;
+    const zDeltaPeak = -2415;
+    if (elev <= zFloor) {
+      return Math.max(0, Math.min(1, ((elev - minZ) / Math.max(1e-6, zFloor - minZ)) * 0.22));
+    }
+    if (elev <= zDeltaPeak) {
+      return 0.22 + ((elev - zFloor) / (zDeltaPeak - zFloor)) * 0.54;
+    }
+    return Math.min(1, 0.76 + ((elev - zDeltaPeak) / Math.max(1e-6, maxZ - zDeltaPeak)) * 0.24);
+  }
+  return Math.max(0, Math.min(1, (elev - minZ) / span));
+}
+
 function hypsometricColor(t: number): [number, number, number] {
   const clamped = Math.max(0, Math.min(1, t));
-  if (clamped <= 0.25) {
-    const u = clamped / 0.25;
+  if (clamped <= 0.22) {
+    const u = clamped / 0.22;
     return [
-      Math.round(35 + u * (20 - 35)),
-      Math.round(30 + u * (165 - 30)),
-      Math.round(160 + u * (215 - 160)),
+      Math.round(25 + u * (20 - 25)),
+      Math.round(28 + u * (165 - 28)),
+      Math.round(135 + u * (215 - 135)),
     ];
-  } else if (clamped <= 0.5) {
-    const u = (clamped - 0.25) / 0.25;
+  } else if (clamped <= 0.46) {
+    const u = (clamped - 0.22) / 0.24;
     return [
       Math.round(20 + u * (34 - 20)),
       Math.round(165 + u * (197 - 165)),
       Math.round(215 + u * (94 - 215)),
     ];
-  } else if (clamped <= 0.75) {
-    const u = (clamped - 0.5) / 0.25;
+  } else if (clamped <= 0.62) {
+    const u = (clamped - 0.46) / 0.16;
     return [
       Math.round(34 + u * (245 - 34)),
-      Math.round(197 + u * (158 - 197)),
-      Math.round(94 + u * (11 - 94)),
+      Math.round(197 + u * (165 - 197)),
+      Math.round(94 + u * (15 - 94)),
+    ];
+  } else if (clamped <= 0.76) {
+    const u = (clamped - 0.62) / 0.14;
+    return [
+      Math.round(245 + u * (235 - 245)),
+      Math.round(165 + u * (50 - 165)),
+      Math.round(15 + u * (40 - 15)),
     ];
   }
-  const u = (clamped - 0.75) / 0.25;
+  const u = (clamped - 0.76) / 0.24;
   return [
-    Math.round(245 + u * (235 - 245)),
-    Math.round(158 + u * (55 - 158)),
-    Math.round(11 + u * (65 - 11)),
+    Math.round(235 + u * (248 - 235)),
+    Math.round(50 + u * (175 - 50)),
+    Math.round(40 + u * (195 - 40)),
   ];
 }
 
@@ -135,7 +162,6 @@ function elevationHeatmapPng(
     }
   }
   if (!Number.isFinite(minZ) || maxZ <= minZ) return '';
-  const span = maxZ - minZ;
 
   const canvas = document.createElement('canvas');
   if (geoBounds && isMarsGeographic(m)) {
@@ -158,7 +184,7 @@ function elevationHeatmapPng(
         if (r < 0 || r >= h || c < 0 || c >= w) continue;
         const idx = r * w + c;
         if (mask[idx] === 1 && Number.isFinite(z[idx])) {
-          const t = (z[idx] - minZ) / span;
+          const t = elevToNormalizedT(z[idx], minZ, maxZ);
           const [red, green, blue] = hypsometricColor(t);
           imgData.data[off] = red;
           imgData.data[off + 1] = green;
@@ -179,7 +205,7 @@ function elevationHeatmapPng(
   for (let i = 0; i < total; i++) {
     const off = i * 4;
     if (mask[i] === 1 && Number.isFinite(z[i])) {
-      const t = (z[i] - minZ) / span;
+      const t = elevToNormalizedT(z[i], minZ, maxZ);
       const [red, green, blue] = hypsometricColor(t);
       imgData.data[off] = red;
       imgData.data[off + 1] = green;
@@ -514,6 +540,8 @@ export function LeafletGrid({
   showElevation = false,
   showGeology = false,
   showThermal = false,
+  show3D = false,
+  onToggle3D,
   showFrontier = false,
   liveFrontier = null,
   opportunities = [],
@@ -529,8 +557,10 @@ export function LeafletGrid({
   const mapRef = useRef<import('leaflet').Map | null>(null);
   const leafletRef = useRef<typeof import('leaflet') | null>(null);
   const backgroundOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
+  const neighborhoodBgRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const contourOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const elevationOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
+  const neighborhoodHeatmapRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const geologyOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const thermalOverlayRef = useRef<import('leaflet').ImageOverlay | null>(null);
   const selectionLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
@@ -677,6 +707,40 @@ export function LeafletGrid({
           });
         }
 
+        // 2-Layer Chunk Neighborhood (5x5 chunks = 22.0 x 22.0 km around central chunk)
+        const nb = mapDisplay?.neighborhood;
+        if (nb) {
+          const [nbSouth, nbWest, nbNorth, nbEast] = nb.geographicBounds;
+          const nbBoundsLatLng = L.latLngBounds([nbSouth, nbWest], [nbNorth, nbEast]);
+          const nbBg = L.imageOverlay(`${bundle.assetRoot}/${nb.terrainGeoPath}`, nbBoundsLatLng, {
+            opacity: 0.85,
+            interactive: false,
+            zIndex: 42,
+          }).addTo(map);
+          neighborhoodBgRef.current = nbBg;
+
+          // Outer 5x5 neighborhood perimeter
+          L.polygon(nb.boundaryPolygonLatLng, {
+            color: '#c9a982',
+            weight: 1.4,
+            dashArray: '6 5',
+            fill: false,
+            interactive: false,
+          }).addTo(map);
+
+          // Draw Ring 1 (8 chunks) & Ring 2 (16 chunks) chunk grid outlines
+          for (const ch of nb.chunks) {
+            if (ch.ring === 0) continue;
+            L.polygon(ch.polygonLatLng, {
+              color: ch.ring === 1 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(201, 169, 130, 0.30)',
+              weight: ch.ring === 1 ? 1.1 : 0.8,
+              dashArray: ch.ring === 1 ? '3 3' : '2 4',
+              fill: false,
+              interactive: false,
+            }).addTo(map);
+          }
+        }
+
         // Exact AEQD 20 m modeled area outline (always visible as crisp boundary even at Mars overview)
         L.polygon(gridBoundaryLatLngs(bundle.manifest, 28), {
           color: '#f3a833',
@@ -687,9 +751,11 @@ export function LeafletGrid({
         }).addTo(map);
 
         // Modeled 20 m analysis display raster (AEQD reprojected to Mars Plate Carree)
+        // If 2-layer chunk neighborhood is active, neighborhoodBgRef covers the entire 5x5 region seamlessly;
+        // backgroundOverlayRef opacity is kept at 0 in terrain mode to prevent double-darkening the center chunk.
         const initialBgPath = mapDisplay?.terrainGeoPath ?? bundle.manifest.imagery.path;
         const bgOverlay = L.imageOverlay(`${bundle.assetRoot}/${initialBgPath}`, gridBoundsLatLng, {
-          opacity: 0.9,
+          opacity: nb ? 0 : 0.9,
           zIndex: 45,
         }).addTo(map);
         bgOverlay.getElement()?.setAttribute('alt', 'DEM-derived shaded relief aligned to Mars AEQD; not orbital photography');
@@ -731,6 +797,47 @@ export function LeafletGrid({
           const lon = e.latlng.lng;
           const cell = marsLatLngToGrid(lat, lon, bundle.manifest);
           if (!cell) {
+            // Check if click falls inside the 2-layer chunk neighborhood (Ring 1 or Ring 2)
+            const nbMeta = bundle.manifest.mapDisplay?.neighborhood;
+            if (nbMeta && bundle.manifest.analysisCenterPlanetocentricLat !== undefined && bundle.manifest.analysisCenterPositiveEastLon !== undefined) {
+              const [ax, ay] = lonLatToAeqdMeters(
+                lon,
+                lat,
+                bundle.manifest.analysisCenterPlanetocentricLat,
+                bundle.manifest.analysisCenterPositiveEastLon,
+                bundle.manifest.sourceBodyRadiusMeters ?? MARS_SPHERE_RADIUS_METERS,
+              );
+              const halfSpan = nbMeta.spanMeters / 2;
+              if (Math.abs(ax) <= halfSpan && Math.abs(ay) <= halfSpan) {
+                const nbCol = Math.min(nbMeta.width - 1, Math.max(0, Math.floor((ax + halfSpan) / nbMeta.cellWidthMeters)));
+                const nbRow = Math.min(nbMeta.height - 1, Math.max(0, Math.floor((halfSpan - ay) / nbMeta.cellHeightMeters)));
+                const nbIdx = nbRow * nbMeta.width + nbCol;
+                const nbElev =
+                  bundle.contextData?.neighborhoodElevation && Number.isFinite(bundle.contextData.neighborhoodElevation[nbIdx])
+                    ? bundle.contextData.neighborhoodElevation[nbIdx]
+                    : null;
+                const chunkSpan = 220 * bundle.manifest.cellWidthMeters;
+                const cCol = Math.round(ax / chunkSpan);
+                const cRow = Math.round(-ay / chunkSpan);
+                const ring = Math.max(Math.abs(cRow), Math.abs(cCol));
+                const chDesc = nbMeta.chunks.find(c => c.rowOffset === cRow && c.colOffset === cCol);
+                const col = Math.round((ax + 2200) / bundle.manifest.cellWidthMeters);
+                const row = Math.round((2200 - ay) / bundle.manifest.cellHeightMeters);
+                const cellPoint: [number, number] = [row, col];
+                onInspectRef.current?.({
+                  lat,
+                  lon,
+                  cell: cellPoint,
+                  status: 'COVERED',
+                  label: chDesc
+                    ? `${chDesc.label} · Cell (${row}, ${col})`
+                    : `Ring ${ring} · Chunk (${cRow >= 0 ? `+${cRow}` : cRow}, ${cCol >= 0 ? `+${cCol}` : cCol})`,
+                  elevationMeters: nbElev,
+                });
+                if (!isMissionMap) onSelectRef.current(...cellPoint);
+                return;
+              }
+            }
             onInspectRef.current?.({
               lat,
               lon,
@@ -860,8 +967,10 @@ export function LeafletGrid({
       mapRef.current = null;
       selectionLayerRef.current = null;
       backgroundOverlayRef.current = null;
+      neighborhoodBgRef.current = null;
       contourOverlayRef.current = null;
       elevationOverlayRef.current = null;
+      neighborhoodHeatmapRef.current = null;
       geologyOverlayRef.current = null;
       thermalOverlayRef.current = null;
       frontierRef.current = null;
@@ -874,12 +983,23 @@ export function LeafletGrid({
     if (!bundle || !backgroundOverlayRef.current) return;
     if (isMarsGeographic(bundle.manifest)) {
       const md = bundle.manifest.mapDisplay;
+      const hasNb = Boolean(md?.neighborhood);
       const path = showOptical && bundle.manifest.optical
         ? (md?.orbitalGeoPath ?? bundle.manifest.optical.path)
         : (md?.terrainGeoPath ?? bundle.manifest.imagery.path);
       backgroundOverlayRef.current.setUrl(`${bundle.assetRoot}/${path}`);
+      if (neighborhoodBgRef.current && md?.neighborhood) {
+        const nbPath = showOptical && md.neighborhood.orbitalGeoPath
+          ? md.neighborhood.orbitalGeoPath
+          : md.neighborhood.terrainGeoPath;
+        neighborhoodBgRef.current.setUrl(`${bundle.assetRoot}/${nbPath}`);
+        neighborhoodBgRef.current.setOpacity(showOptical ? 0.95 : 0.88);
+      }
       if (isMissionMap) {
-        backgroundOverlayRef.current.setOpacity(showOptical ? 0 : 0.9);
+        // When neighborhood is active:
+        // In optical mode, overlay the high-res 880x880 CTX center chunk (opacity 0.95) over the neighborhood.
+        // In terrain mode, let neighborhoodBgRef provide the unified hillshade (opacity 0.88) without double-darkening the center.
+        backgroundOverlayRef.current.setOpacity(showOptical ? (hasNb ? 0.95 : 0.9) : (hasNb ? 0 : 0.9));
         contourOverlayRef.current?.setOpacity(showOptical ? 0 : 0.85);
       }
       backgroundOverlayRef.current.getElement()?.setAttribute('alt',
@@ -905,7 +1025,7 @@ export function LeafletGrid({
       geologyOverlayRef.current = L.imageOverlay(
         `${bundle.assetRoot}/${bundle.manifest.contextLayers.geologicUnits.geoImagePath}`,
         latLngBounds,
-        { opacity: 0.65, interactive: false, zIndex: 49 },
+        { opacity: 0.70, interactive: false, zIndex: 49 },
       ).addTo(map);
     }
 
@@ -915,7 +1035,7 @@ export function LeafletGrid({
       thermalOverlayRef.current = L.imageOverlay(
         `${bundle.assetRoot}/${bundle.manifest.contextLayers.thermalInertia.geoImagePath}`,
         latLngBounds,
-        { opacity: 0.68, interactive: false, zIndex: 50 },
+        { opacity: 0.72, interactive: false, zIndex: 50 },
       ).addTo(map);
     }
   }, [bundle, showGeology, showThermal, mapRevision]);
@@ -926,18 +1046,33 @@ export function LeafletGrid({
     if (!map || !L || !bundle) return;
     elevationOverlayRef.current?.remove();
     elevationOverlayRef.current = null;
+    neighborhoodHeatmapRef.current?.remove();
+    neighborhoodHeatmapRef.current = null;
     if (!showElevation) return;
 
     if (isMarsGeographic(bundle.manifest)) {
-      const b = gridGeographicBounds(bundle.manifest);
-      const latLngBounds = L.latLngBounds([b.south, b.west], [b.north, b.east]);
-      const url = elevationHeatmapPng(bundle, b);
-      if (url) {
-        elevationOverlayRef.current = L.imageOverlay(url, latLngBounds, {
-          opacity: 0.75,
-          interactive: false,
-          zIndex: 47,
-        }).addTo(map);
+      const nb = bundle.manifest.mapDisplay?.neighborhood;
+      // When neighborhood heatmap is available, it covers all 25 chunks (22x22 km) seamlessly
+      // using the global neighborhood elevation scale. Never stack a center chunk overlay with
+      // mismatched local min/max over it.
+      if (nb?.heatmapGeoPath) {
+        const [nbSouth, nbWest, nbNorth, nbEast] = nb.geographicBounds;
+        neighborhoodHeatmapRef.current = L.imageOverlay(
+          `${bundle.assetRoot}/${nb.heatmapGeoPath}`,
+          L.latLngBounds([nbSouth, nbWest], [nbNorth, nbEast]),
+          { opacity: 0.78, interactive: false, zIndex: 46 },
+        ).addTo(map);
+      } else {
+        const b = gridGeographicBounds(bundle.manifest);
+        const latLngBounds = L.latLngBounds([b.south, b.west], [b.north, b.east]);
+        const url = elevationHeatmapPng(bundle, b);
+        if (url) {
+          elevationOverlayRef.current = L.imageOverlay(url, latLngBounds, {
+            opacity: 0.75,
+            interactive: false,
+            zIndex: 47,
+          }).addTo(map);
+        }
       }
     } else {
       const h = bundle.manifest.height, w = bundle.manifest.width;
@@ -1214,10 +1349,28 @@ export function LeafletGrid({
       <div
         className="map-root"
         ref={element}
+        style={show3D && bundle ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
         role="application"
         aria-label="Mars seamless terrain map viewer; pan across Jezero crater or zoom out to global Mars"
       />
-      {useMarsGeo && (scaleInfo || cursorInfo) && (
+      {show3D && bundle && (
+        <Mars3DView
+          bundle={bundle}
+          onCellSelect={onCellSelect}
+          onInspectPoint={onInspectPoint}
+          selectedCell={selectedCell}
+          outboundRoute={outboundRoute}
+          returnRoute={returnRoute}
+          showOptical={showOptical}
+          showElevation={showElevation}
+          showGeology={showGeology}
+          showThermal={showThermal}
+          opportunities={opportunities}
+          mission={mission}
+          onExit3D={onToggle3D}
+        />
+      )}
+      {!show3D && useMarsGeo && (scaleInfo || cursorInfo) && (
         <div className="cc-mars-scale-bar" aria-live="off">
           {scaleInfo && (
             <div className="cc-scale-graphic" title="Spherical Mars distance scale (R = 3,396,190 m)">

@@ -1,15 +1,13 @@
 # SESHAT — execution readiness checkpoint
 
-Generated **2026-11-14 07:55 UTC** using `python -m tools.checkpoint --run-tests`.
+Generated **2026-11-14 08:56 UTC** using `python -m tools.checkpoint --run-tests`.
 
 **Interpretation:** checked means source is present or a stated local test actually passed. It does **not** prove NASA endorsement, live deployment, real-source alignment, or Global Awards eligibility. Engine tests and frontend-build tests are separate.
 
 ## Verified locally
 
-- [x] Python science + security tests — passed
 - [x] TypeScript engine compile — passed
 - [x] Node scientific/unit oracles — passed
-- [x] Synthetic Chromium acceptance harness — passed
 - [x] Standalone Chromium acceptance screenshots exist — synthetic only, not a Next.js build
 
 ## Implemented in source, still requiring runtime/science evidence
@@ -39,6 +37,8 @@ Generated **2026-11-14 07:55 UTC** using `python -m tools.checkpoint --run-tests
 
 ## Missing / blocked / unverified
 
+- [ ] Python science + security tests — failed or unavailable
+- [ ] Synthetic Chromium acceptance harness — failed or unavailable
 - [ ] Archive a screenshot of the live challenge Resources listing for team signoff
 - [ ] Independent team signoff for at least two source-reported points (reviewed: 0)
 - [ ] Judge-ready live URL, TLS, Vercel deployment and fully local fallback verified on two laptops
@@ -48,17 +48,18 @@ Generated **2026-11-14 07:55 UTC** using `python -m tools.checkpoint --run-tests
 
 ## Test execution evidence
 
-- Python science + security tests: PASS; last output: `..............................                                           [100%]
-30 passed in 1.46s`
+- Python science + security tests: FAIL; last output: `/usr/bin/python3: No module named pytest`
 - TypeScript engine compile: PASS; last output: ``
-- Node scientific/unit oracles: PASS; last output: `ℹ pass 48
+- Node scientific/unit oracles: PASS; last output: `ℹ pass 50
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 844.212125`
-- Synthetic Chromium acceptance harness: PASS; last output: `BROWSER QA PASSED: no JS errors, synthetic compiler fixture, time frontier, all-target opportunity changes, target selection, export, drawer, mobile overflow
-CHECKPOINT: start frontier cells 27870 after +15min 24855`
+ℹ duration_ms 1614.918159`
+- Synthetic Chromium acceptance harness: FAIL; last output: `Traceback (most recent call last):
+  File "/home/ali13yassin/Documents/GitHub/SESHAT/tools/preview/test_preview.py", line 6, in <module>
+    from playwright.sync_api import sync_playwright
+ModuleNotFoundError: No module named 'playwright'`
 
 ## Immediate handoff order
 

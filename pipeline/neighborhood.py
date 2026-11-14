@@ -97,6 +97,22 @@ def _render_hillshade_rgba(z: np.ndarray, valid: np.ndarray, dx: float, dy: floa
     return rgba
 
 
+def _elev_to_hypsometric_t(fill: np.ndarray, min_z: float, max_z: float) -> np.ndarray:
+    span = max(1e-6, max_z - min_z)
+    if span > 400.0 and min_z < -2560.0 and max_z > -2350.0:
+        z_floor = -2555.0
+        z_delta_peak = -2415.0
+        t = np.zeros_like(fill, dtype=np.float64)
+        low_mask = fill <= z_floor
+        mid_mask = (fill > z_floor) & (fill <= z_delta_peak)
+        high_mask = fill > z_delta_peak
+        t = np.where(low_mask, np.clip((fill - min_z) / max(1e-6, z_floor - min_z), 0.0, 1.0) * 0.22, t)
+        t = np.where(mid_mask, 0.22 + ((fill - z_floor) / (z_delta_peak - z_floor)) * 0.54, t)
+        t = np.where(high_mask, 0.76 + np.clip((fill - z_delta_peak) / max(1e-6, max_z - z_delta_peak), 0.0, 1.0) * 0.24, t)
+        return np.clip(t, 0.0, 1.0)
+    return np.clip((fill - min_z) / span, 0.0, 1.0)
+
+
 def _render_hypsometric_rgba(
     z: np.ndarray,
     valid: np.ndarray,
@@ -114,36 +130,46 @@ def _render_hypsometric_rgba(
     illum = np.clip((nx * light[0] + ny * light[1] + nz * light[2]) / norm, 0.0, 1.0)
     shade = 0.65 + 0.35 * illum
 
-    span = max(1e-6, max_z - min_z)
-    t = np.clip((fill - min_z) / span, 0.0, 1.0)
+    t = _elev_to_hypsometric_t(fill, min_z, max_z)
 
     r = np.zeros_like(t)
     g = np.zeros_like(t)
     b = np.zeros_like(t)
 
-    m1 = t <= 0.25
-    u1 = t / 0.25
-    r = np.where(m1, 35 + u1 * (20 - 35), r)
-    g = np.where(m1, 30 + u1 * (165 - 30), g)
-    b = np.where(m1, 160 + u1 * (215 - 160), b)
+    # 0.00 -> 0.22: Deep basin indigo-blue (25, 28, 135) to cyan-blue (20, 165, 215)
+    m1 = t <= 0.22
+    u1 = t / 0.22
+    r = np.where(m1, 25 + u1 * (20 - 25), r)
+    g = np.where(m1, 28 + u1 * (165 - 28), g)
+    b = np.where(m1, 135 + u1 * (215 - 135), b)
 
-    m2 = (t > 0.25) & (t <= 0.5)
-    u2 = (t - 0.25) / 0.25
+    # 0.22 -> 0.46: Cyan-blue (20, 165, 215) to emerald green (34, 197, 94)
+    m2 = (t > 0.22) & (t <= 0.46)
+    u2 = (t - 0.22) / 0.24
     r = np.where(m2, 20 + u2 * (34 - 20), r)
     g = np.where(m2, 165 + u2 * (197 - 165), g)
     b = np.where(m2, 215 + u2 * (94 - 215), b)
 
-    m3 = (t > 0.5) & (t <= 0.75)
-    u3 = (t - 0.5) / 0.25
+    # 0.46 -> 0.62: Emerald green (34, 197, 94) to warm amber-gold (245, 165, 15)
+    m3 = (t > 0.46) & (t <= 0.62)
+    u3 = (t - 0.46) / 0.16
     r = np.where(m3, 34 + u3 * (245 - 34), r)
-    g = np.where(m3, 197 + u3 * (158 - 197), g)
-    b = np.where(m3, 94 + u3 * (11 - 94), b)
+    g = np.where(m3, 197 + u3 * (165 - 197), g)
+    b = np.where(m3, 94 + u3 * (15 - 94), b)
 
-    m4 = t > 0.75
-    u4 = (t - 0.75) / 0.25
+    # 0.62 -> 0.76: Warm amber-gold (245, 165, 15) to vivid peak red (235, 50, 40) [Central chunk peaks!]
+    m4 = (t > 0.62) & (t <= 0.76)
+    u4 = (t - 0.62) / 0.14
     r = np.where(m4, 245 + u4 * (235 - 245), r)
-    g = np.where(m4, 158 + u4 * (55 - 158), g)
-    b = np.where(m4, 11 + u4 * (65 - 11), b)
+    g = np.where(m4, 165 + u4 * (50 - 165), g)
+    b = np.where(m4, 15 + u4 * (40 - 15), b)
+
+    # 0.76 -> 1.00: Vivid red (235, 50, 40) to high-rim crimson/rose crest (248, 175, 195)
+    m5 = t > 0.76
+    u5 = (t - 0.76) / 0.24
+    r = np.where(m5, 235 + u5 * (248 - 235), r)
+    g = np.where(m5, 50 + u5 * (175 - 50), g)
+    b = np.where(m5, 40 + u5 * (195 - 40), b)
 
     rgba = np.zeros((*z.shape, 4), dtype=np.uint8)
     rgba[..., 0] = np.clip(r * shade, 0, 255).astype(np.uint8)

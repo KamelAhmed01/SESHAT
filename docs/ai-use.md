@@ -58,8 +58,26 @@ AI tools help draft implementation, tests and documentation. **All route-model a
 
 - Used AI assistance to examine the prior tiled map and lifecycle implementation, create two ImageGen concept references, and rebuild the main workbench around one map and one mission panel. Public Mobbin screens informed the arrangement. The blank panel, mission planning, replan and return use the checked-in scientific assets and engine.
 - Compared 508 map cell centers against pyproj. The largest difference was 0.000000014 m on the checked grid. The six scientific routing buffers matched `ef10e83` byte for byte and matched their manifest hashes. This confirms numerical consistency against the configured model and reference frame.
+
+## Unified Neighborhood Overlays & High-Resolution 3D Surface Rendering — 2026-11-14
+
+- Task: Eliminate central-chunk overlay seams and visual inconsistencies across 2D/3D layers after expanding to the 2-ring neighborhood (25 chunks, 22×22 km):
+  1. Fix elevation heatmap overlay: prevent `elevationHeatmapPng` from drawing a disjointed narrow-range center-chunk heatmap on top of the continuous `neighborhood-heatmap-geo.webp`, ensuring seamless hypsometric tinting across the entire 22×22 km region.
+  2. Fix terrain hillshade stacking: in terrain mode, let `neighborhood-terrain-geo.webp` provide the single continuous shaded relief base without double-darkening the central chunk with redundant `study-area-geo.webp`.
+  3. Upgrade 3D ground texture quality: implemented bilinear texture sampling with dual-resolution hierarchy (sampling the 880×880 zoomed-in texture `orbital-geo.webp` / `study-area-geo.webp` inside the central chunk and `neighborhood-orbital-geo.webp` / `neighborhood-terrain-geo.webp` across the neighborhood).
+  4. Increased 3D terrain mesh geometry from 88×88 to 110×110 quads (12,100 vertices) for crisper crater rims and topography.
+- Concrete limits: Source review status remains `SOURCE_REVIEW_REQUIRED`; routing calculations strictly adhere to the canonical 20 m AEQD Jezero western fan grid.
+- Verifiers: `tsc --noEmit` (clean), 46 Node scientific oracles passed (`tests/unit/*.test.cjs`), `next build` static export succeeded (in 2.0s), and `tools.checkpoint` updated (`docs/CHECKPOINT_REPORT.md`).
 - Rebuilt the bedrock layer from the original Stack et al. supplement. The crop has 32 conflicting cells and two uncovered cells. All 34 are represented as unknown. Filtered historical MEDA pressure by observation sol, a stated 0–2,000 Pa plausibility screen, and availability of the matching product label. Confirmed pressure record counts of 34,385, 31,203 and 24,788 for sols 490, 509 and 575.
 - Material scope still open from the prior plan includes the active mission's multi-resource before/after opportunity frontier. The separate opportunity view uses a time budget. Terrain and observations retain their source-review status. See the [local release verification](VERIFICATION_RELEASE.md) for the executed checks.
+
+## 3D Camera Controls & 25-Chunk Neighborhood Navigation — 2026-11-14
+
+- Task: Fix 3D camera obstruction and enable navigation points/stops across all 25 neighborhood chunks:
+  1. Fix 3D camera: centered vertical rotation around visual terrain midpoint, corrected perspective foreshortening math, removed occluding opaque pedestal curtain walls that drew over the terrain, switched default left-drag to orbit (with Shift/right-drag to pan), and added "Top" (88°), "3D" (52°), and "Reset" camera preset buttons.
+  2. Multi-chunk navigation points & routing: implemented `routeNeighborhood` and `elevationAtCell` across the 550×550 neighborhood grid (`neighborhood-elevation.bin`), enabled selecting and adding stops across all 25 chunks in both 2D and 3D with continuous coordinates `[-440..659]`, and rendered 3D pins and route geometry across chunk boundaries.
+- Concrete limits: Source review status remains `SOURCE_REVIEW_REQUIRED`; central chunk routes retain the exact precomputed 20 m Dijkstra graph.
+- Verifiers: `tsc -p tsconfig.engine.json` (clean), 47 Node scientific oracles passed (`tests/unit/*.test.cjs`), `next build` static export succeeded, and `tools.checkpoint` updated (`docs/CHECKPOINT_REPORT.md`).
 
 ## Map layers legend & elevation heatmap (hypsometric tint) — 2026-11-14
 
@@ -89,3 +107,9 @@ AI tools help draft implementation, tests and documentation. **All route-model a
   5. Operator QoL upgrades: one-click `Load all sites` preset, single-mode top-priority trim helper, and route preference selector for 1–4 stops.
 - Concrete limits: One-way light-time (`14.33 min`), stationary wait burn, rapid-salvage compression ratio (`0.6×`), and thermal-inertia sinkage penalty remain explicitly labeled `SCENARIO_ASSUMPTION`; `SOURCE_REVIEW_REQUIRED` remains open pending team signoff; no modifications were made to `src/config/mission-scenario.json` or `public/data/` binaries.
 - Verifiers: `source .venv/bin/activate && pnpm verify` (all 8 stages PASS: 30 Python tests, TS scientific compile, 48/48 Node unit/oracle tests, lockfile check, ESLint, TS typecheck, Next.js static export, and 12/12 Playwright E2E tests; see `docs/VERIFICATION_RELEASE.md`) and `python -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md` (`docs/CHECKPOINT_REPORT.md`).
+
+## 2-Layer Chunk Neighborhood (5×5 Chunks · 22×22 km) & 3D Terrain View — 2026-11-14
+
+- Task: Compile the first two layers of chunks around the central 220×220 chunk (`Ring 1` [8 chunks] + `Ring 2` [16 chunks] + `Center` [1 chunk] = 25 chunks covering `1,100 × 1,100` source USGS 20 m CTX DEM pixels = `22.0 × 22.0 km` in Spherical Mars AEQD) via `pipeline/neighborhood.py`, producing `neighborhood-elevation.bin`, `neighborhood-mask.bin`, `neighborhood-terrain-geo.webp`, `neighborhood-heatmap-geo.webp`, and `neighborhood-orbital-geo.webp` (~1.65 MB total). Add a Google Maps-style interactive 3D Terrain View (`Mars3DView.tsx`) with orbit/tilt/zoom/vertical-exaggeration controls, 5×5 neighborhood vs. center chunk scope switching, draped map layers (Terrain, Orbital, Elevation Heatmap, Geology, Thermal), and 3D elevated route polylines and target pins.
+- Concrete limits: Active 20 m precomputed Dijkstra fields cover the central chunk (`220 × 220` cells), while routes spanning the surrounding 24 chunks (`[-440..659, -440..659]`) use an 8-connected terrain-aware A* solver over the 550×550 neighborhood DEM (`40 m` spacing with `20 m` center refinement) enforcing canonical `src/config/mission-scenario.json` slope (`25°` max), uphill/downhill coefficients (`4.0` / `1.8`), hazard avoidance, and quadratic grade penalty; source review status remains `SOURCE_REVIEW_REQUIRED`.
+- Verifiers: `python3 -m pipeline.neighborhood`, `tsc --noEmit`, `tsc -p tsconfig.engine.json`, `node --test tests/unit/*.test.cjs` (47 passed, 0 failed), Next.js static export (`next build` succeeded), and `python3 -m tools.checkpoint --run-tests --write docs/CHECKPOINT_REPORT.md`.

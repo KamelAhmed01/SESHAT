@@ -3,6 +3,50 @@ import type { ScienceTarget } from '../engine/types';
 
 export interface FileRecord { bytes: number; sha256: string; dtype: string }
 
+export interface NeighborhoodChunkMeta {
+  id: string;
+  rowOffset: number;
+  colOffset: number;
+  ring: number;
+  label: string;
+  boundsLatLng: [number, number, number, number];
+  polygonLatLng: [number, number][];
+  minElevationMeters: number | null;
+  maxElevationMeters: number | null;
+  meanSlopeDegrees: number | null;
+  validCoverageRatio: number;
+}
+
+export interface NeighborhoodManifest {
+  rings: number;
+  chunksPerSide: number;
+  totalChunks: number;
+  sourceWindow: [number, number, number, number];
+  width: number;
+  height: number;
+  cellWidthMeters: number;
+  cellHeightMeters: number;
+  spanMeters: number;
+  rasterTransform: readonly number[];
+  geographicBounds: [number, number, number, number];
+  boundaryPolygonLatLng: [number, number][];
+  minElevationMeters: number;
+  maxElevationMeters: number;
+  elevationPath: string;
+  elevationBytes: number;
+  elevationSha256: string;
+  maskPath: string;
+  maskBytes: number;
+  maskSha256: string;
+  terrainGeoPath: string;
+  terrainGeoSha256: string;
+  heatmapGeoPath: string;
+  heatmapGeoSha256: string;
+  orbitalGeoPath?: string | null;
+  orbitalGeoSha256?: string | null;
+  chunks: NeighborhoodChunkMeta[];
+}
+
 export interface MapDisplayManifest {
   projection: string;
   marsRadiusMeters: number;
@@ -22,6 +66,7 @@ export interface MapDisplayManifest {
   jezeroSourceSha256?: string;
   jezeroTiles: string[];
   credits: string[];
+  neighborhood?: NeighborhoodManifest;
 }
 
 export interface GeologicUnitEntry {
@@ -96,6 +141,8 @@ export interface ContextData {
   geologicUnitGrid?: Uint8Array;
   geologicUnits?: GeologicUnitsMeta;
   meda?: MedaContextMeta;
+  neighborhoodElevation?: Float32Array;
+  neighborhoodMask?: Uint8Array;
   optionalFailures: string[];
 }
 
@@ -210,9 +257,38 @@ async function fetchOptionalContext(root: '/data' | '/demo', m: DatasetManifest)
   const optionalFailures: string[] = [];
   const context: ContextData = { optionalFailures };
   const layers = m.contextLayers;
-  if (!layers) return context;
-
   const tasks: Promise<void>[] = [];
+
+  if (m.mapDisplay?.neighborhood) {
+    const nb = m.mapDisplay.neighborhood;
+    tasks.push((async () => {
+      try {
+        const [elevRes, maskRes] = await Promise.all([
+          fetchWithRetry(`${root}/${nb.elevationPath}`, 1),
+          fetchWithRetry(`${root}/${nb.maskPath}`, 1),
+        ]);
+        if (!elevRes.ok || !maskRes.ok) throw new Error('HTTP error');
+        const [elevBuf, maskBuf] = await Promise.all([elevRes.arrayBuffer(), maskRes.arrayBuffer()]);
+        if (
+          elevBuf.byteLength !== nb.elevationBytes ||
+          maskBuf.byteLength !== nb.maskBytes ||
+          (await sha256Hex(elevBuf)) !== nb.elevationSha256 ||
+          (await sha256Hex(maskBuf)) !== nb.maskSha256
+        ) {
+          throw new Error('neighborhood hash mismatch');
+        }
+        context.neighborhoodElevation = readNumeric(elevBuf, 'f32') as Float32Array;
+        context.neighborhoodMask = new Uint8Array(maskBuf);
+      } catch {
+        optionalFailures.push('neighborhood');
+      }
+    })());
+  }
+
+  if (!layers) {
+    await Promise.all(tasks);
+    return context;
+  }
 
   if (layers.thermalInertia) {
     const meta = layers.thermalInertia;
