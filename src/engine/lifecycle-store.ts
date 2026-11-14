@@ -1,8 +1,8 @@
 import type { FieldBundle } from '../data/loader';
 import { addResources, atSpeed, budget, reserve, scienceResources, subtractResources, zeroResources } from './consumables';
 import type { Resources } from './consumables';
-import { canApprove, landingId, replanMission, stopLimit, targetCell } from './multi-leg-planner';
-import type { MissionPlan } from './multi-leg-planner';
+import { canApprove, landingId, replanMission, stopLimit, targetCell, triageReplanBranches } from './multi-leg-planner';
+import type { MissionPlan, TriageBranch } from './multi-leg-planner';
 import { cellIndex, routeMetrics } from './traverse-graph';
 import type { Cell, HazardZone } from './traverse-graph';
 import { SPEED_FACTORS } from './types';
@@ -79,6 +79,7 @@ export interface MissionExecution {
   leaveStopProposal?: MissionPlan | null;
   recommendedProposal?: 'finish-stop' | 'leave-stop' | null;
   proposalReason?: string | null;
+  triageBranches?: TriageBranch[] | null;
 }
 
 function initialStopProgress(plan: MissionPlan): Record<string, StopProgress> {
@@ -485,10 +486,28 @@ export function recordEvent(mission: MissionExecution, bundle: FieldBundle,
     };
   }
 
-  const proposal = replanMission({bundle, origin: revised.position, stops: remainingStops(revised), spent: revised.spent,
-    hazards: revised.hazards, speedPenalty: revised.speedFactor, routePreference: revised.active.routePreference,
-    maxStops: Math.max(0, (revised.stopCapacity ?? stopLimit) - revised.completed.length)});
-  return {...revised, status: 'REVIEW', proposal, finishProposal: null, leaveStopProposal: null, recommendedProposal: null, proposalReason: null};
+  const replanInput = {
+    bundle,
+    origin: revised.position,
+    stops: remainingStops(revised),
+    spent: revised.spent,
+    hazards: revised.hazards,
+    speedPenalty: revised.speedFactor,
+    routePreference: revised.active.routePreference,
+    maxStops: Math.max(0, (revised.stopCapacity ?? stopLimit) - revised.completed.length),
+  };
+  const triageBranches = triageReplanBranches(replanInput);
+  const proposal = triageBranches[0]?.plan ?? replanMission(replanInput);
+  return {
+    ...revised,
+    status: 'REVIEW',
+    proposal,
+    finishProposal: null,
+    leaveStopProposal: null,
+    recommendedProposal: null,
+    proposalReason: null,
+    triageBranches,
+  };
 }
 
 export function recordPendingReading(mission: MissionExecution, bundle: FieldBundle): MissionExecution {
@@ -515,7 +534,8 @@ export function decideReplan(
   const validReviewPlan =
     plan === mission.proposal ||
     (mission.finishProposal !== undefined && plan === mission.finishProposal) ||
-    (mission.leaveStopProposal !== undefined && plan === mission.leaveStopProposal);
+    (mission.leaveStopProposal !== undefined && plan === mission.leaveStopProposal) ||
+    Boolean(mission.triageBranches?.some(branch => branch.plan === plan));
   if (decision !== 'abort' && (mission.status !== 'REVIEW' || !validReviewPlan)) return mission;
   if (decision === 'approved' && options?.stopAction &&
     plan !== (options.stopAction === 'finish-stop' ? mission.finishProposal : mission.leaveStopProposal)) return mission;
@@ -558,6 +578,7 @@ export function decideReplan(
     leaveStopProposal: null,
     recommendedProposal: null,
     proposalReason: null,
+    triageBranches: null,
     activeStopId: null,
     pendingReading: null,
     spent: nextSpent,

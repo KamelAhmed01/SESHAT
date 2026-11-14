@@ -151,6 +151,12 @@ export function MissionPlanPreview({ plan, spent, manifest, label }: {
                   <p>{missionClock(leg.departure)} departure · {(leg.arrival - leg.departure).toFixed(1)} min travel · {missionClock(leg.leave)} activity complete</p>
                   <p>{leg.terrain.distance.toFixed(0)} m · +{leg.terrain.gain.toFixed(0)} / −{leg.terrain.loss.toFixed(0)} m elevation · {leg.terrain.peakSlope.toFixed(1)}° peak / {leg.terrain.meanSlope.toFixed(1)}° mean</p>
                   <p>{leg.terrain.steepEdges} modeled edges over 15° · {leg.used.oxygen.toFixed(1)} L O₂ · {leg.used.energy.toFixed(1)} Wh</p>
+                  {leg.terrain.meanThermalInertia !== null && leg.terrain.footingLabel && (
+                    <p>
+                      Footing: {leg.terrain.footingLabel} · {leg.terrain.meanThermalInertia.toFixed(0)} TIU mean
+                      {leg.terrain.lowThermalFraction !== null && ` (${Math.round(leg.terrain.lowThermalFraction * 100)}% loose sand <200 TIU · Edwards & Buz 2021)`}
+                    </p>
+                  )}
                   {!leg.waypoints.length && <p>No qualifying contingency stop on this leg.</p>}
                   {leg.waypoints.map(waypoint => (
                     <p key={waypoint.cell.join(',')}>
