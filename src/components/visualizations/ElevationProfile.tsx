@@ -22,13 +22,13 @@ export function ElevationProfile({ route, cellWidthMeters, cellHeightMeters, lab
   return <section className="profile-chart" aria-label={`${label} elevation profile`}>
     <div className="profile-heading"><strong>{label}</strong><span>{formatMeters(distance)} traverse</span></div>
     <svg viewBox="0 0 320 104" role="img" aria-label={`${label}: elevation varies from ${formatMeters(min)} to ${formatMeters(max)}; total ascent ${formatMeters(profile.ascentMeters)}.`}>
-      <line x1="8" y1="92" x2="312" y2="92" stroke="#657070" strokeWidth="0.8" />
-      <line x1="8" y1="52" x2="312" y2="52" stroke="#3a484a" strokeWidth="0.7" strokeDasharray="4 5" />
-      <path d={area} fill="#d49c7840" />
-      <path d={line} fill="none" stroke="#ddb18e" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
-      {plot.length === 1 && <circle cx={plot[0].x} cy={plot[0].y} r="2.5" fill="#ddb18e" />}
-      <text x="8" y="102" fill="#98aaa5" fontSize="8">0 km</text>
-      <text x="312" y="102" fill="#98aaa5" fontSize="8" textAnchor="end">{(distance / 1000).toFixed(2)} km</text>
+      <line x1="8" y1="92" x2="312" y2="92" stroke="var(--token-outline)" strokeWidth="0.8" />
+      <line x1="8" y1="52" x2="312" y2="52" stroke="var(--token-border)" strokeWidth="0.7" strokeDasharray="4 5" />
+      <path d={area} fill="color-mix(in oklab, var(--field-outbound) 24%, transparent)" />
+      <path d={line} fill="none" stroke="var(--field-outbound)" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+      {plot.length === 1 && <circle cx={plot[0].x} cy={plot[0].y} r="2.5" fill="var(--field-outbound)" />}
+      <text x="8" y="102" fill="var(--token-text-secondary)" fontSize="8">0 km</text>
+      <text x="312" y="102" fill="var(--token-text-secondary)" fontSize="8" textAnchor="end">{(distance / 1000).toFixed(2)} km</text>
     </svg>
     <div className="profile-metrics"><span>↑ {formatMeters(profile.ascentMeters)} ascent</span><span>↓ {formatMeters(profile.descentMeters)} descent</span><span>Δ {formatMeters(profile.netChangeMeters)} net</span></div>
   </section>;

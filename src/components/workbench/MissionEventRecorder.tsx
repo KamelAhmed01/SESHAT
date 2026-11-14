@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { NumberInput } from '@astryxdesign/core/NumberInput';
+import { Selector } from '@astryxdesign/core/Selector';
+import { HStack, VStack } from '@astryxdesign/core/Stack';
+import { Text } from '@astryxdesign/core/Text';
+import { TextInput } from '@astryxdesign/core/TextInput';
 import { eventChannels } from '@/engine/lifecycle-store';
 import type { EventChannel, EventDetails, MissionEvent } from '@/engine/lifecycle-store';
 import type { ScienceTarget } from '@/engine/types';
@@ -17,46 +23,90 @@ const categories = {
   NEW_SCIENTIFIC_DISCOVERY: 'New scientific discovery',
 } satisfies Record<EventDetails['category'], string>;
 
+const categoryOptions = Object.entries(categories).map(([value, label]) => ({ value, label }));
+
+const defaultPrimaryAmount: Record<EventDetails['category'], number> = {
+  MISSION_DELAY: 15,
+  RESOURCE_CHANGE: 75,
+  NEW_TERRAIN_HAZARD: 1,
+  ENVIRONMENTAL_OR_TERRAIN_CHANGE: 80,
+  DESTINATION_ACCESSIBILITY_CHANGE: 0,
+  NEW_SCIENTIFIC_DISCOVERY: 15,
+};
+
 export const channelLabels: Record<EventChannel, string> = {
   MANUAL_INPUT: 'Manual field input',
   AUTO_SENSOR_INPUT: 'Simulated suit sensor',
   INSTRUMENT_INTEGRATION: 'Simulated mission instrument',
 };
 
-export function eventLabel(category: EventDetails['category']) { return categories[category]; }
+const channelOptions = eventChannels.map(value => ({ value, label: channelLabels[value] }));
+
+export function eventLabel(category: EventDetails['category']) {
+  return categories[category];
+}
 
 export function eventMeasurement(event: MissionEvent) {
   switch (event.category) {
-    case 'MISSION_DELAY': return `+${event.minutes} min`;
-    case 'RESOURCE_CHANGE': return `+${event.oxygen} L O₂ / +${event.energy} Wh consumed`;
-    case 'NEW_TERRAIN_HAZARD': return `Radius ${event.zone.radius} cells`;
-    case 'ENVIRONMENTAL_OR_TERRAIN_CHANGE': return `${Math.round(event.speedFactor * 100)}% of previous pace`;
-    case 'DESTINATION_ACCESSIBILITY_CHANGE': return 'Stop removed from consideration';
-    case 'NEW_SCIENTIFIC_DISCOVERY': return `${event.target.name} · ${event.target.activity.minutes} min`;
+    case 'MISSION_DELAY':
+      return `+${event.minutes} min`;
+    case 'RESOURCE_CHANGE':
+      return `+${event.oxygen} L O₂ / +${event.energy} Wh consumed`;
+    case 'NEW_TERRAIN_HAZARD':
+      return `Radius ${event.zone.radius} cells`;
+    case 'ENVIRONMENTAL_OR_TERRAIN_CHANGE':
+      return `${Math.round(event.speedFactor * 100)}% of previous pace`;
+    case 'DESTINATION_ACCESSIBILITY_CHANGE':
+      return 'Stop removed from consideration';
+    case 'NEW_SCIENTIFIC_DISCOVERY':
+      return `${event.target.name} · ${event.target.activity.minutes} min`;
   }
 }
 
-
 export function scenarioPoint(cell: Cell, name = 'Custom exploration point', id = `pin-${cell.join('-')}`): ScienceTarget {
   return {
-    id, name, objectiveTags: [],
-    location: { gridRow: cell[0], gridCol: cell[1], originalCoordinateText: `Grid cell (${cell.join(', ')})`,
-      coordinateFrame: 'LOCAL_ANALYSIS_GRID', confidence: 'USER_SELECTED', locationSource: null },
-    science: {summary: 'User-selected field location.', sourceIds: [], evidence: [], limitations: ['No site-specific evidence.']},
-    activity: {minutes: scenario.defaultScienceMinutes, basis: 'SCENARIO_ASSUMPTION'},
+    id,
+    name,
+    objectiveTags: [],
+    location: {
+      gridRow: cell[0],
+      gridCol: cell[1],
+      originalCoordinateText: `Grid cell (${cell.join(', ')})`,
+      coordinateFrame: 'LOCAL_ANALYSIS_GRID',
+      confidence: 'USER_SELECTED',
+      locationSource: null,
+    },
+    science: {
+      summary: 'User-selected field location.',
+      sourceIds: [],
+      evidence: [],
+      limitations: ['No site-specific evidence.'],
+    },
+    activity: {
+      minutes: scenario.defaultScienceMinutes,
+      basis: 'SCENARIO_ASSUMPTION',
+    },
   };
 }
 
-export type EventSubmission = {details: EventDetails; channel: EventChannel; description: string};
+export type EventSubmission = { details: EventDetails; channel: EventChannel; description: string };
 
-export function MissionEventRecorder({position, selected, remaining, nextEvent, onRecord}: {
-  position: Cell; selected: Cell | null; remaining: ScienceTarget[]; nextEvent: number;
+export function MissionEventRecorder({ position, selected, remaining, nextEvent, onRecord }: {
+  position: Cell;
+  selected: Cell | null;
+  remaining: ScienceTarget[];
+  nextEvent: number;
   onRecord: (entry: EventSubmission) => void;
 }) {
   const [category, setCategory] = useState<EventDetails['category']>('MISSION_DELAY');
   const [channel, setChannel] = useState<EventChannel>('MANUAL_INPUT');
+  const [amount, setAmount] = useState<number>(defaultPrimaryAmount.MISSION_DELAY);
+  const [secondary, setSecondary] = useState<number>(0);
+  const [discoveryName, setDiscoveryName] = useState('');
+  const [targetId, setTargetId] = useState<string>('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+
   const fallback = selected ?? position;
   const selectionKey = selected ? `${selected[0]},${selected[1]}` : '';
   const [manualCoord, setManualCoord] = useState<{ key: string; row: string; col: string } | null>(null);
@@ -69,79 +119,228 @@ export function MissionEventRecorder({position, selected, remaining, nextEvent, 
     ? [parsedRow, parsedCol]
     : fallback;
 
-  return <form className="mission-event" onSubmit={event => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const amount = Number(form.get('amount')), secondary = Number(form.get('secondary'));
-    const build: Record<EventDetails['category'], () => EventDetails> = {
-      MISSION_DELAY: () => ({category: 'MISSION_DELAY', minutes: amount}),
-      RESOURCE_CHANGE: () => ({category: 'RESOURCE_CHANGE', oxygen: amount, energy: secondary}),
-      NEW_TERRAIN_HAZARD: () => ({category: 'NEW_TERRAIN_HAZARD', zone: {cell: chosen, radius: amount}}),
-      ENVIRONMENTAL_OR_TERRAIN_CHANGE: () => ({category: 'ENVIRONMENTAL_OR_TERRAIN_CHANGE', speedFactor: amount / 100}),
-      DESTINATION_ACCESSIBILITY_CHANGE: () => ({category: 'DESTINATION_ACCESSIBILITY_CHANGE', targetId: String(form.get('target'))}),
-      NEW_SCIENTIFIC_DISCOVERY: () => {
-        const target = scenarioPoint(chosen, String(form.get('target')).trim(), `discovery-${nextEvent}`);
-        return {category: 'NEW_SCIENTIFIC_DISCOVERY', target: {...target, activity: {...target.activity, minutes: amount},
-          science: {...target.science, summary: description.trim() || 'Simulated geological field observation.'}}};
-      },
-    };
-    try {
-      onRecord({details: build[category](), channel, description: description.trim()});
-      setDescription('');
-      setError('');
-    } catch (issue) {
-      setError(issue instanceof Error ? issue.message : 'Unable to record event.');
-    }
-  }}>
-    <label>Input channel<select value={channel} onChange={event => setChannel(event.target.value as EventChannel)}>
-      {eventChannels.map(item => <option key={item} value={item}>{channelLabels[item]}</option>)}</select></label>
-    <label>Event category<select value={category} onChange={event => {setCategory(event.target.value as EventDetails['category']); setError('');}}>
-      {Object.entries(categories).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-    <div key={category} className="event-fields">
-      {category === 'MISSION_DELAY' && <label>Delay (min)<input name="amount" type="number" min="1" max="600" defaultValue="15" required /></label>}
-      {category === 'RESOURCE_CHANGE' && <>
-        <label>Extra oxygen used (L)<input name="amount" type="number" min="0" step="0.1" defaultValue="75" required /></label>
-        <label>Extra energy used (Wh)<input name="secondary" type="number" min="0" step="0.1" defaultValue="0" required /></label>
-      </>}
-      {category === 'NEW_TERRAIN_HAZARD' && <label>Exclusion radius (cells)<input name="amount" type="number" min="0" max="20" defaultValue="1" required /></label>}
-      {category === 'ENVIRONMENTAL_OR_TERRAIN_CHANGE' && <label>Remaining pace (%)<input name="amount" type="number" min="1" max="99" defaultValue="80" required /></label>}
-      {category === 'DESTINATION_ACCESSIBILITY_CHANGE' && <label>Upcoming stop<select name="target" required>
-        {remaining.map(stop => <option key={stop.id} value={stop.id}>{stop.name}</option>)}</select></label>}
-      {category === 'NEW_SCIENTIFIC_DISCOVERY' && <>
-        <label>Discovery name<input name="target" maxLength={72} required /></label>
-        <label>Activity (min)<input name="amount" type="number" min="0" max="120" defaultValue="15" required /></label>
-      </>}
-      {(category === 'NEW_TERRAIN_HAZARD' || category === 'NEW_SCIENTIFIC_DISCOVERY') && (
-        <div className="cc-event-coords">
-          <div className="cc-coord-pair cc-coord-input-row">
-            <label className="cc-coord-input">
-              <span>Y (row):</span>
-              <input
-                type="number"
-                aria-label="Event row Y"
-                value={rowInput}
-                onChange={e => setManualCoord({ key: selectionKey, row: e.target.value, col: colInput })}
-                required
+  const activeTargetId = remaining.some(stop => stop.id === targetId)
+    ? targetId
+    : (remaining[0]?.id ?? '');
+  const stopOptions = remaining.map(stop => ({ value: stop.id, label: stop.name }));
+
+  const handleCategoryChange = (next: string) => {
+    const typed = next as EventDetails['category'];
+    setCategory(typed);
+    setAmount(defaultPrimaryAmount[typed]);
+    setSecondary(0);
+    setError('');
+  };
+
+  return (
+    <form
+      className="mission-event"
+      onSubmit={event => {
+        event.preventDefault();
+        const build: Record<EventDetails['category'], () => EventDetails> = {
+          MISSION_DELAY: () => ({ category: 'MISSION_DELAY', minutes: amount }),
+          RESOURCE_CHANGE: () => ({ category: 'RESOURCE_CHANGE', oxygen: amount, energy: secondary }),
+          NEW_TERRAIN_HAZARD: () => ({ category: 'NEW_TERRAIN_HAZARD', zone: { cell: chosen, radius: amount } }),
+          ENVIRONMENTAL_OR_TERRAIN_CHANGE: () => ({ category: 'ENVIRONMENTAL_OR_TERRAIN_CHANGE', speedFactor: amount / 100 }),
+          DESTINATION_ACCESSIBILITY_CHANGE: () => ({ category: 'DESTINATION_ACCESSIBILITY_CHANGE', targetId: activeTargetId }),
+          NEW_SCIENTIFIC_DISCOVERY: () => {
+            if (!discoveryName.trim()) {
+              throw new Error('Enter a name for the new scientific discovery.');
+            }
+            const target = scenarioPoint(chosen, discoveryName.trim(), `discovery-${nextEvent}`);
+            return {
+              category: 'NEW_SCIENTIFIC_DISCOVERY',
+              target: {
+                ...target,
+                activity: { ...target.activity, minutes: amount },
+                science: {
+                  ...target.science,
+                  summary: description.trim() || 'Simulated geological field observation.',
+                },
+              },
+            };
+          },
+        };
+        try {
+          onRecord({ details: build[category](), channel, description: description.trim() });
+          setDescription('');
+          setDiscoveryName('');
+          setError('');
+        } catch (issue) {
+          setError(issue instanceof Error ? issue.message : 'Unable to record event.');
+        }
+      }}
+    >
+      <VStack gap={2}>
+        <Selector
+          label="Input channel"
+          size="sm"
+          width="100%"
+          options={channelOptions}
+          value={channel}
+          onChange={val => setChannel(val as EventChannel)}
+        />
+        <Selector
+          label="Event category"
+          size="sm"
+          width="100%"
+          options={categoryOptions}
+          value={category}
+          onChange={handleCategoryChange}
+        />
+        <div key={category} className="event-fields">
+          {category === 'MISSION_DELAY' && (
+            <NumberInput
+              label="Delay (min)"
+              size="sm"
+              width="100%"
+              min={1}
+              max={600}
+              step={1}
+              isIntegerOnly
+              hasNumberSteppers
+              value={amount}
+              onChange={setAmount}
+              isRequired
+            />
+          )}
+          {category === 'RESOURCE_CHANGE' && (
+            <VStack gap={2}>
+              <NumberInput
+                label="Extra oxygen used (L)"
+                size="sm"
+                width="100%"
+                min={0}
+                step={0.5}
+                hasNumberSteppers
+                value={amount}
+                onChange={setAmount}
+                isRequired
               />
-            </label>
-            <label className="cc-coord-input">
-              <span>X (col):</span>
-              <input
-                type="number"
-                aria-label="Event column X"
-                value={colInput}
-                onChange={e => setManualCoord({ key: selectionKey, row: rowInput, col: e.target.value })}
-                required
+              <NumberInput
+                label="Extra energy used (Wh)"
+                size="sm"
+                width="100%"
+                min={0}
+                step={1}
+                hasNumberSteppers
+                value={secondary}
+                onChange={setSecondary}
+                isRequired
               />
-            </label>
-          </div>
-          <p className="context-note">Target cell ({chosen.join(', ')}). Enter coordinates or click the map.</p>
+            </VStack>
+          )}
+          {category === 'NEW_TERRAIN_HAZARD' && (
+            <NumberInput
+              label="Exclusion radius (cells)"
+              size="sm"
+              width="100%"
+              min={0}
+              max={20}
+              step={1}
+              isIntegerOnly
+              hasNumberSteppers
+              value={amount}
+              onChange={setAmount}
+              isRequired
+            />
+          )}
+          {category === 'ENVIRONMENTAL_OR_TERRAIN_CHANGE' && (
+            <NumberInput
+              label="Remaining pace (%)"
+              size="sm"
+              width="100%"
+              min={1}
+              max={99}
+              step={5}
+              isIntegerOnly
+              hasNumberSteppers
+              value={amount}
+              onChange={setAmount}
+              isRequired
+            />
+          )}
+          {category === 'DESTINATION_ACCESSIBILITY_CHANGE' && (
+            <Selector
+              label="Upcoming stop"
+              size="sm"
+              width="100%"
+              options={stopOptions}
+              value={activeTargetId}
+              onChange={setTargetId}
+              isDisabled={remaining.length === 0}
+              isRequired
+            />
+          )}
+          {category === 'NEW_SCIENTIFIC_DISCOVERY' && (
+            <VStack gap={2}>
+              <TextInput
+                label="Discovery name"
+                size="sm"
+                width="100%"
+                value={discoveryName}
+                onChange={val => setDiscoveryName(val.slice(0, 72))}
+                isRequired
+              />
+              <NumberInput
+                label="Activity (min)"
+                size="sm"
+                width="100%"
+                min={0}
+                max={120}
+                step={1}
+                isIntegerOnly
+                hasNumberSteppers
+                value={amount}
+                onChange={setAmount}
+                isRequired
+              />
+            </VStack>
+          )}
+          {(category === 'NEW_TERRAIN_HAZARD' || category === 'NEW_SCIENTIFIC_DISCOVERY') && (
+            <div className="cc-event-coords">
+              <HStack gap={2}>
+                <TextInput
+                  label="Event row Y"
+                  size="sm"
+                  inputMode="numeric"
+                  width="50%"
+                  value={rowInput}
+                  onChange={val => setManualCoord({ key: selectionKey, row: val, col: colInput })}
+                  isRequired
+                />
+                <TextInput
+                  label="Event column X"
+                  size="sm"
+                  inputMode="numeric"
+                  width="50%"
+                  value={colInput}
+                  onChange={val => setManualCoord({ key: selectionKey, row: rowInput, col: val })}
+                  isRequired
+                />
+              </HStack>
+              <Text type="supporting">
+                Target cell ({chosen.join(', ')}). Enter coordinates or click the map.
+              </Text>
+            </div>
+          )}
         </div>
-      )}
-    </div>
-    <label>Observation <input value={description} maxLength={180} onChange={event => setDescription(event.target.value)} placeholder="Optional field note" /></label>
-    {error && <p role="alert" className="mission-error">{error}</p>}
-    <Button label="Record event & recalculate" type="submit" variant="primary"
-      isDisabled={category === 'DESTINATION_ACCESSIBILITY_CHANGE' && remaining.length === 0} />
-  </form>;
+        <TextInput
+          label="Observation"
+          size="sm"
+          width="100%"
+          value={description}
+          onChange={val => setDescription(val.slice(0, 180))}
+          placeholder="Optional field note"
+        />
+        {error && <Banner status="error" role="alert" title={error} />}
+        <Button
+          label="Record event & recalculate"
+          type="submit"
+          variant="primary"
+          isDisabled={category === 'DESTINATION_ACCESSIBILITY_CHANGE' && remaining.length === 0}
+        />
+      </VStack>
+    </form>
+  );
 }

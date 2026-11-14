@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '@astryxdesign/core/Icon';
+import { IconButton } from '@astryxdesign/core/IconButton';
 import type { FieldBundle } from '@/data/loader';
 
 export interface MapLegendProps {
@@ -124,14 +126,13 @@ export function MapLegend({
           </svg>
           <strong>Map Layers &amp; Elevation</strong>
         </div>
-        <button
-          type="button"
-          className="cc-legend-close-btn"
+        <IconButton
+          label="Close map layer legend"
+          icon={<Icon icon="close" />}
+          variant="ghost"
+          size="sm"
           onClick={() => setIsOpen(false)}
-          aria-label="Close map layer legend"
-        >
-          ✕
-        </button>
+        />
       </div>
 
       {(showGeology || showThermal) && !showElevation && (

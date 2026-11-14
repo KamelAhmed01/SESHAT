@@ -1,12 +1,26 @@
 'use client';
 
-import Link from 'next/link';
-import { useMemo, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Badge } from '@astryxdesign/core/Badge';
+import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { Card } from '@astryxdesign/core/Card';
+import { Collapsible } from '@astryxdesign/core/Collapsible';
+import { Icon } from '@astryxdesign/core/Icon';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { Link } from '@astryxdesign/core/Link';
+import { NumberInput } from '@astryxdesign/core/NumberInput';
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl';
+import { Selector } from '@astryxdesign/core/Selector';
+import { HStack, VStack } from '@astryxdesign/core/Stack';
+import { Text } from '@astryxdesign/core/Text';
+import { TextInput } from '@astryxdesign/core/TextInput';
+import { ToggleButton, ToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { LeafletGrid } from '@/components/cartography/LeafletGrid';
 import type { MapPointInspection } from '@/components/cartography/LeafletGrid';
-import type { FieldBundle } from '@/data/loader';
+import type { BundleResult, FieldBundle } from '@/data/loader';
 import { addResources, subtractResources, zeroResources } from '@/engine/consumables';
+import { stateLabel } from '@/engine/formatting';
 import {
   advanceMission,
   decideReplan,
@@ -22,9 +36,10 @@ import type { MissionExecution } from '@/engine/lifecycle-store';
 import { archiveMarkdown, createArchive, missionClock, missionSequence } from '@/engine/mission-archive';
 import { canApprove, landingCell, landingId, previewMission, stopLimit, targetCell } from '@/engine/multi-leg-planner';
 import type { MissionPlan, RoutePreference } from '@/engine/multi-leg-planner';
+import { evaluatePositionOpportunities } from '@/engine/opportunity-ledger';
 import { cellIndex } from '@/engine/traverse-graph';
 import type { Cell } from '@/engine/traverse-graph';
-import type { ScienceTarget } from '@/engine/types';
+import type { MissionScenario, ScienceTarget } from '@/engine/types';
 import scenario from '@/config/mission-scenario.json';
 import { channelLabels, eventLabel, eventMeasurement, MissionEventRecorder, scenarioPoint } from './MissionEventRecorder';
 import type { EventSubmission } from './MissionEventRecorder';
@@ -33,16 +48,23 @@ import {
   marginText,
   MissionPlanPreview,
   PlanComparison,
+  stateBadgeVariant,
 } from './MissionPlanPreview';
+import { ThemeControlPopup } from './ThemeControlPopup';
 
-const photos: Record<string, {file: string; caption: string}> = {
-  'swift-run': {file: 'skinner-ridge.webp', caption: 'Thornton Gap abrasion, Skinner Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS'},
-  hazeltop: {file: 'wildcat-ridge.webp', caption: 'Berry Hollow abrasion, Wildcat Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS'},
-  shuyak: {file: 'enchanted-lake.webp', caption: 'Enchanted Lake area · Perseverance Hazcam · NASA/JPL-Caltech'},
+const photos: Record<string, { file: string; caption: string }> = {
+  'swift-run': { file: 'skinner-ridge.webp', caption: 'Thornton Gap abrasion, Skinner Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS' },
+  hazeltop: { file: 'wildcat-ridge.webp', caption: 'Berry Hollow abrasion, Wildcat Ridge · Perseverance WATSON · NASA/JPL-Caltech/MSSS' },
+  shuyak: { file: 'enchanted-lake.webp', caption: 'Enchanted Lake area · Perseverance Hazcam · NASA/JPL-Caltech' },
 };
 
+const routePreferenceOptions = [
+  { value: 'fastest', label: 'Minimum travel time' },
+  { value: 'lowerSlope', label: 'Prefer gentler terrain' },
+];
+
 function download(filename: string, body: string, type: string) {
-  const href = URL.createObjectURL(new Blob([body], {type}));
+  const href = URL.createObjectURL(new Blob([body], { type }));
   const anchor = document.createElement('a');
   anchor.href = href;
   anchor.download = filename;
@@ -50,104 +72,242 @@ function download(filename: string, body: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 
-function SiteEvidence({stop, unitLabel, thermalValue}: {stop: ScienceTarget; unitLabel?: string; thermalValue?: number | null}) {
+function SiteEvidence({
+  stop,
+  unitLabel,
+  thermalValue,
+}: {
+  stop: ScienceTarget;
+  unitLabel?: string;
+  thermalValue?: number | null;
+}) {
   const photo = photos[stop.id];
-  return <details className="mission-disclosure site-evidence">
-    <summary>Science &amp; provenance</summary>
-    <p>{stop.science.summary}</p>
-    <p>{stop.location.originalCoordinateText}</p>
-    {unitLabel && <p>Mapped geologic unit (Stack et al. 2020): {unitLabel}</p>}
-    {thermalValue !== undefined && thermalValue !== null && (
-      <p>Thermal inertia (Edwards &amp; Buz 2021): {thermalValue.toFixed(0)} J m⁻² K⁻¹ s⁻¹/²</p>
-    )}
-    <p>Unavailable fields: live weather, radiation &amp; sub-20 m boulder roughness.</p>
-    {photo && <figure>
-      {/* eslint-disable-next-line @next/next/no-img-element -- local evidence images ship with the offline export */}
-      <img loading="lazy" src={`/data/imagery/${photo.file}`} alt={photo.caption} />
-      <figcaption>{photo.caption}</figcaption>
-    </figure>}
-    {stop.science.evidence.map(item => <p key={item.sourceId}><a href={item.url} target="_blank" rel="noreferrer">{item.title} ↗</a></p>)}
-  </details>;
+  return (
+    <Collapsible
+      className="mission-disclosure site-evidence"
+      defaultIsOpen={false}
+      chevronPosition="end"
+      trigger="Science & provenance"
+    >
+      <VStack gap={1.5}>
+        <p>{stop.science.summary}</p>
+        <p>{stop.location.originalCoordinateText}</p>
+        {unitLabel && <p>Mapped geologic unit (Stack et al. 2020): {unitLabel}</p>}
+        {thermalValue !== undefined && thermalValue !== null && (
+          <p>Thermal inertia (Edwards &amp; Buz 2021): {thermalValue.toFixed(0)} J m⁻² K⁻¹ s⁻¹/²</p>
+        )}
+        <p>Unavailable fields: live weather, radiation &amp; sub-20 m boulder roughness.</p>
+        {photo && (
+          <figure>
+            {/* eslint-disable-next-line @next/next/no-img-element -- local evidence images ship with the offline export */}
+            <img loading="lazy" src={`/data/imagery/${photo.file}`} alt={photo.caption} />
+            <figcaption>{photo.caption}</figcaption>
+          </figure>
+        )}
+        {stop.science.evidence.map(item => (
+          <p key={item.sourceId}>
+            <Link href={item.url} target="_blank" rel="noreferrer">
+              {item.title} ↗
+            </Link>
+          </p>
+        ))}
+      </VStack>
+    </Collapsible>
+  );
 }
 
 function SelectionPanel({
-  catalog, selected, limit, width, height, customCol, customRow, bundle, headingRef, decision,
-  onCustomCol, onCustomRow, onAddCustomPoint, onMode, onAdd, onChange, onReorder, onResume,
+  catalog,
+  selected,
+  limit,
+  width,
+  height,
+  customCol,
+  customRow,
+  bundle,
+  headingRef,
+  decision,
+  onCustomCol,
+  onCustomRow,
+  onAddCustomPoint,
+  onMode,
+  onAdd,
+  onChange,
+  onReorder,
+  onResume,
 }: {
-  catalog: ScienceTarget[]; selected: ScienceTarget[]; limit: number;
-  width: number; height: number;
-  customCol: string; customRow: string;
+  catalog: ScienceTarget[];
+  selected: ScienceTarget[];
+  limit: number;
+  width: number;
+  height: number;
+  customCol: string;
+  customRow: string;
   bundle: FieldBundle;
   decision: React.ReactNode;
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
-  onCustomCol: (v: string) => void; onCustomRow: (v: string) => void;
+  onCustomCol: (v: string) => void;
+  onCustomRow: (v: string) => void;
   onAddCustomPoint: () => void;
-  onMode: (limit: number) => void; onAdd: (stop: ScienceTarget) => void;
-  onChange: (stops: ScienceTarget[]) => void; onReorder: (index: number) => void;
+  onMode: (limit: number) => void;
+  onAdd: (stop: ScienceTarget) => void;
+  onChange: (stops: ScienceTarget[]) => void;
+  onReorder: (index: number) => void;
   onResume: () => void;
 }) {
-  return <>
-    <section className="field-section">
-      <h1 ref={headingRef} tabIndex={-1}>Plan a science traverse</h1>
-      <p>Choose science stops for a round trip from the landing site.</p>
-      <div className="field-mode">
-        <div className="mission-actions" role="group" aria-label="Destination mode">
-          <button type="button" aria-pressed={limit === 1} onClick={() => onMode(1)}>Single</button>
-          <button type="button" aria-pressed={limit > 1} onClick={() => onMode(stopLimit)}>Multiple</button>
+  return (
+    <>
+      <section className="field-section">
+        <h1 ref={headingRef} tabIndex={-1}>
+          Plan a science traverse
+        </h1>
+        <Text type="supporting">Choose science stops for a round trip from the landing site.</Text>
+        <div className="field-mode">
+          <SegmentedControl
+            label="Destination mode"
+            size="sm"
+            value={limit === 1 ? 'single' : 'multiple'}
+            onChange={value => onMode(value === 'single' ? 1 : stopLimit)}
+          >
+            <SegmentedControlItem value="single" label="Single" />
+            <SegmentedControlItem value="multiple" label="Multiple" />
+          </SegmentedControl>
+          <Button label="Resume saved mission" variant="secondary" size="sm" onClick={onResume} />
         </div>
-        <Button label="Resume saved mission" onClick={onResume}/>
-      </div>
-    </section>
+      </section>
 
-    {selected.length > 0 && <section className="cc-panel-block cc-panel-compact">
-      <div className="section-heading">
-        <h2>Stop priorities</h2>
-        <span className="section-index">{selected.length} / {limit}</span>
-      </div>
-      <ol className="mission-stop-list">
-          {selected.map((stop, index) => <li key={stop.id}>
-            <div><strong>{stop.name}</strong><button type="button" aria-label={`Remove ${stop.name}`}
-              onClick={() => onChange(selected.filter(item => item.id !== stop.id))}>×</button></div>
-            <div><label>Activity (min)<input type="number" min="0" max="120" value={stop.activity.minutes}
-              onChange={event => onChange(selected.map(item => item.id === stop.id ? {...stop,
-                activity: {...stop.activity, minutes: Math.max(0, Math.min(120, Number(event.target.value)))}} : item))} /></label>
-              {index > 0 && <button type="button" aria-label={`Raise priority of ${stop.name}`} onClick={() => onReorder(index)}>↑ Priority</button>}</div>
-          </li>)}
-      </ol>
-    </section>}
+      {selected.length > 0 && (
+        <section className="field-section">
+          <div className="section-heading">
+            <h2>Stop priorities</h2>
+            <span className="section-index">
+              {selected.length} / {limit}
+            </span>
+          </div>
+          <ol className="mission-stop-list">
+            {selected.map((stop, index) => (
+              <li key={stop.id}>
+                <div className="mission-stop-row">
+                  <strong>{stop.name}</strong>
+                  <IconButton
+                    label={`Remove ${stop.name}`}
+                    icon={<Icon icon="close" />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onChange(selected.filter(item => item.id !== stop.id))}
+                  />
+                </div>
+                <HStack gap={2} vAlign="end" wrap="wrap">
+                  <NumberInput
+                    label="Activity (min)"
+                    size="sm"
+                    width={140}
+                    min={0}
+                    max={120}
+                    step={1}
+                    isIntegerOnly
+                    hasNumberSteppers
+                    value={stop.activity.minutes}
+                    onChange={value =>
+                      onChange(
+                        selected.map(item =>
+                          item.id === stop.id
+                            ? {
+                                ...item,
+                                activity: {
+                                  ...item.activity,
+                                  minutes: Math.max(0, Math.min(120, Math.round(value))),
+                                },
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  {index > 0 && (
+                    <Button
+                      label="↑ Priority"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Raise priority of ${stop.name}`}
+                      onClick={() => onReorder(index)}
+                    />
+                  )}
+                </HStack>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
-    {decision}
+      {decision}
 
-    <section className="cc-panel-block cc-panel-compact mission-catalog">
-      <h2>Science sites</h2>
-      {catalog.length === 0 && <p className="context-note">No documented targets match the current filter.</p>}
-      <div className="cc-catalog-grid">
-        {catalog.map(stop => {
-          const cell = targetCell(stop);
-          const idx = cell ? cellIndex(cell, bundle) : -1;
-          const unitLabel = bundle.contextData?.geologicUnits?.targetUnits?.[stop.id];
-          const thermalVal = idx >= 0 && bundle.contextData?.thermalInertia && Number.isFinite(bundle.contextData.thermalInertia[idx])
-            ? bundle.contextData.thermalInertia[idx]
-            : null;
-          return <div key={stop.id} className="cc-catalog-item">
-            <Button label={`Add ${stop.name}`} onClick={() => onAdd(stop)}
-              isDisabled={!cell || selected.some(item => item.id === stop.id) || (limit > 1 && selected.length >= limit)} />
-            <SiteEvidence stop={stop} unitLabel={unitLabel} thermalValue={thermalVal}/>
-          </div>;
-        })}
-      </div>
-    </section>
-    <details className="mission-disclosure field-coordinates">
-      <summary>Use grid coordinates</summary>
-      <form onSubmit={event => {event.preventDefault(); onAddCustomPoint();}}>
-        <label>Column <input type="number" min={0} max={width - 1} value={customCol}
-          onChange={event => onCustomCol(event.target.value)} aria-label="Target column X" required /></label>
-        <label>Row <input type="number" min={0} max={height - 1} value={customRow}
-          onChange={event => onCustomRow(event.target.value)} aria-label="Target row Y" required /></label>
-        <Button label="Add custom coordinate point" type="submit" />
-      </form>
-    </details>
-  </>;
+      <section className="field-section mission-catalog">
+        <h2>Science sites</h2>
+        <div className="field-catalog-grid">
+          {catalog.map(stop => {
+            const cell = targetCell(stop);
+            const idx = cell ? cellIndex(cell, bundle) : -1;
+            const unitLabel = bundle.contextData?.geologicUnits?.targetUnits?.[stop.id];
+            const thermalVal =
+              idx >= 0 && bundle.contextData?.thermalInertia && Number.isFinite(bundle.contextData.thermalInertia[idx])
+                ? bundle.contextData.thermalInertia[idx]
+                : null;
+            return (
+              <div key={stop.id} className="field-catalog-item">
+                <Button
+                  label={`Add ${stop.name}`}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onAdd(stop)}
+                  isDisabled={!cell || selected.some(item => item.id === stop.id) || (limit > 1 && selected.length >= limit)}
+                />
+                <SiteEvidence stop={stop} unitLabel={unitLabel} thermalValue={thermalVal} />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <Collapsible
+        className="mission-disclosure field-coordinates"
+        defaultIsOpen={false}
+        chevronPosition="end"
+        trigger="Use grid coordinates"
+      >
+        <form
+          onSubmit={event => {
+            event.preventDefault();
+            onAddCustomPoint();
+          }}
+        >
+          <HStack gap={2} vAlign="end" wrap="wrap">
+            <TextInput
+              label="Target column X"
+              size="sm"
+              inputMode="numeric"
+              width={116}
+              value={customCol}
+              onChange={onCustomCol}
+              description={`0–${width - 1}`}
+              isRequired
+            />
+            <TextInput
+              label="Target row Y"
+              size="sm"
+              inputMode="numeric"
+              width={116}
+              value={customRow}
+              onChange={onCustomRow}
+              description={`0–${height - 1}`}
+              isRequired
+            />
+            <Button label="Add custom coordinate point" type="submit" variant="secondary" size="sm" />
+          </HStack>
+        </form>
+      </Collapsible>
+    </>
+  );
 }
 
 function ExecutionPanel({
@@ -176,13 +336,19 @@ function ExecutionPanel({
   const [obsInput, setObsInput] = useState('');
   const leg = mission.active.legs[mission.legIndex];
   const complete = mission.status === 'COMPLETED';
-  const remaining = mission.active.stops.filter(stop => !mission.completed.includes(stop.id) &&
-    !mission.events.some(event => event.category === 'DESTINATION_ACCESSIBILITY_CHANGE' && event.targetId === stop.id));
-  const baselineIndex = complete ? mission.baseline.legs.length - 1
+  const remaining = mission.active.stops.filter(
+    stop =>
+      !mission.completed.includes(stop.id) &&
+      !mission.events.some(event => event.category === 'DESTINATION_ACCESSIBILITY_CHANGE' && event.targetId === stop.id),
+  );
+  const baselineIndex = complete
+    ? mission.baseline.legs.length - 1
     : mission.baseline.legs.findIndex(item => item.targetId === mission.completed.at(-1));
   const baselineClock = mission.baseline.legs[baselineIndex]?.leave;
-  const baselineResources = baselineIndex < 0 ? null
-    : mission.baseline.legs.slice(0, baselineIndex + 1).reduce((total, item) => addResources(total, item.used), zeroResources);
+  const baselineResources =
+    baselineIndex < 0
+      ? null
+      : mission.baseline.legs.slice(0, baselineIndex + 1).reduce((total, item) => addResources(total, item.used), zeroResources);
   const completedStopName = (id: string) => {
     const baseline = mission.baseline.stops.find(stop => stop.id === id);
     const discovered = mission.events.find(event => event.category === 'NEW_SCIENTIFIC_DISCOVERY' && event.target.id === id);
@@ -192,116 +358,186 @@ function ExecutionPanel({
   const observations = mission.fieldObservations ?? [];
   const progressList = Object.values(mission.stopProgress ?? {});
 
-  return <>
-    <section className="cc-panel-block cc-panel-compact">
-      <h1 ref={headingRef} tabIndex={-1}>
-        {complete ? 'Returned to landing site' : activeProg ? activeProg.stopName : leg ? `Travel to ${leg.to}` : 'Mission in progress'}
-      </h1>
-      <p className="context-note">{missionClock(mission.spent.minutes)} elapsed · {mission.spent.oxygen.toFixed(1)} L O₂ used · {mission.spent.energy.toFixed(1)} Wh used</p>
-      {baselineClock !== undefined && baselineResources && <p className="context-note">Baseline at {complete ? 'return' : 'latest completed stop'} · {missionClock(baselineClock)} · {baselineResources.oxygen.toFixed(1)} L O₂ · {baselineResources.energy.toFixed(1)} Wh</p>}
-    </section>
-
-    {!complete && mission.pendingReading && (
-      <section className="cc-panel-block cc-panel-compact cc-reading-alert" aria-label="Incoming simulated reading">
-        <div className="section-heading">
-          <span>Incoming simulated reading</span>
-          <span className="cc-reading-channel">{channelLabels[mission.pendingReading.channel]}</span>
-        </div>
-        <p><strong>{mission.pendingReading.title}</strong></p>
-        <p className="context-note">{missionClock(mission.pendingReading.triggeredAtMinutes)} · {mission.pendingReading.measurement}</p>
-        <p className="context-note">{mission.pendingReading.description}</p>
-        <div className="mission-buttons">
-          <Button label="Record reading & evaluate impact" variant="primary" onClick={onRecordReading} />
-          <Button label="Dismiss reading" onClick={onDismissReading} />
-        </div>
-      </section>
-    )}
-
-    {mission.status === 'EXECUTING' && activeProg && !mission.pendingReading && (
-      <section className="cc-panel-block cc-panel-compact cc-stop-ops" aria-label="Active stop exploration">
-        <div className="section-heading">
-          <span>Fieldwork</span>
-          <span className="section-index">{activeProg.exploredMinutes.toFixed(0)} / {activeProg.plannedMinutes.toFixed(0)} min</span>
-        </div>
+  return (
+    <>
+      <section className="field-section">
+        <h1 ref={headingRef} tabIndex={-1}>
+          {complete ? 'Returned to landing site' : activeProg ? activeProg.stopName : leg ? `Travel to ${leg.to}` : 'Mission in progress'}
+        </h1>
         <p className="context-note">
-          {activeProg.status === 'arrived'
-            ? 'Arrived at site. Log observations or begin exploration time.'
-            : `Exploring site · ${activeProg.observations.length} observation(s) preserved.`}
+          {missionClock(mission.spent.minutes)} elapsed · {mission.spent.oxygen.toFixed(1)} L O₂ used · {mission.spent.energy.toFixed(1)} Wh used
         </p>
-        <form
-          className="cc-obs-form"
-          onSubmit={e => {
-            e.preventDefault();
-            if (!obsInput.trim()) return;
-            onLogObservation(obsInput);
-            setObsInput('');
-          }}
-        >
-          <input
-            type="text"
-            value={obsInput}
-            maxLength={140}
-            aria-label="Observation note"
-            placeholder="Record geology / mineralogy note…"
-            onChange={e => setObsInput(e.target.value)}
-          />
-          <Button label="Record observation" type="submit" isDisabled={!obsInput.trim()} />
-        </form>
-        <div className="mission-buttons">
-          <Button
-            label={activeProg.plannedMinutes - activeProg.exploredMinutes < 10 ? 'Explore remaining time' : 'Explore +10 min'}
-            variant="primary"
-            isDisabled={activeProg.exploredMinutes >= activeProg.plannedMinutes}
-            onClick={onExploreStep}
-          />
-          {!mission.pendingReading && (
-            <Button label="Simulate incoming reading" onClick={onTriggerReading} />
-          )}
-          <Button label="Complete stop" isDisabled={activeProg.exploredMinutes < activeProg.plannedMinutes} onClick={onFinishStop} />
-        </div>
+        {baselineClock !== undefined && baselineResources && (
+          <p className="context-note">
+            Baseline at {complete ? 'return' : 'latest completed stop'} · {missionClock(baselineClock)} · {baselineResources.oxygen.toFixed(1)} L O₂ · {baselineResources.energy.toFixed(1)} Wh
+          </p>
+        )}
       </section>
-    )}
 
-    <details className="mission-disclosure field-history">
-      <summary>Mission history</summary>
-      <p className="context-note" role="status">{complete ? 'Returned · archive ready'
-        : mission.status === 'REVIEW' ? 'Event analyzed · revised plan awaiting approval'
-        : mission.status === 'HOLD' ? 'Holding · record a new event or review direct return'
-        : mission.activeStopId ? 'At stop · exploring and logging observations'
-        : mission.decisions.length ? 'Continuing on the approved revision' : 'Baseline approved · tracking progress'}</p>
-      <ol className="mission-history">
-        {progressList.filter(item => item.status !== 'pending').map(item => (
-          <li key={`prog-${item.stopId}`}>
-            {item.status === 'completed' ? '✓' : item.status === 'departed-early' ? '◐' : '•'} {item.stopName}
-            <small>{item.status} · {item.exploredMinutes.toFixed(0)}/{item.plannedMinutes.toFixed(0)} min · {item.observations.length} note(s)</small>
-          </li>
-        ))}
-        {mission.completed.filter(id => !progressList.some(p => p.stopId === id && p.status !== 'pending')).map(id => (
-          <li key={id}>✓ {completedStopName(id)}</li>
-        ))}
-        {observations.map(obs => (
-          <li key={obs.id}>{missionClock(obs.timestampMinutes)} · Observation at {obs.stopName}
-            <small>{obs.note} ({obs.recordedDuring})</small></li>
-        ))}
-        {mission.events.map(event => <li key={event.id}>{missionClock(event.minute)} · {eventLabel(event.category)}
-          <small>{channelLabels[event.channel]} · {eventMeasurement(event)} · ({event.cell.join(', ')})
-            {event.description && ` · ${event.description}`}</small></li>)}
-        {mission.decisions.map((decision, i) => (
-          <li key={i}>{missionClock(decision.minute)} · Revision {decision.kind}{decision.stopAction ? ` (${decision.stopAction})` : ''}</li>
-        ))}
-      </ol>
-    </details>
+      {!complete && mission.pendingReading && (
+        <section className="field-section" aria-label="Incoming simulated reading">
+          <VStack gap={2}>
+            <Banner
+              status="warning"
+              role="alert"
+              collapsible={false}
+              title={`Incoming simulated reading · ${mission.pendingReading.title}`}
+              description={`${missionClock(mission.pendingReading.triggeredAtMinutes)} · ${mission.pendingReading.measurement} — ${mission.pendingReading.description}`}
+              endContent={<Badge variant="warning" label={channelLabels[mission.pendingReading.channel]} />}
+            />
+            <div className="mission-buttons">
+              <Button label="Record reading & evaluate impact" variant="primary" size="sm" onClick={onRecordReading} />
+              <Button label="Dismiss reading" variant="secondary" size="sm" onClick={onDismissReading} />
+            </div>
+          </VStack>
+        </section>
+      )}
 
-    {!complete && <details className="mission-disclosure cc-event-disclosure">
-      <summary>Record an event</summary>
-      <MissionEventRecorder position={mission.position} selected={selected} remaining={remaining}
-        nextEvent={mission.events.length + 1} onRecord={onEvent} />
-    </details>}
-  </>;
+      {mission.status === 'EXECUTING' && activeProg && !mission.pendingReading && (
+        <section className="field-section" aria-label="Active stop exploration">
+          <Card padding={3}>
+            <VStack gap={2}>
+              <div className="section-heading">
+                <span>Fieldwork</span>
+                <span className="section-index">
+                  {activeProg.exploredMinutes.toFixed(0)} / {activeProg.plannedMinutes.toFixed(0)} min
+                </span>
+              </div>
+              <p className="context-note">
+                {activeProg.status === 'arrived'
+                  ? 'Arrived at site. Log observations or begin exploration time.'
+                  : `Exploring site · ${activeProg.observations.length} observation(s) preserved.`}
+              </p>
+              <form
+                className="field-obs-form"
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (!obsInput.trim()) return;
+                  onLogObservation(obsInput);
+                  setObsInput('');
+                }}
+              >
+                <TextInput
+                  label="Observation note"
+                  isLabelHidden
+                  size="sm"
+                  width="100%"
+                  value={obsInput}
+                  placeholder="Record geology / mineralogy note…"
+                  onChange={val => setObsInput(val.slice(0, 140))}
+                />
+                <Button label="Record observation" type="submit" size="sm" variant="secondary" isDisabled={!obsInput.trim()} />
+              </form>
+              <div className="mission-buttons">
+                <Button
+                  label={activeProg.plannedMinutes - activeProg.exploredMinutes < 10 ? 'Explore remaining time' : 'Explore +10 min'}
+                  variant="primary"
+                  size="sm"
+                  isDisabled={activeProg.exploredMinutes >= activeProg.plannedMinutes}
+                  onClick={onExploreStep}
+                />
+                <Button label="Simulate incoming reading" variant="secondary" size="sm" onClick={onTriggerReading} />
+                <Button
+                  label="Complete stop"
+                  variant="secondary"
+                  size="sm"
+                  isDisabled={activeProg.exploredMinutes < activeProg.plannedMinutes}
+                  onClick={onFinishStop}
+                />
+              </div>
+            </VStack>
+          </Card>
+        </section>
+      )}
+
+      <Collapsible
+        className="mission-disclosure field-history"
+        defaultIsOpen={false}
+        chevronPosition="end"
+        trigger="Mission history"
+      >
+        <p className="context-note" role="status">
+          {complete
+            ? 'Returned · archive ready'
+            : mission.activeStopId
+              ? 'At stop · exploring and logging observations'
+              : mission.decisions.length
+                ? 'Continuing on the approved revision'
+                : 'Baseline approved · tracking progress'}
+        </p>
+        <ol className="mission-history">
+          {progressList
+            .filter(item => item.status !== 'pending')
+            .map(item => (
+              <li key={`prog-${item.stopId}`}>
+                {item.status === 'completed' ? '✓' : item.status === 'departed-early' ? '◐' : '•'} {item.stopName}
+                <small>
+                  {item.status} · {item.exploredMinutes.toFixed(0)}/{item.plannedMinutes.toFixed(0)} min · {item.observations.length} note(s)
+                </small>
+              </li>
+            ))}
+          {mission.completed
+            .filter(id => !progressList.some(p => p.stopId === id && p.status !== 'pending'))
+            .map(id => (
+              <li key={id}>✓ {completedStopName(id)}</li>
+            ))}
+          {observations.map(obs => (
+            <li key={obs.id}>
+              {missionClock(obs.timestampMinutes)} · Observation at {obs.stopName}
+              <small>
+                {obs.note} ({obs.recordedDuring})
+              </small>
+            </li>
+          ))}
+          {mission.events.map(event => (
+            <li key={event.id}>
+              {missionClock(event.minute)} · {eventLabel(event.category)}
+              <small>
+                {channelLabels[event.channel]} · {eventMeasurement(event)} · ({event.cell.join(', ')})
+                {event.description && ` · ${event.description}`}
+              </small>
+            </li>
+          ))}
+          {mission.decisions.map((decision, i) => (
+            <li key={i}>
+              {missionClock(decision.minute)} · Revision {decision.kind}
+              {decision.stopAction ? ` (${decision.stopAction})` : ''}
+            </li>
+          ))}
+        </ol>
+      </Collapsible>
+
+      {!complete && (
+        <Collapsible
+          className="mission-disclosure"
+          defaultIsOpen={false}
+          chevronPosition="end"
+          trigger="Record an event"
+        >
+          <MissionEventRecorder
+            position={mission.position}
+            selected={selected}
+            remaining={remaining}
+            nextEvent={mission.events.length + 1}
+            onRecord={onEvent}
+          />
+        </Collapsible>
+      )}
+    </>
+  );
 }
 
-function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, headingRef, onReopen}: {
-  execution: MissionExecution; baselineRemaining: MissionPlan; returnPlan: MissionPlan | null;
+function ChangeReview({
+  execution,
+  baselineRemaining,
+  onDecision,
+  returnPlan,
+  headingRef,
+  onReopen,
+}: {
+  execution: MissionExecution;
+  baselineRemaining: MissionPlan;
+  returnPlan: MissionPlan | null;
   onDecision: (plan: MissionPlan, decision: 'approved' | 'held' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') => void;
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
   onReopen: () => void;
@@ -314,83 +550,140 @@ function ChangeReview({execution, baselineRemaining, onDecision, returnPlan, hea
   const activeProg = execution.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
 
   const omitted = baselineRemaining.stops.filter(stop => !proposed.stops.some(candidate => candidate.id === stop.id));
-  const previousMargin = conservativeSummary(baselineRemaining)?.margin, proposedMargin = conservativeSummary(proposed)?.margin;
+  const previousMargin = conservativeSummary(baselineRemaining)?.margin;
+  const proposedMargin = conservativeSummary(proposed)?.margin;
   const delta = previousMargin && proposedMargin && subtractResources(proposedMargin, previousMargin);
   const added = proposed.stops.filter(stop => !baselineRemaining.stops.some(prior => prior.id === stop.id));
-  const shortened = proposed.stops.filter(stop => baselineRemaining.stops.some(prior =>
-    prior.id === stop.id && prior.activity.minutes > stop.activity.minutes));
+  const shortened = proposed.stops.filter(stop =>
+    baselineRemaining.stops.some(prior => prior.id === stop.id && prior.activity.minutes > stop.activity.minutes),
+  );
 
-  return <section className="mission-review" aria-label="Replan review">
-    <h1 ref={headingRef} tabIndex={-1}>{execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}</h1>
-    {execution.events.at(-1) && <p className="field-event-title">{eventLabel(execution.events.at(-1)!.category)}</p>}
-    {execution.status === 'HOLD' && <Button label="Resume review" variant="primary" onClick={onReopen} />}
-    {!hasDualStopBranches && execution.proposalReason && <p>{execution.proposalReason}</p>}
+  return (
+    <section className="mission-review" aria-label="Replan review">
+      <h1 ref={headingRef} tabIndex={-1}>
+        {execution.status === 'HOLD' ? 'Holding position' : 'Review the revised plan'}
+      </h1>
+      {execution.events.at(-1) && <p className="field-event-title">{eventLabel(execution.events.at(-1)!.category)}</p>}
+      {execution.status === 'HOLD' && <Button label="Resume review" variant="primary" onClick={onReopen} />}
+      {!hasDualStopBranches && execution.proposalReason && <p>{execution.proposalReason}</p>}
 
-    {hasDualStopBranches && finishBranch && leaveBranch ? (
-      <>
-        {execution.proposalReason && <p className="context-note"><strong>Recommendation:</strong> {execution.proposalReason}</p>}
-        {activeProg && (
-          <p className="context-note">
-            Interrupted at <strong>{activeProg.stopName}</strong>: {activeProg.exploredMinutes.toFixed(0)} / {activeProg.plannedMinutes.toFixed(0)} min explored · {activeProg.observations.length} observation(s) preserved.
-          </p>
-        )}
-        <div className="mission-comparison">
-          <div data-recommended={execution.recommendedProposal === 'finish-stop'}>
-            <small>Option A · Finish stop &amp; continue {execution.recommendedProposal === 'finish-stop' ? '(Recommended)' : ''}</small>
-            <p>{missionSequence(finishBranch)}</p>
-            <p>{marginText(conservativeSummary(finishBranch)?.margin ?? null)} at 0.8×</p>
-            {!canApprove(finishBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
+      {hasDualStopBranches && finishBranch && leaveBranch ? (
+        <>
+          {execution.proposalReason && (
+            <p className="context-note">
+              <strong>Recommendation:</strong> {execution.proposalReason}
+            </p>
+          )}
+          {activeProg && (
+            <p className="context-note">
+              Interrupted at <strong>{activeProg.stopName}</strong>: {activeProg.exploredMinutes.toFixed(0)} /{' '}
+              {activeProg.plannedMinutes.toFixed(0)} min explored · {activeProg.observations.length} observation(s) preserved.
+            </p>
+          )}
+          <div className="mission-comparison">
+            <Card padding={3} data-recommended={execution.recommendedProposal === 'finish-stop'}>
+              <VStack gap={1}>
+                <HStack hAlign="between" vAlign="center" gap={1.5} wrap="wrap">
+                  <small>
+                    Option A · Finish stop &amp; continue {execution.recommendedProposal === 'finish-stop' ? '(Recommended)' : ''}
+                  </small>
+                  <Badge variant={stateBadgeVariant(finishBranch.state)} label={stateLabel(finishBranch.state)} />
+                </HStack>
+                <p>{missionSequence(finishBranch)}</p>
+                <p>{marginText(conservativeSummary(finishBranch)?.margin ?? null)} at 0.8×</p>
+                {!canApprove(finishBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
+              </VStack>
+            </Card>
+            <Card padding={3} data-recommended={execution.recommendedProposal === 'leave-stop'}>
+              <VStack gap={1}>
+                <HStack hAlign="between" vAlign="center" gap={1.5} wrap="wrap">
+                  <small>
+                    Option B · Leave stop now (keep partial science){' '}
+                    {execution.recommendedProposal === 'leave-stop' ? '(Recommended)' : ''}
+                  </small>
+                  <Badge variant={stateBadgeVariant(leaveBranch.state)} label={stateLabel(leaveBranch.state)} />
+                </HStack>
+                <p>{missionSequence(leaveBranch)}</p>
+                <p>{marginText(conservativeSummary(leaveBranch)?.margin ?? null)} at 0.8×</p>
+                {!canApprove(leaveBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
+              </VStack>
+            </Card>
           </div>
-          <div data-recommended={execution.recommendedProposal === 'leave-stop'}>
-            <small>Option B · Leave stop now (keep partial science) {execution.recommendedProposal === 'leave-stop' ? '(Recommended)' : ''}</small>
-            <p>{missionSequence(leaveBranch)}</p>
-            <p>{marginText(conservativeSummary(leaveBranch)?.margin ?? null)} at 0.8×</p>
-            {!canApprove(leaveBranch) && <small>Breaks 0.8×–1.2× reserve envelope.</small>}
+          <div className="mission-buttons">
+            {execution.status === 'REVIEW' && (
+              <>
+                <Button
+                  label="Approve: finish stop & continue"
+                  variant={execution.recommendedProposal === 'finish-stop' ? 'primary' : 'secondary'}
+                  size="sm"
+                  isDisabled={!canApprove(finishBranch)}
+                  onClick={() => onDecision(finishBranch, 'approved', 'finish-stop')}
+                />
+                <Button
+                  label="Approve: leave stop & continue"
+                  variant={execution.recommendedProposal === 'leave-stop' ? 'primary' : 'secondary'}
+                  size="sm"
+                  isDisabled={!canApprove(leaveBranch)}
+                  onClick={() => onDecision(leaveBranch, 'approved', 'leave-stop')}
+                />
+                <Button label="Hold position" variant="secondary" size="sm" onClick={() => onDecision(proposed, 'held')} />
+              </>
+            )}
+            {returnPlan && (
+              <Button
+                label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
+                variant="secondary"
+                size="sm"
+                isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'}
+                onClick={() => onDecision(returnPlan, 'abort')}
+              />
+            )}
           </div>
-        </div>
-        <div className="mission-buttons">
-          {execution.status === 'REVIEW' && <>
-            <Button
-              label="Approve: finish stop & continue"
-              variant={execution.recommendedProposal === 'finish-stop' ? 'primary' : 'secondary'}
-              isDisabled={!canApprove(finishBranch)}
-              onClick={() => onDecision(finishBranch, 'approved', 'finish-stop')}
-            />
-            <Button
-              label="Approve: leave stop & continue"
-              variant={execution.recommendedProposal === 'leave-stop' ? 'primary' : 'secondary'}
-              isDisabled={!canApprove(leaveBranch)}
-              onClick={() => onDecision(leaveBranch, 'approved', 'leave-stop')}
-            />
-            <Button label="Hold position" onClick={() => onDecision(proposed, 'held')} />
-          </>}
-          {returnPlan && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
-            isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => onDecision(returnPlan, 'abort')} />}
-        </div>
-      </>
-    ) : (
-      <>
-        <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" speed={0.8} />
-        {omitted.length > 0 && <p>Deferred: {omitted.map(stop => stop.name).join(', ')}.</p>}
-        {added.length > 0 && <p>Added: {added.map(stop => stop.name).join(', ')}.</p>}
-        {delta && <p>Reserve change at 0.8× · {marginText(delta)}.</p>}
-        {shortened.length > 0 && <p>Shortened activity: {shortened.map(stop => stop.name).join(', ')}.</p>}
-        {!canApprove(proposed) && <p role="status">Approval requires all three reserves at every modeled speed.</p>}
-        <div className="mission-buttons">
-          {execution.status === 'REVIEW' && <>
-            <Button label="Approve revision & continue" variant="primary" isDisabled={!canApprove(proposed)}
-              onClick={() => onDecision(proposed, 'approved')} />
-            <Button label="Hold position" onClick={() => onDecision(proposed, 'held')} />
-          </>}
-          {returnPlan && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
-            isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => onDecision(returnPlan, 'abort')} />}
-        </div>
-      </>
-    )}
-  </section>;
+        </>
+      ) : (
+        <>
+          <PlanComparison previous={baselineRemaining} proposed={proposed} label="Previous remaining plan" speed={0.8} />
+          {omitted.length > 0 && <p>Deferred: {omitted.map(stop => stop.name).join(', ')}.</p>}
+          {added.length > 0 && <p>Added: {added.map(stop => stop.name).join(', ')}.</p>}
+          {delta && <p>Reserve change at 0.8× · {marginText(delta)}.</p>}
+          {shortened.length > 0 && <p>Shortened activity: {shortened.map(stop => stop.name).join(', ')}.</p>}
+          {!canApprove(proposed) && <p role="status">Approval requires all three reserves at every modeled speed.</p>}
+          <div className="mission-buttons">
+            {execution.status === 'REVIEW' && (
+              <>
+                <Button
+                  label="Approve revision & continue"
+                  variant="primary"
+                  size="sm"
+                  isDisabled={!canApprove(proposed)}
+                  onClick={() => onDecision(proposed, 'approved')}
+                />
+                <Button label="Hold position" variant="secondary" size="sm" onClick={() => onDecision(proposed, 'held')} />
+              </>
+            )}
+            {returnPlan && (
+              <Button
+                label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
+                variant="secondary"
+                size="sm"
+                isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'}
+                onClick={() => onDecision(returnPlan, 'abort')}
+              />
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }
 
-export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
+export function MissionLifecycle({
+  bundle,
+  dataState,
+}: {
+  bundle: FieldBundle;
+  dataState?: Extract<BundleResult['state'], 'VERIFIED' | 'SOURCE_REVIEW_REQUIRED' | 'DEMO'>;
+}) {
   const [selected, setSelected] = useState<ScienceTarget[]>([]);
   const [limit, setLimit] = useState(stopLimit);
   const [preference, setPreference] = useState<RoutePreference>('fastest');
@@ -408,37 +701,80 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   const [resetViewRequestKey, setResetViewRequestKey] = useState(0);
   const [inspectedPoint, setInspectedPoint] = useState<MapPointInspection | null>(null);
 
-  const {manifest} = bundle;
+  const { manifest } = bundle;
+  const isDemo = dataState === 'DEMO' || manifest.status === 'DEMO_SYNTHETIC';
   const origin = useMemo(() => landingCell(bundle), [bundle]);
   const [customCol, setCustomCol] = useState(String(origin[1]));
   const [customRow, setCustomRow] = useState(String(origin[0]));
 
   const planning = useMemo(() => {
     if (execution || !selected.length) return null;
-    const input = {bundle, origin, stops: selected, spent: zeroResources, routePreference: preference};
-    return {primary: previewMission(input), lowerSlope: selected.length === 1 ? previewMission({...input, routePreference: 'lowerSlope'}) : null};
+    const input = { bundle, origin, stops: selected, spent: zeroResources, routePreference: preference };
+    return {
+      primary: previewMission(input),
+      lowerSlope: selected.length === 1 ? previewMission({ ...input, routePreference: 'lowerSlope' }) : null,
+    };
   }, [bundle, execution, origin, preference, selected]);
 
   const primary = planning?.primary.optimized;
-  const plan = execution?.proposal ?? execution?.active ?? (useAlternative === 'subset' ? planning?.primary.subset : undefined)
-    ?? (useAlternative === 'priority' ? planning?.primary.priority : undefined)
-    ?? (useAlternative === 'lowerSlope' ? planning?.lowerSlope?.optimized : undefined) ?? primary;
-  const returnPlan = useMemo(() => execution && execution.status !== 'COMPLETED'
-    ? proposeReturn(execution, bundle) : null, [bundle, execution]);
+  const plan =
+    execution?.proposal ??
+    execution?.active ??
+    (useAlternative === 'subset' ? planning?.primary.subset : undefined) ??
+    (useAlternative === 'priority' ? planning?.primary.priority : undefined) ??
+    (useAlternative === 'lowerSlope' ? planning?.lowerSlope?.optimized : undefined) ??
+    primary;
+  const returnPlan = useMemo(
+    () => (execution && execution.status !== 'COMPLETED' ? proposeReturn(execution, bundle) : null),
+    [bundle, execution],
+  );
   const previous = useMemo(() => execution && remainingActivePlan(execution, bundle), [bundle, execution]);
   const currentPlan = execution && !execution.proposal && previous ? previous : plan;
   const displayed = currentPlan?.legs;
-  const overlay = useMemo(() => ({planned: displayed ?? [], previous: execution?.proposal ? previous?.legs : undefined,
-    traveled: execution?.travels, hazards: execution?.hazards, position: execution?.position, selected: mapSelection}),
-  [displayed, execution, previous, mapSelection]);
+  const overlay = useMemo(
+    () => ({
+      planned: displayed ?? [],
+      previous: execution?.proposal ? previous?.legs : undefined,
+      traveled: execution?.travels,
+      hazards: execution?.hazards,
+      position: execution?.position,
+      selected: mapSelection,
+    }),
+    [displayed, execution, previous, mapSelection],
+  );
   const storageKey = `seshat-execution-v1:${manifest.sourceFileSha256 ?? manifest.sourceId}:${manifest.baseIndex}`;
 
-  const catalog = manifest.scienceTargets ?? [];
+  const catalog = useMemo(() => manifest.scienceTargets ?? [], [manifest.scienceTargets]);
   const activeExecutionLeg = execution?.active.legs[execution.legIndex];
   const baselineGate = useMemo(() => conservativeSummary(plan), [plan]);
   const activeStopProgress = execution?.activeStopId ? execution.stopProgress?.[execution.activeStopId] : undefined;
+
+  const opportunityAssessments = useMemo(() => {
+    if (!catalog.length) return {};
+    const liveScenario: MissionScenario = {
+      id: scenario.id,
+      label: scenario.label,
+      timeBudgetMinutes: scenario.timeBudgetMinutes,
+      elapsedMinutes: execution ? execution.spent.minutes : 0,
+      reserveMinutes: scenario.reserveMinutes,
+      referenceSpeedMetersPerSecond: scenario.referenceSpeedMetersPerSecond,
+      speedMultipliers: [0.8, 1, 1.2],
+      gradeModelId: scenario.gradeModelId,
+      datasetRevision: manifest.modelId ?? scenario.id,
+    };
+    return evaluatePositionOpportunities(
+      bundle,
+      execution ? execution.position : origin,
+      liveScenario,
+      catalog,
+      execution?.hazards ?? [],
+    );
+  }, [bundle, catalog, execution, manifest.modelId, origin]);
+
   const phaseKey = !execution
-    ? locked ? 'LOCKED' : 'PLAN'
+    ? locked
+      ? 'LOCKED'
+      : 'PLAN'
     : execution.status === 'REVIEW'
       ? 'REVIEW'
       : execution.status === 'HOLD'
@@ -446,7 +782,9 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
         : execution.status === 'COMPLETED'
           ? 'COMPLETED'
           : execution.activeStopId
-            ? activeStopProgress?.status === 'exploring' ? 'EXPLORE' : 'ARRIVED'
+            ? activeStopProgress?.status === 'exploring'
+              ? 'EXPLORE'
+              : 'ARRIVED'
             : 'MOVING';
   const reviewing = Boolean(execution?.proposal && previous);
   const meda = bundle.contextData?.meda;
@@ -466,8 +804,11 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
 
   useEffect(() => {
     if (!execution) return;
-    try { localStorage.setItem(storageKey, JSON.stringify(execution)); }
-    catch (error) { console.warn('Mission history could not be saved on this browser.', error); }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(execution));
+    } catch (error) {
+      console.warn('Mission history could not be saved on this browser.', error);
+    }
   }, [execution, storageKey]);
 
   function resumeMission() {
@@ -509,7 +850,9 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
     if (execution) return setMapSelection(point);
     if (locked) return;
     const index = cellIndex(point, bundle);
-    if (bundle.mask[index] !== 1 || index === manifest.baseIndex) return setNotice('Choose a covered terrain cell away from the landing site.');
+    if (bundle.mask[index] !== 1 || index === manifest.baseIndex) {
+      return setNotice('Choose a covered terrain cell away from the landing site.');
+    }
     const documented = manifest.scienceTargets?.find(stop => stop.location.gridRow === row && stop.location.gridCol === col);
     addStop(documented ?? scenarioPoint(point, `Custom point (${row}, ${col})`));
   }
@@ -527,9 +870,11 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   function exportPlan(format: 'json' | 'md') {
     if (!plan) return;
     const archive = createArchive(execution?.baseline ?? plan, manifest, execution ?? undefined, bundle.contextData, execution ? undefined : limit);
-    download(`seshat-${execution?.status === 'COMPLETED' ? 'mission-archive' : 'baseline'}.${format}`,
+    download(
+      `seshat-${execution?.status === 'COMPLETED' ? 'mission-archive' : 'baseline'}.${format}`,
       format === 'json' ? JSON.stringify(archive, null, 2) : archiveMarkdown(archive),
-      format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8');
+      format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8',
+    );
   }
 
   function advance(progress: 'part' | 'arrive' | 'explore' | 'finish') {
@@ -549,27 +894,55 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
   }
 
   function decide(updated: MissionPlan, decision: 'approved' | 'held' | 'abort', stopAction?: 'finish-stop' | 'leave-stop') {
-    setExecution(current => current && decideReplan(current, updated, decision, stopAction ? {stopAction} : undefined));
+    setExecution(current => current && decideReplan(current, updated, decision, stopAction ? { stopAction } : undefined));
   }
 
+  const activeOverlays = [
+    ...(showElevation ? ['elevation'] : []),
+    ...(showGeology ? ['geology'] : []),
+    ...(showThermal ? ['thermal'] : []),
+  ];
+
+  const handleOverlayToggle = (next: string[]) => {
+    setShowElevation(next.includes('elevation'));
+    setShowGeology(next.includes('geology'));
+    setShowThermal(next.includes('thermal'));
+  };
+
   const travelControls = execution?.status === 'EXECUTING' && !execution.activeStopId && !execution.pendingReading && activeExecutionLeg;
-  const baselineDecision = plan && <section className="field-section field-decision" aria-label="Baseline decision">
-    <h2>Return reserves <small>at 0.8× pace</small></h2>
-    <p className="cc-baseline-gate">
-      {baselineGate?.margin ? `0.8× margin: ${marginText(baselineGate.margin)}` : 'Return margin unavailable'}
-    </p>
-    {baselineGate?.margin && <small>Limiting resource · {baselineGate.limitingLabel}</small>}
-    <p>{missionSequence(plan)}</p>
-    {plan.deferred.length > 0 && <p>Deferred: {plan.deferred.map(stop => stop.name).join(', ')}.</p>}
-    <Button label="Approve & lock baseline plan" variant="primary" isDisabled={!canApprove(plan)} onClick={() => setLocked(true)} />
-    {!canApprove(plan) && <p>Approval requires all reserves at 0.8×, 1× and 1.2×.</p>}
-  </section>;
+  const baselineDecision = plan && (
+    <section className="field-section field-decision" aria-label="Baseline decision">
+      <h2>
+        Return reserves <small>at 0.8× pace</small>
+      </h2>
+      <p className="field-baseline-gate">
+        {baselineGate?.margin ? `0.8× margin: ${marginText(baselineGate.margin)}` : 'Return margin unavailable'}
+      </p>
+      {baselineGate?.margin && <small>Limiting resource · {baselineGate.limitingLabel}</small>}
+      <p>{missionSequence(plan)}</p>
+      {plan.deferred.length > 0 && <p>Deferred: {plan.deferred.map(stop => stop.name).join(', ')}.</p>}
+      <Button label="Approve & lock baseline plan" variant="primary" isDisabled={!canApprove(plan)} onClick={() => setLocked(true)} />
+      {!canApprove(plan) && <p>Approval requires all reserves at 0.8×, 1× and 1.2×.</p>}
+    </section>
+  );
 
   return (
     <main className="field-workbench">
       <header className="field-header">
-        <div><strong>SESHAT</strong><span>Jezero western fan</span></div>
-        <Button label="Sources" onClick={() => setShowSources(value => !value)} aria-expanded={showSources} />
+        <div className="field-header-brand">
+          <strong>SESHAT</strong>
+          <span>{isDemo ? 'Synthetic acceptance terrain' : 'Jezero western fan'}</span>
+        </div>
+        <div className="field-header-actions">
+          <ThemeControlPopup />
+          <Button
+            label="Sources"
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowSources(value => !value)}
+            aria-expanded={showSources}
+          />
+        </div>
       </header>
       <div className="field-layout">
         <section className="field-map" aria-label="Planetary terrain map">
@@ -590,59 +963,159 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
             mission={overlay}
           />
           <div className="field-map-tools">
-            <details className="field-layers" open={!manifest.mapDisplay}>
-              <summary>Layers</summary>
-              <div>
-                <div className="field-layer-options" role="group" aria-label="Surface layer">
-                  <button type="button" aria-pressed={!optical} onClick={() => setOptical(false)}>Terrain</button>
-                  {manifest.optical && <button type="button" aria-pressed={optical} onClick={() => setOptical(true)}>Orbital</button>}
-                  <button type="button" aria-pressed={showElevation} onClick={() => setShowElevation(value => !value)}>Elevation</button>
-                  {bundle.contextData?.geologicUnits && <button type="button" aria-pressed={showGeology} onClick={() => setShowGeology(value => !value)}>Geology</button>}
-                  {bundle.contextData?.thermalInertia && <button type="button" aria-pressed={showThermal} onClick={() => setShowThermal(value => !value)}>Thermal</button>}
-                </div>
-              </div>
-            </details>
-            <button type="button" onClick={() => setResetViewRequestKey(key => key + 1)}>Back to Jezero</button>
-            <button type="button" onClick={() => setFitRequestKey(key => key + 1)}>Fit mission</button>
+            <Collapsible
+              className="field-layers"
+              defaultIsOpen={!manifest.mapDisplay}
+              chevronPosition="end"
+              trigger="Layers"
+            >
+              <HStack gap={1.5} wrap="wrap">
+                <ToggleButtonGroup
+                  type="single"
+                  size="sm"
+                  label="Base surface layer"
+                  value={manifest.optical && optical ? 'orbital' : 'terrain'}
+                  onChange={val => {
+                    if (val) setOptical(val === 'orbital');
+                  }}
+                >
+                  <ToggleButton value="terrain" label="Terrain" />
+                  {manifest.optical && <ToggleButton value="orbital" label="Orbital" />}
+                </ToggleButtonGroup>
+                <ToggleButtonGroup
+                  type="multiple"
+                  size="sm"
+                  label="Scientific overlays"
+                  value={activeOverlays}
+                  onChange={handleOverlayToggle}
+                >
+                  <ToggleButton value="elevation" label="Elevation" />
+                  {bundle.contextData?.geologicUnits && <ToggleButton value="geology" label="Geology" />}
+                  {bundle.contextData?.thermalInertia && <ToggleButton value="thermal" label="Thermal" />}
+                </ToggleButtonGroup>
+              </HStack>
+            </Collapsible>
+            <Button label="Back to Jezero" variant="secondary" size="sm" onClick={() => setResetViewRequestKey(key => key + 1)} />
+            <Button label="Fit mission" variant="secondary" size="sm" onClick={() => setFitRequestKey(key => key + 1)} />
           </div>
-          {inspectedPoint && <div className="cc-point-inspector field-point" aria-label="Map point inspection">
-            <div className="field-point-title">
-              <strong>{inspectedPoint.label}</strong>
-              <button type="button" onClick={clearInspection} aria-label="Close map point inspection">×</button>
+          {inspectedPoint && (
+            <div className="cc-point-inspector field-point" aria-label="Map point inspection">
+              <div className="field-point-title">
+                <strong>{inspectedPoint.label}</strong>
+                <IconButton
+                  label="Close map point inspection"
+                  icon={<Icon icon="close" />}
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearInspection}
+                />
+              </div>
+              {inspectedPoint.lat != null && inspectedPoint.lon != null && (
+                <p>
+                  {Math.abs(inspectedPoint.lat).toFixed(4)}°{inspectedPoint.lat < 0 ? 'S' : 'N'},{' '}
+                  {Math.abs(inspectedPoint.lon).toFixed(4)}°{inspectedPoint.lon < 0 ? 'W' : 'E'}
+                </p>
+              )}
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.elevationMeters != null && (
+                <p>{inspectedPoint.elevationMeters.toFixed(0)} m elevation</p>
+              )}
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.geologicUnit && showGeology && (
+                <p>Geologic unit: {inspectedPoint.geologicUnit}</p>
+              )}
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.thermalInertia != null && showThermal && (
+                <p>Thermal inertia: {inspectedPoint.thermalInertia.toFixed(1)} J m⁻² K⁻¹ s⁻¹/²</p>
+              )}
+              {inspectedPoint.status === 'COVERED' && inspectedPoint.cell && !locked && !execution && (
+                <Button
+                  label="Add this stop"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    selectCell(...inspectedPoint.cell!);
+                    clearInspection();
+                  }}
+                />
+              )}
+              {inspectedPoint.status === 'COVERED' && execution && <p>Selected location for your next event.</p>}
             </div>
-            {inspectedPoint.lat != null && inspectedPoint.lon != null && <p>
-              {Math.abs(inspectedPoint.lat).toFixed(4)}°{inspectedPoint.lat < 0 ? 'S' : 'N'}, {Math.abs(inspectedPoint.lon).toFixed(4)}°{inspectedPoint.lon < 0 ? 'W' : 'E'}
-            </p>}
-            {inspectedPoint.status === 'COVERED' && inspectedPoint.elevationMeters != null && <p>{inspectedPoint.elevationMeters.toFixed(0)} m elevation</p>}
-            {inspectedPoint.status === 'COVERED' && inspectedPoint.geologicUnit && showGeology && (
-              <p>Geologic unit: {inspectedPoint.geologicUnit}</p>
-            )}
-            {inspectedPoint.status === 'COVERED' && inspectedPoint.thermalInertia != null && showThermal && (
-              <p>Thermal inertia: {inspectedPoint.thermalInertia.toFixed(1)} J m⁻² K⁻¹ s⁻¹/²</p>
-            )}
-            {inspectedPoint.status === 'COVERED' && inspectedPoint.cell && !locked && !execution && (
-              <Button label="Add this stop" variant="primary" onClick={() => {selectCell(...inspectedPoint.cell!); clearInspection();}} />
-            )}
-            {inspectedPoint.status === 'COVERED' && execution && <p>Selected location for your next event.</p>}
-          </div>}
+          )}
           {manifest.mapDisplay && <div className="field-map-credit">NASA / JPL · USGS</div>}
         </section>
         <aside className="field-panel" aria-label={execution ? 'Mission execution' : 'Mission planning'}>
-          {showSources && <section className="field-section field-sources" aria-label="Data and assumptions">
-            <h2>Sources</h2>
-            <p>Research prototype · {manifest.status === 'VERIFIED' ? 'Team-reviewed terrain' : 'Terrain review pending'}</p>
-            <ul>
-              <li><a href={manifest.sourceUrl}>CTX terrain</a></li>
-              {manifest.optical && <li><a href={manifest.optical.sourceUrl}>CTX orbital imagery</a></li>}
-              <li><a href="https://trek.nasa.gov/mars/">NASA Mars Trek</a></li>
-              {bundle.contextData?.geologicUnits && <li><a href={bundle.contextData.geologicUnits.sourceUrl}>Jezero bedrock · Stack et al.</a></li>}
-              {manifest.contextLayers?.thermalInertia && <li><a href={manifest.contextLayers.thermalInertia.sourceUrl}>Thermal inertia · Edwards and Buz</a></li>}
-              {meda && <li><a href={meda.sourceUrl}>Historical MEDA pressure</a></li>}
-            </ul>
-            {meda?.sols?.[0] && <p>Historical MEDA pressure · sol {meda.sols[0].sol} · {Math.round(meda.sols[0].medianPa)} Pa median</p>}
-            <p>{Object.values(scenario.environmentalContext).join(' ')}</p>
-            <p><Link href="/?opportunities=1" prefetch={false}>Opportunity frontier</Link> · <Link href="/?demo=1" prefetch={false}>Synthetic test scene</Link></p>
-          </section>}
+          {isDemo && (
+            <div className="field-section">
+              <Banner
+                status="warning"
+                collapsible={false}
+                title="SYNTHETIC — NOT MARS"
+                description="Artificially generated acceptance landscape for testing traverse UI and graphs. Routes do not depict Mars."
+              />
+            </div>
+          )}
+          {showSources && (
+            <section className="field-section field-sources" aria-label="Data and assumptions">
+              <h2>Sources</h2>
+              <p>
+                Research prototype ·{' '}
+                {isDemo
+                  ? 'Synthetic test fixture'
+                  : manifest.status === 'VERIFIED'
+                    ? 'Team-reviewed terrain'
+                    : 'Terrain review pending'}
+              </p>
+              <ul>
+                <li>
+                  <Link href={manifest.sourceUrl} target="_blank" rel="noreferrer">
+                    CTX terrain
+                  </Link>
+                </li>
+                {manifest.optical && (
+                  <li>
+                    <Link href={manifest.optical.sourceUrl} target="_blank" rel="noreferrer">
+                      CTX orbital imagery
+                    </Link>
+                  </li>
+                )}
+                <li>
+                  <Link href="https://trek.nasa.gov/mars/" target="_blank" rel="noreferrer">
+                    NASA Mars Trek
+                  </Link>
+                </li>
+                {bundle.contextData?.geologicUnits && (
+                  <li>
+                    <Link href={bundle.contextData.geologicUnits.sourceUrl} target="_blank" rel="noreferrer">
+                      Jezero bedrock · Stack et al.
+                    </Link>
+                  </li>
+                )}
+                {manifest.contextLayers?.thermalInertia && (
+                  <li>
+                    <Link href={manifest.contextLayers.thermalInertia.sourceUrl} target="_blank" rel="noreferrer">
+                      Thermal inertia · Edwards and Buz
+                    </Link>
+                  </li>
+                )}
+                {meda && (
+                  <li>
+                    <Link href={meda.sourceUrl} target="_blank" rel="noreferrer">
+                      Historical MEDA pressure
+                    </Link>
+                  </li>
+                )}
+              </ul>
+              {meda?.sols?.[0] && (
+                <p>
+                  Historical MEDA pressure · sol {meda.sols[0].sol} · {Math.round(meda.sols[0].medianPa)} Pa median
+                </p>
+              )}
+              <p>{Object.values(scenario.environmentalContext).join(' ')}</p>
+              <p>
+                <Link href={isDemo ? '/' : '/?demo=1'}>
+                  {isDemo ? 'Switch to Jezero Mars dataset' : 'Synthetic test scene'}
+                </Link>
+              </p>
+            </section>
+          )}
           {reviewing && execution && previous ? (
             <ChangeReview
               execution={execution}
@@ -650,7 +1123,7 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
               returnPlan={returnPlan}
               headingRef={reviewHeadingRef}
               onDecision={decide}
-              onReopen={() => setExecution(current => current?.status === 'HOLD' ? {...current, status: 'REVIEW'} : current)}
+              onReopen={() => setExecution(current => (current?.status === 'HOLD' ? { ...current, status: 'REVIEW' } : current))}
             />
           ) : execution ? (
             <>
@@ -658,27 +1131,43 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
                 mission={execution}
                 selected={mapSelection}
                 headingRef={phaseHeadingRef}
-                onEvent={entry => {setExecution(recordEvent(execution, bundle, entry)); setMapSelection(null);}}
+                onEvent={entry => {
+                  setExecution(recordEvent(execution, bundle, entry));
+                  setMapSelection(null);
+                }}
                 onExploreStep={() => advance('explore')}
                 onFinishStop={() => advance('finish')}
                 onLogObservation={note => setExecution(current => current && logStopObservation(current, note))}
                 onTriggerReading={() => setExecution(current => current && triggerSimulatedReading(current, bundle))}
                 onRecordReading={() => setExecution(current => current && recordPendingReading(current, bundle))}
-                onDismissReading={() => setExecution(current => current && {...current, pendingReading: null})}
+                onDismissReading={() => setExecution(current => current && { ...current, pendingReading: null })}
               />
-              {travelControls && <div className="field-actions field-travel">
-                <Button label={activeExecutionLeg.targetId === landingId ? 'Return to Landing Site' : 'Arrive at stop'} variant="primary" onClick={() => advance('arrive')} />
-                <Button label="Move along active leg" onClick={() => advance('part')} isDisabled={execution.cursor >= activeExecutionLeg.route.geometryGrid.length - 1} />
-              </div>}
+              {travelControls && (
+                <div className="field-actions field-travel">
+                  <Button
+                    label={activeExecutionLeg.targetId === landingId ? 'Return to Landing Site' : 'Arrive at stop'}
+                    variant="primary"
+                    onClick={() => advance('arrive')}
+                  />
+                  <Button
+                    label="Move along active leg"
+                    variant="secondary"
+                    onClick={() => advance('part')}
+                    isDisabled={execution.cursor >= activeExecutionLeg.route.geometryGrid.length - 1}
+                  />
+                </div>
+              )}
             </>
           ) : locked && plan ? (
             <section className="field-section">
-              <h1 ref={phaseHeadingRef} tabIndex={-1}>Baseline approved</h1>
+              <h1 ref={phaseHeadingRef} tabIndex={-1}>
+                Baseline approved
+              </h1>
               <p>{missionSequence(plan)}</p>
               {baselineGate?.margin && <p>Return margin at 0.8× · {marginText(baselineGate.margin)}</p>}
               <div className="field-actions">
                 <Button label="Start traverse" variant="primary" onClick={() => setExecution(startMission(plan, selected, limit))} />
-                <Button label="Edit plan" onClick={() => setLocked(false)} />
+                <Button label="Edit plan" variant="secondary" onClick={() => setLocked(false)} />
               </div>
             </section>
           ) : (
@@ -697,7 +1186,9 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
               onCustomRow={setCustomRow}
               onAddCustomPoint={addManualCell}
               onMode={newLimit => {
-                if (newLimit === 1 && selected.length > 1) return setNotice('Remove stops until one remains, then choose Single.');
+                if (newLimit === 1 && selected.length > 1) {
+                  return setNotice('Remove stops until one remains, then choose Single.');
+                }
                 setLimit(newLimit);
                 setNotice('');
               }}
@@ -711,45 +1202,133 @@ export function MissionLifecycle({bundle}: {bundle: FieldBundle}) {
               onResume={resumeMission}
             />
           )}
-          {notice && <p role="status" className="field-notice">{notice}</p>}
+          {notice && (
+            <p role="status" className="field-notice">
+              {notice}
+            </p>
+          )}
           {execution?.status === 'COMPLETED' && <h2 className="field-complete">Mission complete</h2>}
-          {returnPlan && !reviewing && <section className="field-section">
-            <h2>Direct return</h2>
-            <p>{marginText(conservativeSummary(returnPlan)?.margin ?? null)} at 0.8×</p>
-            {activeExecutionLeg?.targetId !== landingId && <Button label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
-              isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'} onClick={() => decide(returnPlan, 'abort')} />}
-            {returnPlan.legs.at(-1)?.route.status !== 'READY' && <p>No modeled route to the landing site is available.</p>}
-          </section>}
-          {!execution && !locked && primary && <details className="mission-disclosure field-details">
-            <summary>Route options</summary>
-            {selected.length > 1 && <label className="mission-field field-route-preference">
-              Route preference
-              <select value={preference} onChange={event => {setPreference(event.target.value as RoutePreference); setUseAlternative('primary');}}>
-                <option value="fastest">Minimum travel time</option>
-                <option value="lowerSlope">Prefer gentler terrain</option>
-              </select>
-            </label>}
-            <div className="field-actions">
-              <Button label="Show optimized order" onClick={() => setUseAlternative('primary')} />
-              {planning?.primary.subset && <Button label="Show feasible subset" onClick={() => setUseAlternative('subset')} />}
-              {planning?.lowerSlope && <Button label="Show lower-slope option" onClick={() => setUseAlternative('lowerSlope')} />}
+          {returnPlan && !reviewing && (
+            <section className="field-section">
+              <h2>Direct return</h2>
+              <p>{marginText(conservativeSummary(returnPlan)?.margin ?? null)} at 0.8×</p>
+              {activeExecutionLeg?.targetId !== landingId && (
+                <Button
+                  label={canApprove(returnPlan) ? 'Abort & return directly' : 'Abort & return with reserve risk'}
+                  variant="secondary"
+                  size="sm"
+                  isDisabled={returnPlan.legs.at(-1)?.route.status !== 'READY'}
+                  onClick={() => decide(returnPlan, 'abort')}
+                />
+              )}
+              {returnPlan.legs.at(-1)?.route.status !== 'READY' && <p>No modeled route to the landing site is available.</p>}
+            </section>
+          )}
+          {!execution && !locked && primary && (
+            <Collapsible
+              className="mission-disclosure field-details"
+              defaultIsOpen={false}
+              chevronPosition="end"
+              trigger="Route options"
+            >
+              <VStack gap={2}>
+                {selected.length > 1 && (
+                  <Selector
+                    label="Route preference"
+                    size="sm"
+                    width="100%"
+                    options={routePreferenceOptions}
+                    value={preference}
+                    onChange={value => {
+                      setPreference(value as RoutePreference);
+                      setUseAlternative('primary');
+                    }}
+                  />
+                )}
+                <div className="field-actions">
+                  <Button label="Show optimized order" variant="secondary" size="sm" onClick={() => setUseAlternative('primary')} />
+                  {planning?.primary.subset && (
+                    <Button label="Show feasible subset" variant="secondary" size="sm" onClick={() => setUseAlternative('subset')} />
+                  )}
+                  {planning?.lowerSlope && (
+                    <Button label="Show lower-slope option" variant="secondary" size="sm" onClick={() => setUseAlternative('lowerSlope')} />
+                  )}
+                </div>
+                {selected.length > 1 && planning && (
+                  <PlanComparison
+                    previous={planning.primary.priority}
+                    proposed={primary}
+                    label="Astronaut priority order"
+                    action="Use priority order"
+                    onChoose={() => setUseAlternative('priority')}
+                  />
+                )}
+              </VStack>
+            </Collapsible>
+          )}
+          {catalog.length > 0 && execution?.status !== 'COMPLETED' && (
+            <Collapsible
+              className="mission-disclosure field-details"
+              defaultIsOpen={false}
+              chevronPosition="end"
+              trigger="Nearby target opportunities"
+            >
+              <div className="opportunity-list">
+                {catalog.map(target => {
+                  const assessment = opportunityAssessments[target.id];
+                  const margin = assessment?.nominalMarginMinutes;
+                  return (
+                    <div key={target.id} className="opportunity-row">
+                      <div className="opportunity-row-meta">
+                        <strong>{target.name}</strong>
+                        <small>
+                          {margin == null ? 'Margin unavailable' : `${margin >= 0 ? '+' : ''}${margin.toFixed(1)} min at 1×`}
+                        </small>
+                      </div>
+                      {assessment && (
+                        <Badge variant={stateBadgeVariant(assessment.state)} label={stateLabel(assessment.state)} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Collapsible>
+          )}
+          {currentPlan && execution?.status !== 'COMPLETED' && (
+            <Collapsible
+              className="mission-disclosure field-details"
+              defaultIsOpen={false}
+              chevronPosition="end"
+              trigger={reviewing ? 'Revised itinerary and resources' : execution || locked ? 'Approved route' : 'Itinerary and resources'}
+            >
+              <MissionPlanPreview
+                plan={currentPlan}
+                spent={execution?.spent ?? zeroResources}
+                manifest={manifest}
+                label={reviewing ? 'Proposed remaining route' : execution || locked ? 'Baseline and schedule' : 'Selected plan'}
+              />
+            </Collapsible>
+          )}
+          {plan && (execution || locked) && (
+            <div className="field-actions field-export">
+              <Button label="Download JSON" variant="secondary" size="sm" onClick={() => exportPlan('json')} />
+              <Button label="Download Markdown" variant="secondary" size="sm" onClick={() => exportPlan('md')} />
+              <Button label="Print plan" variant="secondary" size="sm" onClick={() => window.print()} />
+              {execution?.status === 'COMPLETED' && (
+                <Button
+                  label="Plan another mission"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setExecution(null);
+                    changeStops([]);
+                    setMapSelection(null);
+                    setInspectedPoint(null);
+                  }}
+                />
+              )}
             </div>
-            {selected.length > 1 && planning && <PlanComparison previous={planning.primary.priority} proposed={primary}
-              label="Astronaut priority order" action="Use priority order" onChoose={() => setUseAlternative('priority')} />}
-          </details>}
-          {currentPlan && execution?.status !== 'COMPLETED' && <details className="mission-disclosure field-details">
-            <summary>{reviewing ? 'Revised itinerary and resources' : execution || locked ? 'Approved route' : 'Itinerary and resources'}</summary>
-            <MissionPlanPreview plan={currentPlan} spent={execution?.spent ?? zeroResources} manifest={manifest}
-              label={reviewing ? 'Proposed remaining route' : execution || locked ? 'Baseline and schedule' : 'Selected plan'} />
-          </details>}
-          {plan && (execution || locked) && <div className="field-actions field-export">
-            <Button label="Download JSON" onClick={() => exportPlan('json')} />
-            <Button label="Download Markdown" onClick={() => exportPlan('md')} />
-            <Button label="Print plan" onClick={() => window.print()} />
-            {execution?.status === 'COMPLETED' && <Button label="Plan another mission" onClick={() => {
-              setExecution(null); changeStops([]); setMapSelection(null); setInspectedPoint(null);
-            }} />}
-          </div>}
+          )}
         </aside>
       </div>
     </main>
