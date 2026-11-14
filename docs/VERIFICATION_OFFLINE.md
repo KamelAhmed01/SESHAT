@@ -1,26 +1,38 @@
 # SESHAT release verification
 
-Run: 2026-11-14T02:18:43.314960+00:00
+Run: 2026-11-14T03:45:42.883840+00:00
 Mode: OFFLINE
-Overall result: FAIL; offline PASS does not imply release PASS.
+Overall result: PASS; offline PASS does not imply release PASS.
 
-## FAIL: Python pipeline + security
+## PASS: Python pipeline + security
 
 ```text
-/usr/bin/python3: No module named pytest
+
+..............................                                           [100%]
+30 passed in 0.88s
+```
+
+## PASS: TypeScript scientific compile
+
+```text
 
 ```
 
-## FAIL: TypeScript scientific compile
+## PASS: Node scientific oracles
 
 ```text
-Executable unavailable: tsc
-```
-
-## FAIL: Node scientific oracles
-
-```text
-Executable unavailable: node
+  ✔ matches manifest geographicBounds and boundary polygon closely (0.710875ms)
+  ✔ returns null outside the 20 m AEQD grid (browse-only area) (0.239958ms)
+  ✔ handles antimeridian wrapping and computes realistic spherical Mars distances (0.130792ms)
+✔ Mars geographic AEQD coordinate transforms (2.910417ms)
+ℹ tests 45
+ℹ suites 2
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 515.203625
 ```
 
 ## NOT EXECUTED (offline mode)

@@ -14,7 +14,7 @@ test('interrupted science preserves observations, survives reload, compares fini
 
   await page.getByRole('button', {name: 'Add Shuyak · Cape Nukshak'}).click();
   await page.getByRole('button', {name: 'Add Swift Run · Skinner Ridge'}).click();
-  await expect(page.locator('.cc-baseline-gate')).toContainText('0.8× margin:');
+  await expect(page.locator('.field-baseline-gate')).toContainText('0.8× margin:');
 
   await page.getByRole('button', {name: 'Approve & lock baseline plan'}).click();
   await expect(page.getByRole('button', {name: 'Download JSON'})).toBeVisible();
@@ -57,11 +57,13 @@ test('interrupted science preserves observations, survives reload, compares fini
   await expect(page.getByText('Layered sulfate lens observed (exploration)')).toBeVisible();
 
   await page.getByText('Record an event', {exact:true}).click();
-  await page.getByLabel('Event category').selectOption('NEW_TERRAIN_HAZARD');
+  await page.getByRole('combobox', {name: 'Event category'}).click();
+  await page.getByRole('option', {name: 'New terrain hazard'}).click();
   await page.getByLabel('Event row Y').fill('118');
   await page.getByLabel('Event column X').fill('122');
   await expect(page.getByText(/Target cell \(118, 122\)/)).toBeVisible();
-  await page.getByLabel('Event category').selectOption('MISSION_DELAY');
+  await page.getByRole('combobox', {name: 'Event category'}).click();
+  await page.getByRole('option', {name: 'Mission delay'}).click();
 
   for (let i = 0; i < 2; i++) {
     await page.getByRole('button', {name: 'Arrive at stop'}).click();

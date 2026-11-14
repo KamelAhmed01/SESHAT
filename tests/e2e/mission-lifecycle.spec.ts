@@ -25,9 +25,11 @@ test('Jezero baseline survives an event, approval, a reload and return', async (
   await page.getByText('Mission history', {exact:true}).click();
   const completedStop = await page.getByRole('listitem').filter({hasText: /^✓/}).textContent();
   await page.getByText('Record an event', {exact:true}).click();
-  await page.getByLabel('Input channel').selectOption('INSTRUMENT_INTEGRATION');
-  await page.getByLabel('Event category').selectOption('DESTINATION_ACCESSIBILITY_CHANGE');
-  const deferred = await page.getByLabel('Upcoming stop').locator('option').first().textContent();
+  await page.getByRole('combobox', {name: 'Input channel'}).click();
+  await page.getByRole('option', {name: 'Simulated mission instrument'}).click();
+  await page.getByRole('combobox', {name: 'Event category'}).click();
+  await page.getByRole('option', {name: 'Destination inaccessible'}).click();
+  const deferred = (await page.getByRole('combobox', {name: 'Upcoming stop'}).textContent())?.trim();
   await page.getByRole('button', {name: 'Record event & recalculate'}).click();
   await expect(page.getByRole('heading', {name: 'Review the revised plan'})).toBeVisible();
   await expect(page.getByText(`Deferred: ${deferred}.`)).toBeVisible();
@@ -56,7 +58,7 @@ test('Jezero baseline survives an event, approval, a reload and return', async (
 test('real planning view fits the mobile viewport', async ({page}) => {
   await page.setViewportSize({width: 390, height: 844});
   await page.goto('/');
-  await page.getByRole('button', {name: 'Single', exact: true}).click();
+  await page.getByRole('radio', {name: 'Single', exact: true}).click();
   await page.getByRole('button', {name: 'Add Swift Run · Skinner Ridge'}).click();
   await page.getByText('Route options', {exact:true}).click();
   await expect(page.getByRole('button', {name: 'Show lower-slope option'})).toBeVisible();
